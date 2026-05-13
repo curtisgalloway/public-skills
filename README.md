@@ -15,10 +15,6 @@ Most skills assume:
 - Standard CLI tools (`git`, `curl`, etc.) available on `PATH`
 - Any skill-specific dependencies called out in the skill's own docs
 
-## Contributing
-
-Pull requests welcome. Please keep skills general-purpose and free of any personal or environment-specific details (hostnames, email addresses, local paths, internal service names, etc.).
-
 ## License
 
 Apache 2.0 — see [LICENSE](LICENSE).
