@@ -37,41 +37,9 @@ traffic to a pcap file or live in the Packetry GUI.
 
 ### Software
 
-**`cynthion` CLI** (all platforms):
-
-```bash
-uv tool install cynthion
-```
-
-**Packetry GUI** — install method depends on platform:
-
-| Platform | Install |
-|---|---|
-| macOS | `brew install packetry` |
-| Linux | Download the binary from [github.com/greatscottgadgets/packetry/releases](https://github.com/greatscottgadgets/packetry/releases) |
-| Windows | Download `Packetry-Installer-for-Windows.zip` from the same releases page and run the installer |
-
-**Linux only — udev rules:**
-
-Without the udev rules, the Cynthion device is only accessible as root. Install them
-from the Cynthion package:
-
-```bash
-sudo cp ~/.local/share/uv/tools/cynthion/lib/python*/site-packages/cynthion/assets/54-cynthion.rules \
-    /etc/udev/rules.d/
-sudo udevadm control --reload-rules
-sudo udevadm trigger
-```
-
-Then unplug and replug the Cynthion.
-
-Verify the device is visible:
-
-```bash
-cynthion info
-```
-
-Expected output includes `Found Apollo stub interface!` with a vendor ID of `1d50`.
+Run the `cynthion-setup` skill to install all software prerequisites (`cynthion`
+CLI, Packetry, and Linux udev rules) and verify device access. Only continue with
+this skill once `cynthion info` reports `Found Apollo stub interface!`.
 
 ## Hardware wiring
 
