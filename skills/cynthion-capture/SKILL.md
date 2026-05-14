@@ -37,10 +37,33 @@ traffic to a pcap file or live in the Packetry GUI.
 
 ### Software
 
+**`cynthion` CLI** (all platforms):
+
+```bash
+uv tool install cynthion
 ```
-uv tool install cynthion       # CLI: device management, bitstream loading
-brew install packetry           # GUI: capture and analysis frontend
+
+**Packetry GUI** — install method depends on platform:
+
+| Platform | Install |
+|---|---|
+| macOS | `brew install packetry` |
+| Linux | Download the binary from [github.com/greatscottgadgets/packetry/releases](https://github.com/greatscottgadgets/packetry/releases) |
+| Windows | Download `Packetry-Installer-for-Windows.zip` from the same releases page and run the installer |
+
+**Linux only — udev rules:**
+
+Without the udev rules, the Cynthion device is only accessible as root. Install them
+from the Cynthion package:
+
+```bash
+sudo cp ~/.local/share/uv/tools/cynthion/lib/python*/site-packages/cynthion/assets/54-cynthion.rules \
+    /etc/udev/rules.d/
+sudo udevadm control --reload-rules
+sudo udevadm trigger
 ```
+
+Then unplug and replug the Cynthion.
 
 Verify the device is visible:
 
@@ -148,7 +171,7 @@ cynthion update
 **`cynthion info` shows no device found**
 - Check that the CONTROL port cable is connected and is a data cable (not charge-only)
 - Try a different USB port on the host
-- On Linux: confirm udev rules are installed (`/etc/udev/rules.d/54-cynthion.rules`)
+- On Linux: confirm udev rules are installed (see Prerequisites above) and that you unplugged and replugged the device after installing them
 
 **Packetry shows no capture data**
 - Confirm the analyzer bitstream is loaded (`cynthion info` → `Bitstream: USB Analyzer`)
