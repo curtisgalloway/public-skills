@@ -1,0 +1,192 @@
+{
+  "device": {
+    "idVendor": "0x1234",
+    "idProduct": "0xabcd",
+    "bcdUSB": "0x0200",
+    "manufacturer": 1,
+    "product": 2
+  },
+  "labels": [
+    "status_query",
+    "set_brightness"
+  ],
+  "endpoint_pairs": [
+    {
+      "addr": 0,
+      "endp": 1,
+      "note": "bidirectional \u2014 likely command+response"
+    }
+  ],
+  "endpoints": [
+    {
+      "addr": 0,
+      "endp": 1,
+      "direction": "IN",
+      "frame_size": 4,
+      "byte_roles": [
+        {
+          "offset": 0,
+          "role": "constant",
+          "values_by_label": {
+            "status_query": [
+              "0x00"
+            ],
+            "set_brightness": [
+              "0x00"
+            ]
+          }
+        },
+        {
+          "offset": 1,
+          "role": "opcode",
+          "values_by_label": {
+            "status_query": [
+              "0x40"
+            ],
+            "set_brightness": [
+              "0x80"
+            ]
+          }
+        },
+        {
+          "offset": 2,
+          "role": "constant",
+          "values_by_label": {
+            "status_query": [
+              "0x00"
+            ],
+            "set_brightness": [
+              "0x00"
+            ]
+          }
+        },
+        {
+          "offset": 3,
+          "role": "candidate_opcode",
+          "values_by_label": {
+            "status_query": [
+              "0x00",
+              "0x01",
+              "0x02",
+              "0x03"
+            ],
+            "set_brightness": [
+              "0x00",
+              "0x01",
+              "0x02",
+              "0x03"
+            ]
+          }
+        }
+      ],
+      "opcode_offsets": [
+        1,
+        3
+      ],
+      "commands": [
+        {
+          "opcode": "0x40",
+          "observed_in_labels": [
+            "status_query"
+          ],
+          "count": 10,
+          "example_payload": "00400000"
+        },
+        {
+          "opcode": "0x80",
+          "observed_in_labels": [
+            "set_brightness"
+          ],
+          "count": 10,
+          "example_payload": "00800000"
+        }
+      ]
+    },
+    {
+      "addr": 0,
+      "endp": 1,
+      "direction": "OUT",
+      "frame_size": 4,
+      "byte_roles": [
+        {
+          "offset": 0,
+          "role": "opcode",
+          "values_by_label": {
+            "status_query": [
+              "0x01"
+            ],
+            "set_brightness": [
+              "0x02"
+            ]
+          }
+        },
+        {
+          "offset": 1,
+          "role": "opcode",
+          "values_by_label": {
+            "status_query": [
+              "0x00"
+            ],
+            "set_brightness": [
+              "0x80"
+            ]
+          }
+        },
+        {
+          "offset": 2,
+          "role": "constant",
+          "values_by_label": {
+            "status_query": [
+              "0x00"
+            ],
+            "set_brightness": [
+              "0x00"
+            ]
+          }
+        },
+        {
+          "offset": 3,
+          "role": "candidate_opcode",
+          "values_by_label": {
+            "status_query": [
+              "0x00",
+              "0x01",
+              "0x02",
+              "0x03"
+            ],
+            "set_brightness": [
+              "0x00",
+              "0x01",
+              "0x02",
+              "0x03"
+            ]
+          }
+        }
+      ],
+      "opcode_offsets": [
+        0,
+        1,
+        3
+      ],
+      "commands": [
+        {
+          "opcode": "0x01",
+          "observed_in_labels": [
+            "status_query"
+          ],
+          "count": 10,
+          "example_payload": "01000000"
+        },
+        {
+          "opcode": "0x02",
+          "observed_in_labels": [
+            "set_brightness"
+          ],
+          "count": 10,
+          "example_payload": "02800000"
+        }
+      ]
+    }
+  ],
+  "open_questions": []
+}
