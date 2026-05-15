@@ -38,7 +38,7 @@ The `*.jsonl` glob (not bare `*`) matters — it excludes the `memory/` subdir a
 
 ## Listing sessions for the current project
 
-For skills that need to walk the project's full session history (e.g. `/wrapup`):
+For skills that need to walk the project's full session history (e.g. `/teach`, `/wrapup`):
 
 ```bash
 PROJECT_KEY="-$(pwd | tr '/' '-')"
