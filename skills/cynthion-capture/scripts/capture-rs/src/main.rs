@@ -8,7 +8,8 @@
 //
 // Cynthion USB Analyzer headless capture tool.
 //
-// Uses nusb (IOUSBHost on macOS) — same framework as Packetry, no sudo needed.
+// Uses nusb: IOUSBHost on macOS (no sudo needed), usbfs on Linux (udev rules
+// required for unprivileged access), WinUSB on Windows.
 // Writes standard libpcap format (LINKTYPE_USB_2_0 = 288).
 //
 // Protocol reference: packetry src/backend/cynthion.rs

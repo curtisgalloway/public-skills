@@ -119,11 +119,12 @@ capture without launching Packetry. It writes standard libpcap files
 
 Two implementations are provided in `scripts/`:
 
-- **Rust** (`scripts/capture-rs/`) — recommended; uses `nusb` (IOUSBHost on macOS,
-  usbfs on Linux) so **no `sudo` required** on macOS. Async bulk-in queue gives
-  better throughput at high USB traffic rates.
+- **Rust** (`scripts/capture-rs/`) — recommended; uses `nusb`, which is
+  cross-platform: IOUSBHost on macOS (no sudo needed), usbfs on Linux (udev rules
+  required for unprivileged access — same rules used by Packetry), WinUSB on
+  Windows. Async bulk-in queue gives better throughput at high traffic rates.
 - **Python** (`scripts/capture.py`) — simpler to run without a build step; uses
-  `pyusb` which may need `sudo` on Linux unless udev rules grant access.
+  `pyusb`, which has the same platform access requirements as the Rust tool.
 
 ### Build and install the Rust tool
 
