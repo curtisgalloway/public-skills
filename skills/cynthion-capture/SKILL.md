@@ -1,6 +1,6 @@
 ---
 name: cynthion-capture
-description: Set up and run USB traffic capture with a Cynthion USB analyzer. Covers device verification, loading the analyzer bitstream, hardware wiring, launching Packetry for capture, and saving captures as .pcap files for offline analysis. Use when the user asks to capture USB traffic, analyze a USB device, or start a USB capture session with Cynthion.
+description: Set up and run USB traffic capture with a Cynthion USB analyzer. Covers device verification, loading the analyzer bitstream, hardware wiring, launching Packetry for GUI capture, and headless (no-GUI) capture to .pcap files using the bundled Rust or Python tools. Use when the user asks to capture USB traffic, analyze a USB device, run headless/automated capture, or start a USB capture session with Cynthion.
 ---
 
 <!--
@@ -26,6 +26,8 @@ traffic to a pcap file or live in the Packetry GUI.
 - "analyze this USB device with Cynthion"
 - "run packetry"
 - "load the analyzer bitstream"
+- "headless capture"
+- "capture without a GUI"
 
 ## Prerequisites
 
@@ -45,24 +47,29 @@ this skill once `cynthion info` reports `Found Apollo stub interface!`.
 
 Cynthion has three USB ports on the board edge:
 
-| Port label | Role in analyzer mode |
-|---|---|
-| **CONTROL** | Connected to the analysis host (your machine). Always required. |
-| **HOST** | Connected to the USB host you want to observe (or left unconnected for device-only capture). |
-| **TARGET** | Connected to the USB device under test. |
+| Port label | Connector | Role in analyzer mode |
+|---|---|---|
+| **CONTROL** | USB-C | Connected to the analysis host (your machine). Always required. |
+| **HOST-A** | USB-A female | Connected to the USB host you want to observe (or left unconnected for device-only capture). |
+| **TARGET-C** | USB-C | Connected to the USB device under test. |
 
 For a typical device capture (e.g., analyzing a USB gadget):
 
 ```
-[Your machine] ──CONTROL──▶ Cynthion ◀──TARGET── [USB device under test]
-                                      ◀──HOST───  [USB host, if needed]
+[Your machine] ──CONTROL──▶ Cynthion ◀──HOST-A──  [USB host]
+                                      ◀──TARGET-C── [USB device under test]
 ```
 
-Cynthion sits transparently between HOST and TARGET, intercepting all packets.
+Cynthion sits transparently between HOST-A and TARGET-C, intercepting all packets.
 If you only want to observe a device plugged into your machine, connect your
-machine to both CONTROL and HOST, and the device under test to TARGET.
+machine to both CONTROL and HOST-A, and the device under test to TARGET-C.
 
-## Procedure
+**Cable note:** HOST-A is a USB-A female port. If the host machine has a USB-A
+port (typical desktop/laptop), you need a **USB-A male-to-male cable** (sold as
+"PC-to-PC" or "USB transfer cables"). If the host has USB-C, a standard USB-C
+to USB-A cable works.
+
+## Procedure: GUI capture with Packetry
 
 ### 1. Load the analyzer bitstream
 
@@ -103,6 +110,86 @@ File → Save As → choose a `.pcap` filename.
 
 Packetry saves captures in standard pcap format, which can be opened in
 Wireshark with the USB dissector (`usbmon` link type).
+
+## Procedure: Headless capture (no GUI)
+
+Use the bundled `cynthion-capture` tool for scripted, automated, or background
+capture without launching Packetry. It writes standard libpcap files
+(LINKTYPE\_USB\_2\_0, link type 288) compatible with Wireshark and tshark.
+
+Two implementations are provided in `scripts/`:
+
+- **Rust** (`scripts/capture-rs/`) — recommended; uses `nusb` (IOUSBHost on macOS,
+  usbfs on Linux) so **no `sudo` required** on macOS. Async bulk-in queue gives
+  better throughput at high USB traffic rates.
+- **Python** (`scripts/capture.py`) — simpler to run without a build step; uses
+  `pyusb` which may need `sudo` on Linux unless udev rules grant access.
+
+### Build and install the Rust tool
+
+```bash
+cd scripts/capture-rs
+cargo build --release
+# binary at target/release/cynthion-capture
+# optionally: cargo install --path .
+```
+
+Requires Rust stable (edition 2024). Dependencies: `nusb`, `futures-lite`, `ctrlc`.
+
+### Usage
+
+```
+cynthion-capture [OPTIONS] <output.pcap>
+
+Options:
+  -d, --duration <seconds>   Stop after N seconds (default: run until Ctrl-C)
+  -s, --speed <speed>        auto|hs|fs|ls  (default: auto)
+  -h, --help                 Show this help
+```
+
+**Speed modes:**
+- `auto` — captures all speeds (HS, FS, LS). Use this unless you need to filter.
+- `hs` — High Speed (480 Mbps) only
+- `fs` — Full Speed (12 Mbps) only
+- `ls` — Low Speed (1.5 Mbps) only
+
+**Examples:**
+
+```bash
+# Capture all traffic until Ctrl-C
+cynthion-capture capture.pcap
+
+# Capture 30 seconds of full-speed traffic only
+cynthion-capture -d 30 -s fs capture-fs.pcap
+
+# Capture in background for 60 seconds
+cynthion-capture -d 60 output.pcap &
+```
+
+### Python alternative
+
+```bash
+pip install pyusb
+python3 scripts/capture.py capture.pcap
+python3 scripts/capture.py -d 30 -s fs capture-fs.pcap
+```
+
+Same options as the Rust tool. On Linux without udev rules, prefix with `sudo`.
+
+### Speed field encoding (implementation note)
+
+The Cynthion analyzer control request uses a 1-byte value: `bits[2:1]=speed, bit[0]=enable`.
+The speed encoding (confirmed from Packetry source `src/backend/cynthion.rs`) is:
+
+| Value | Speed |
+|---|---|
+| 0 | HS-only |
+| 1 | FS-only |
+| 2 | LS-only |
+| 3 | **Auto (all speeds)** |
+
+`auto` (speed=3) is the correct default for general captures. It also works
+correctly when the device was already enumerated before capture started.
 
 ## Offline analysis with Wireshark
 
@@ -145,6 +232,11 @@ cynthion update
 - Confirm the analyzer bitstream is loaded (`cynthion info` → `Bitstream: USB Analyzer`)
 - Check that the TARGET cable is connected to the device under test
 - Verify the device under test is powered and enumerating
+
+**Headless capture: "No Cynthion USB Analyzer found"**
+- Run `cynthion run analyzer` to load the analyzer bitstream first
+- On macOS: no sudo needed with the Rust tool (uses IOUSBHost)
+- On Linux: confirm udev rules grant access, or run with `sudo`
 
 **Device enumerates at wrong speed**
 - Cynthion captures USB 2.0 (HS/FS/LS). USB 3.x SuperSpeed traffic is not captured.
