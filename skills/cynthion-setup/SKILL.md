@@ -1,6 +1,6 @@
 ---
 name: cynthion-setup
-description: Install and verify the software prerequisites for Cynthion skills (cynthion CLI, Packetry GUI, Linux udev rules). Run this once on a new machine before using any other Cynthion skill. Use when the user asks to set up Cynthion, install Cynthion software, or when a Cynthion skill fails due to missing tools.
+description: Install and verify the software prerequisites for Cynthion skills (cynthion CLI, Packetry GUI, tshark, Linux udev rules). Run this once on a new machine before using any other Cynthion skill. Use when the user asks to set up Cynthion, install Cynthion software, or when a Cynthion skill fails due to missing tools.
 ---
 
 <!--
@@ -31,6 +31,7 @@ a new machine. Covers all platforms (macOS, Linux, Windows).
 |---|---|---|
 | `cynthion` CLI | Device management, bitstream loading | all Cynthion skills |
 | Packetry | USB capture GUI | `cynthion-capture` |
+| tshark (Wireshark CLI) | Preferred USB pcap decoder | `cynthion-pcap-decode`, `cynthion-reverse-engineer` |
 | udev rules (Linux only) | Non-root USB device access | all Cynthion skills |
 
 ## Procedure
@@ -112,7 +113,47 @@ After installation on any platform, confirm:
 packetry --version
 ```
 
-### 5. Install udev rules (Linux only)
+### 5. Install tshark (Wireshark CLI)
+
+`tshark` is the preferred USB pcap decoder for `cynthion-pcap-decode` and the
+analysis steps in `cynthion-reverse-engineer`. The bundled Python fallback is
+best-effort and not sufficient for most real captures, so treat tshark as
+required.
+
+**macOS:**
+
+```bash
+brew install wireshark
+```
+
+The Wireshark formula ships `tshark`. If you already have Wireshark.app
+installed via the .dmg, ensure its `tshark` is on PATH, or install
+`wireshark` via brew to get a CLI symlink.
+
+**Linux:**
+
+```bash
+sudo apt install tshark           # Debian/Ubuntu
+sudo dnf install wireshark-cli    # Fedora
+```
+
+The Debian/Ubuntu postinst asks whether non-root users may capture live
+traffic. The Cynthion skills only need tshark to read pcap files (not live
+capture), so answer **No** — it's the safer default.
+
+**Windows:**
+
+Download Wireshark from https://wireshark.org/download.html and run the
+installer. Make sure the "TShark" component is selected; the installer adds
+it to PATH.
+
+After installation on any platform, confirm:
+
+```bash
+tshark --version
+```
+
+### 6. Install udev rules (Linux only)
 
 Skip this step on macOS and Windows.
 
@@ -128,7 +169,7 @@ sudo udevadm trigger
 
 Then ask the user to unplug and replug the Cynthion before continuing.
 
-### 6. Verify device access
+### 7. Verify device access
 
 Plug in the Cynthion via its CONTROL port, then:
 
@@ -163,6 +204,13 @@ If this succeeds, the environment is ready for all Cynthion skills.
 **`packetry --version` fails on Linux after install**
 - Confirm the binary is on `PATH`: `which packetry`
 - GTK4 must be installed: `sudo apt install libgtk-4-1` (Debian/Ubuntu) or equivalent
+
+**`tshark --version` not found after install**
+- Confirm `tshark` is on `PATH`: `which tshark`
+- On some distros `tshark` ships in a separate package from `wireshark-common`;
+  install the explicit `tshark` package
+- On macOS, if Wireshark was installed via .dmg rather than brew, `tshark` may
+  live inside `/Applications/Wireshark.app/Contents/MacOS/` and not be on PATH
 
 ## When a new Cynthion skill is added
 
