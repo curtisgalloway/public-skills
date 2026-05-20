@@ -31,19 +31,22 @@ class-specific content.
 
 ## Prerequisites
 
+`tshark` (from Wireshark) is the preferred decoder — its USB 2.0 dissector
+handles real-world captures far more reliably than the bundled Python
+fallback. Install it via the `cynthion-setup` skill, or directly:
+
 ```bash
-# tshark (primary decoder — strongly recommended)
 brew install wireshark          # macOS
 sudo apt install tshark         # Debian/Ubuntu
 # Windows: install Wireshark from https://wireshark.org/download.html
 
-# Python 3.8+ (stdlib only — no extra packages required)
-python3 --version
+python3 --version               # 3.8+ (stdlib only — no extra packages)
 ```
 
-tshark is optional but recommended. Without it the native fallback decoder is
-used, which covers packets → transactions → transfers and standard descriptors,
-but lacks Wireshark's battle-tested USB 2.0 protocol handling.
+A native Python fallback is included for environments where tshark cannot be
+installed; it covers packets → transactions → transfers and standard
+descriptors but is best-effort. Force it with `--native` if needed. For
+anything beyond a smoke test, install tshark.
 
 ## Quick start
 
@@ -227,10 +230,14 @@ and will silently misparse packets or crash. Always use this skill's decoder
 or tshark's `usbll` dissector.
 
 **tshark field names differ between `-T json` and `-T ek`.**
-`-T json` uses dot-separated names (`usbll.pid`, hex strings like `"0x2d"`).
-`-T ek` uses underscore-separated names (`usbll_usbll_pid`, decimal strings
-like `"45"`). The scripts use `-T ek` for streaming; do not mix the two
-formats when writing custom post-processing.
+`-T json` uses dot-separated names (e.g. `usbll.pid`); `-T ek` uses
+underscore-separated names (e.g. `usbll_usbll_pid`). Integer field encodings
+are also inconsistent across tshark versions — `usbll.pid` is emitted as a
+0x-prefixed hex string (`"0xa5"`) in tshark 4.2 but was a decimal string in
+earlier releases, while `usbll.device_addr` and `usbll.endp` stay decimal.
+`decode.py`'s `_ek_int` helper handles both. If you write custom
+post-processing, parse int fields with `int(s, 0)` / a similar helper rather
+than assuming one format, and do not mix `-T json` and `-T ek` output.
 
 **Large captures must stream — do not load into memory.**
 `decode.py` feeds tshark output through a generator pipeline; no packet list

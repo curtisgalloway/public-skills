@@ -32,7 +32,7 @@ from dataclasses import dataclass, field
 from typing import Iterator, List, Optional, Tuple
 
 # ---------------------------------------------------------------------------
-# PID constants (decimal values as used in tshark -T ek output)
+# PID constants (the raw 8-bit USB PID byte)
 # ---------------------------------------------------------------------------
 
 class PID:
@@ -158,6 +158,13 @@ class Transfer:
 # Layer 1 — Packet streaming
 # ---------------------------------------------------------------------------
 
+def _ek_int(s: str) -> int:
+    """Parse a tshark -T ek integer field. tshark emits some fields as decimal
+    (e.g. "12") and others as 0x-prefixed hex (e.g. usbll.pid as "0xa5" in
+    tshark 4.2). Accept either form."""
+    return int(s, 16) if s.lower().startswith("0x") else int(s)
+
+
 def _ek_packet(doc: dict) -> Optional[Packet]:
     """Parse one tshark -T ek document line into a Packet."""
     layers = doc.get("layers", {})
@@ -169,12 +176,12 @@ def _ek_packet(doc: dict) -> Optional[Packet]:
     pid_str = usbll.get("usbll_usbll_pid")
     if pid_str is None:
         return None
-    pid = int(pid_str)
+    pid = _ek_int(pid_str)
 
     addr_s = usbll.get("usbll_usbll_device_addr")
     endp_s = usbll.get("usbll_usbll_endp")
-    addr = int(addr_s) if addr_s is not None else None
-    endp = int(endp_s) if endp_s is not None else None
+    addr = _ek_int(addr_s) if addr_s is not None else None
+    endp = _ek_int(endp_s) if endp_s is not None else None
 
     raw_data = usbll.get("usbll_usbll_data")
     data = bytes(int(b, 16) for b in raw_data.split(":")) if raw_data else None
