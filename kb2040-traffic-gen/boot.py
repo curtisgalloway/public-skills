@@ -15,13 +15,11 @@
 # boot.py — runs once at power-on, configures USB interfaces before code.py
 #
 # Exposes:
-#   - 2x CDC serial (index 0 = REPL console, index 1 = status/log data port)
+#   - 2x CDC serial (index 0 = REPL console, index 1 = data port for host_exerciser.py)
 #   - HID: keyboard + mouse + consumer control (media keys)
-#   - MIDI (bulk endpoints, sysex capable)
 
 import usb_hid
 import usb_cdc
-import usb_midi
 
 usb_cdc.enable(console=True, data=True)
 
@@ -30,5 +28,3 @@ usb_hid.enable((
     usb_hid.Device.MOUSE,
     usb_hid.Device.CONSUMER_CONTROL,
 ))
-
-usb_midi.enable()

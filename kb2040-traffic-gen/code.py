@@ -14,17 +14,22 @@
 
 # code.py — KB2040 USB traffic generator for Cynthion capture sessions
 #
-# BOOT button: press to start cycling through all patterns, press again to stop.
+# BOOT button (or 'start\n' on CDC data port): start cycling through patterns.
+# BOOT button again: stop.
 # NeoPixel shows current state/pattern type.
 # CDC data port (second serial device) prints pattern names as they run —
-# useful for correlating capture timestamps. Nothing needs to read it.
+# useful for correlating capture timestamps.
+#
+# CDC bulk patterns use a simple echo protocol with host_exerciser.py:
+#   device writes → host echoes back → device reads echo
+# pat_cdc_receive inverts this: host sends probe bursts, device reads them.
 #
 # Requires: adafruit_hid library bundle in /lib/
 #
-# Pin names verified for KB2040 (CircuitPython 9.x):
+# Pin names for KB2040 (CircuitPython 9.x):
 #   board.NEOPIXEL — onboard NeoPixel
 #   board.BUTTON   — BOOT button (pull-up, active-low after boot)
-# If either fails at startup, run `import board; print(dir(board))` in the REPL.
+# Verify with: import board; print(dir(board))
 
 import math
 import time
@@ -34,7 +39,6 @@ import neopixel
 import microcontroller
 import usb_hid
 import usb_cdc
-import usb_midi
 from adafruit_hid.keyboard import Keyboard
 from adafruit_hid.keycode import Keycode
 from adafruit_hid.mouse import Mouse
@@ -58,8 +62,7 @@ btn.pull = digitalio.Pull.UP  # active-low
 kbd = Keyboard(usb_hid.devices)
 mouse = Mouse(usb_hid.devices)
 cc = ConsumerControl(usb_hid.devices)
-midi_out = usb_midi.ports[1]   # ports[0]=IN (host→device), ports[1]=OUT (device→host)
-cdc = usb_cdc.data             # second CDC port; None if host hasn't opened it
+cdc = usb_cdc.data    # second CDC port; None until host opens it
 
 # ---------------------------------------------------------------------------
 # Colors
@@ -71,7 +74,6 @@ KBD       = (0, 28,  0)
 MOUSE_C   = (0, 20, 20)
 CONSUMER  = (15, 0, 28)
 SERIAL    = (28, 18,  0)
-MIDI_C    = (24,  0, 24)
 MIXED     = (24, 20,  0)
 RECONNECT = (28,  8,  0)
 
@@ -90,7 +92,7 @@ def log(msg):
         pass
 
 _btn_last = True
-_btn_ts = 0.0
+_btn_ts   = 0.0
 
 def button_pressed():
     """Edge-detect with 50 ms debounce. Returns True once per physical press."""
@@ -104,12 +106,39 @@ def button_pressed():
         return True
     return False
 
+_cmd_buf = b""
+
+def poll_start_cmd():
+    """Check CDC data port for a 'start\\n' command from the host. Non-blocking."""
+    global _cmd_buf
+    try:
+        if cdc and cdc.in_waiting:
+            _cmd_buf += cdc.read(cdc.in_waiting)
+            if b"start" in _cmd_buf:
+                _cmd_buf = b""
+                return True
+            if len(_cmd_buf) > 64:
+                _cmd_buf = _cmd_buf[-64:]
+    except Exception:
+        pass
+    return False
+
+def cdc_read_echo(expected_len, wait_ms=50):
+    """Read up to expected_len echo bytes after a write.  Returns bytes read."""
+    time.sleep(wait_ms / 1000)
+    try:
+        n = cdc.in_waiting
+        if n:
+            return cdc.read(min(n, expected_len))
+    except Exception:
+        pass
+    return b""
+
 # ---------------------------------------------------------------------------
 # Pattern generators
 #
-# Each function is a generator that yields between small steps so the main
-# loop can poll the button and stop early.  Each yields at least once so the
-# caller always gets control back immediately after calling next().
+# Each function is a generator yielding between small steps so the main loop
+# can poll the stop button without blocking.
 # ---------------------------------------------------------------------------
 
 def pat_kbd_burst():
@@ -126,7 +155,6 @@ def pat_kbd_burst():
 def pat_kbd_typing():
     """Variable-rate typing simulating human input."""
     px(KBD); log("[kbd-typing] simulated typing")
-    # (modifier_list, key, post_delay_s)
     strokes = [
         ([], Keycode.H,     0.11),
         ([], Keycode.E,     0.09),
@@ -261,33 +289,42 @@ def pat_consumer_ctrl():
         yield
 
 
+# --- CDC bulk patterns (require host_exerciser.py running) ---
+#
+# Echo protocol: device writes → host echoes → device reads echo.
+# Each cdc.write() is followed by cdc_read_echo() on the same step.
+
 def pat_cdc_large():
-    """64 × 64-byte chunks — fills USB full-speed bulk pipe."""
-    px(SERIAL); log("[cdc-large] large bulk transfer")
+    """64 × 64-byte writes with host echo — fills bulk pipe both directions."""
+    px(SERIAL); log("[cdc-large] bulk write+echo")
     if not (cdc and cdc.connected):
         yield; return
-    chunk = bytes(range(64))
-    for _ in range(64):
-        cdc.write(chunk)
-        time.sleep(0.01)
+    for seq in range(64):
+        payload = bytes([seq & 0xFF] * 64)
+        cdc.write(payload)
+        echo = cdc_read_echo(len(payload))
+        if echo and echo != payload[:len(echo)]:
+            log(f"[cdc-large] echo mismatch seq={seq}")
         yield
 
 
 def pat_cdc_small():
-    """Packets of 1–65 bytes — exercises short and boundary-size transfers."""
-    px(SERIAL); log("[cdc-small] varied small packets")
+    """Varied-size writes (1–65 B) with echo — exercises packet-boundary handling."""
+    px(SERIAL); log("[cdc-small] varied small packets + echo")
     if not (cdc and cdc.connected):
         yield; return
     sizes = [1, 2, 3, 7, 8, 9, 15, 16, 17, 31, 32, 33, 63, 64, 65]
     for size in sizes * 3:
-        cdc.write(bytes([size & 0xFF] * size))
-        time.sleep(0.04)
+        payload = bytes([size & 0xFF] * size)
+        cdc.write(payload)
+        cdc_read_echo(len(payload))
+        time.sleep(0.02)
         yield
 
 
 def pat_cdc_patterns():
-    """Transfers with recognizable data patterns — easy to spot in a hex dump."""
-    px(SERIAL); log("[cdc-patterns] data patterns")
+    """Named data patterns with echo — easy to identify in a capture hex dump."""
+    px(SERIAL); log("[cdc-patterns] data patterns + echo")
     if not (cdc and cdc.connected):
         yield; return
     payloads = [
@@ -301,61 +338,26 @@ def pat_cdc_patterns():
     ]
     for p in payloads:
         cdc.write(p)
-        time.sleep(0.12)
+        cdc_read_echo(len(p))
         yield
 
 
-def pat_midi_notes():
-    """Chromatic scale across two octaves, two channels — note on/off pairs."""
-    px(MIDI_C); log("[midi-notes] chromatic scale")
-    for octave in range(2):
-        for semitone in range(12):
-            note = 48 + octave * 12 + semitone
-            for ch in range(2):
-                midi_out.write(bytes([0x90 | ch, note, 100]))
-            time.sleep(0.08)
-            for ch in range(2):
-                midi_out.write(bytes([0x80 | ch, note, 0]))
-            time.sleep(0.04)
-            yield
-
-
-def pat_midi_cc():
-    """CC sweeps across all 128 controllers at five values each."""
-    px(MIDI_C); log("[midi-cc] control change sweep")
-    for cc_num in range(0, 128, 4):
-        for val in [0, 32, 64, 96, 127]:
-            midi_out.write(bytes([0xB0, cc_num, val]))
-            time.sleep(0.02)
+def pat_cdc_receive():
+    """Device reads only — exercises host-initiated bulk OUT (probe bursts from host)."""
+    px(SERIAL); log("[cdc-receive] reading host probe bursts")
+    if not (cdc and cdc.connected):
+        yield; return
+    total = 0
+    for _ in range(30):
+        try:
+            n = cdc.in_waiting
+            if n:
+                total += len(cdc.read(n))
+        except Exception:
+            pass
+        time.sleep(0.1)
         yield
-
-
-def pat_midi_sysex():
-    """SysEx messages of increasing length — tests variable-length bulk parsing."""
-    px(MIDI_C); log("[midi-sysex] sysex messages")
-    messages = [
-        bytes([0xF0, 0x7D, 0x01, 0xF7]),
-        bytes([0xF0, 0x7D] + list(range(16))  + [0xF7]),
-        bytes([0xF0, 0x7D] + list(range(48))  + [0xF7]),
-        bytes([0xF0, 0x7D] + [0x55] * 64      + [0xF7]),
-    ]
-    for msg in messages:
-        midi_out.write(msg)
-        time.sleep(0.25)
-        yield
-
-
-def pat_midi_program_pitch():
-    """Program change and pitch bend — additional MIDI message types."""
-    px(MIDI_C); log("[midi-prog-pitch] program change + pitch bend")
-    for prog in range(16):
-        midi_out.write(bytes([0xC0, prog]))
-        time.sleep(0.05)
-        yield
-    for raw in range(0, 16384, 512):
-        midi_out.write(bytes([0xE0, raw & 0x7F, (raw >> 7) & 0x7F]))
-        time.sleep(0.03)
-        yield
+    log(f"[cdc-receive] {total} bytes received from host")
 
 
 def pat_mixed_hid():
@@ -373,18 +375,16 @@ def pat_mixed_hid():
 
 
 def pat_mixed_all():
-    """All four interface classes active simultaneously."""
-    px(MIXED); log("[mixed-all] kbd + mouse + midi + cdc")
+    """HID keyboard, mouse, and CDC simultaneously."""
+    px(MIXED); log("[mixed-all] kbd + mouse + cdc")
     for i in range(20):
         kbd.press([Keycode.A, Keycode.B, Keycode.C][i % 3])
         kbd.release_all()
         mouse.move(3 if i % 2 == 0 else -3, 0)
-        note = 60 + (i % 12)
-        midi_out.write(bytes([0x90, note, 80]))
         if cdc and cdc.connected:
-            cdc.write(bytes([i & 0xFF] * 16))
-        time.sleep(0.05)
-        midi_out.write(bytes([0x80, note, 0]))
+            payload = bytes([i & 0xFF] * 16)
+            cdc.write(payload)
+            cdc_read_echo(len(payload), wait_ms=30)
         time.sleep(0.08)
         yield
 
@@ -398,7 +398,7 @@ def pat_reconnect():
         px(RECONNECT); time.sleep(0.12)
         px(OFF);        time.sleep(0.12)
         yield
-    microcontroller.reset()   # board restarts; USB enumerates fresh
+    microcontroller.reset()
 
 
 # ---------------------------------------------------------------------------
@@ -417,18 +417,15 @@ PATTERNS = [
     pat_cdc_large,
     pat_cdc_small,
     pat_cdc_patterns,
-    pat_midi_notes,
-    pat_midi_cc,
-    pat_midi_sysex,
-    pat_midi_program_pitch,
+    pat_cdc_receive,
     pat_mixed_hid,
     pat_mixed_all,
-    pat_reconnect,   # always last — resets the board
+    pat_reconnect,     # always last — resets the board
 ]
 
 
 def run_all():
-    """Cycle through every pattern.  Returns True on completion, False if stopped."""
+    """Cycle through every pattern. Returns True on completion, False if stopped."""
     for fn in PATTERNS:
         gen = fn()
         for _ in gen:
@@ -436,7 +433,13 @@ def run_all():
                 kbd.release_all()
                 mouse.release_all()
                 return False
-        time.sleep(0.30)   # brief pause between patterns
+        # drain any buffered CDC input before moving to the next pattern
+        try:
+            if cdc and cdc.in_waiting:
+                cdc.read(cdc.in_waiting)
+        except Exception:
+            pass
+        time.sleep(0.30)
     return True
 
 
@@ -445,7 +448,7 @@ def run_all():
 # ---------------------------------------------------------------------------
 
 log("KB2040 USB Traffic Generator ready")
-log("Press BOOT button to start/stop")
+log("Press BOOT button or send 'start\\n' to begin")
 
 while True:
     t = time.monotonic()
@@ -453,7 +456,7 @@ while True:
     px((0, 0, int(brightness * 12)))
     time.sleep(0.04)
 
-    if button_pressed():
+    if button_pressed() or poll_start_cmd():
         log("--- start ---")
         px(KBD)
         done = run_all()
