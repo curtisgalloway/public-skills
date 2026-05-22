@@ -406,20 +406,22 @@ def pat_reconnect():
 # ---------------------------------------------------------------------------
 
 PATTERNS = [
-    pat_kbd_burst,
-    pat_kbd_typing,
-    pat_kbd_modifiers,
-    pat_kbd_fkeys,
-    pat_mouse_circles,
-    pat_mouse_clicks,
-    pat_mouse_drag,
-    pat_consumer_ctrl,
+    # HID patterns disabled during local testing — re-enable when connected
+    # through Cynthion so keystrokes don't hit the capture workstation directly.
+    # pat_kbd_burst,
+    # pat_kbd_typing,
+    # pat_kbd_modifiers,
+    # pat_kbd_fkeys,
+    # pat_mouse_circles,
+    # pat_mouse_clicks,
+    # pat_mouse_drag,
+    # pat_consumer_ctrl,
+    # pat_mixed_hid,
+    # pat_mixed_all,
     pat_cdc_large,
     pat_cdc_small,
     pat_cdc_patterns,
     pat_cdc_receive,
-    pat_mixed_hid,
-    pat_mixed_all,
     pat_reconnect,     # always last — resets the board
 ]
 
