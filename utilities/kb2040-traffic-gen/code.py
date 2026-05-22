@@ -12,24 +12,30 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# code.py — KB2040 USB traffic generator for Cynthion capture sessions
-#
-# BOOT button (or 'start\n' on CDC data port): start cycling through patterns.
-# BOOT button again: stop.
-# NeoPixel shows current state/pattern type.
-# CDC data port (second serial device) prints pattern names as they run —
-# useful for correlating capture timestamps.
-#
-# CDC bulk patterns use a simple echo protocol with host_exerciser.py:
-#   device writes → host echoes back → device reads echo
-# pat_cdc_receive inverts this: host sends probe bursts, device reads them.
-#
-# Requires: adafruit_hid library bundle in /lib/
-#
-# Pin names for KB2040 (CircuitPython 9.x):
-#   board.NEOPIXEL — onboard NeoPixel
-#   board.BUTTON   — BOOT button (pull-up, active-low after boot)
-# Verify with: import board; print(dir(board))
+"""KB2040 USB traffic generator for Cynthion capture sessions.
+
+BOOT button (or 'start\\n' on CDC data port): start cycling through patterns.
+BOOT button again: stop.
+NeoPixel shows current state/pattern type.
+CDC console port (first serial device) prints pattern names as they run —
+useful for correlating capture timestamps. The data port (second device)
+carries only the binary echo protocol so markers don't corrupt echo reads.
+
+CDC bulk patterns use a simple echo protocol with host_exerciser.py:
+  device writes → host echoes back → device reads echo
+pat_cdc_receive inverts this: host sends probe bursts, device reads them.
+
+Requires: adafruit_hid library bundle in /lib/
+
+Pin names for KB2040 (CircuitPython 9.x):
+  board.NEOPIXEL — onboard NeoPixel
+  board.BUTTON   — BOOT button (pull-up, active-low after boot)
+Verify with: import board; print(dir(board))
+"""
+
+# Defensive USB/serial calls on CircuitPython can raise irregularly-typed
+# exceptions; we trade specificity for keeping the device alive.
+# pylint: disable=broad-exception-caught
 
 import math
 import time
@@ -62,37 +68,46 @@ btn.pull = digitalio.Pull.UP  # active-low
 kbd = Keyboard(usb_hid.devices)
 mouse = Mouse(usb_hid.devices)
 cc = ConsumerControl(usb_hid.devices)
-cdc = usb_cdc.data    # second CDC port; None until host opens it
+# cdc     = data port    (CDC device #2) — binary echo protocol with host
+# cdc_log = console port (CDC device #1) — pattern markers and REPL output.
+# Keeping markers off the data port prevents them from corrupting the
+# device's echo-verification reads.
+cdc = usb_cdc.data
+cdc_log = usb_cdc.console
 
 # ---------------------------------------------------------------------------
 # Colors
 # ---------------------------------------------------------------------------
 
-OFF       = (0,  0,  0)
-IDLE      = (0,  0, 12)
-KBD       = (0, 28,  0)
-MOUSE_C   = (0, 20, 20)
-CONSUMER  = (15, 0, 28)
-SERIAL    = (28, 18,  0)
-MIXED     = (24, 20,  0)
-RECONNECT = (28,  8,  0)
+OFF = (0, 0, 0)
+IDLE = (0, 0, 12)
+KBD = (0, 28, 0)
+MOUSE_C = (0, 20, 20)
+CONSUMER = (15, 0, 28)
+SERIAL = (28, 18, 0)
+MIXED = (24, 20, 0)
+RECONNECT = (28, 8, 0)
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def px(color):
     pixel[0] = color
 
+
 def log(msg):
     try:
-        if cdc and cdc.connected:
-            cdc.write((msg + "\r\n").encode("utf-8"))
+        if cdc_log and cdc_log.connected:
+            cdc_log.write((msg + "\r\n").encode("utf-8"))
     except Exception:
         pass
 
+
 _btn_last = True
-_btn_ts   = 0.0
+_btn_ts = 0.0
+
 
 def button_pressed():
     """Edge-detect with 50 ms debounce. Returns True once per physical press."""
@@ -106,7 +121,9 @@ def button_pressed():
         return True
     return False
 
+
 _cmd_buf = b""
+
 
 def poll_start_cmd():
     """Check CDC data port for a 'start\\n' command from the host. Non-blocking."""
@@ -123,6 +140,7 @@ def poll_start_cmd():
         pass
     return False
 
+
 def cdc_read_echo(expected_len, wait_ms=50):
     """Read up to expected_len echo bytes after a write.  Returns bytes read."""
     time.sleep(wait_ms / 1000)
@@ -134,6 +152,7 @@ def cdc_read_echo(expected_len, wait_ms=50):
         pass
     return b""
 
+
 # ---------------------------------------------------------------------------
 # Pattern generators
 #
@@ -141,9 +160,11 @@ def cdc_read_echo(expected_len, wait_ms=50):
 # can poll the stop button without blocking.
 # ---------------------------------------------------------------------------
 
+
 def pat_kbd_burst():
     """30 rapid individual keystrokes — dense interrupt IN traffic."""
-    px(KBD); log("[kbd-burst] rapid keystrokes")
+    px(KBD)
+    log("[kbd-burst] rapid keystrokes")
     keys = [Keycode.A, Keycode.S, Keycode.D, Keycode.F]
     for i in range(30):
         kbd.press(keys[i % 4])
@@ -154,19 +175,20 @@ def pat_kbd_burst():
 
 def pat_kbd_typing():
     """Variable-rate typing simulating human input."""
-    px(KBD); log("[kbd-typing] simulated typing")
+    px(KBD)
+    log("[kbd-typing] simulated typing")
     strokes = [
-        ([], Keycode.H,     0.11),
-        ([], Keycode.E,     0.09),
-        ([], Keycode.L,     0.07),
-        ([], Keycode.L,     0.08),
-        ([], Keycode.O,     0.16),
+        ([], Keycode.H, 0.11),
+        ([], Keycode.E, 0.09),
+        ([], Keycode.L, 0.07),
+        ([], Keycode.L, 0.08),
+        ([], Keycode.O, 0.16),
         ([], Keycode.SPACE, 0.13),
-        ([], Keycode.W,     0.10),
-        ([], Keycode.O,     0.09),
-        ([], Keycode.R,     0.08),
-        ([], Keycode.L,     0.10),
-        ([], Keycode.D,     0.08),
+        ([], Keycode.W, 0.10),
+        ([], Keycode.O, 0.09),
+        ([], Keycode.R, 0.08),
+        ([], Keycode.L, 0.10),
+        ([], Keycode.D, 0.08),
         ([], Keycode.ENTER, 0.20),
     ]
     for mods, key, delay in strokes:
@@ -181,7 +203,8 @@ def pat_kbd_typing():
 
 def pat_kbd_modifiers():
     """Modifier-key combos — generates multi-byte HID reports."""
-    px(KBD); log("[kbd-modifiers] modifier combos")
+    px(KBD)
+    log("[kbd-modifiers] modifier combos")
     combos = [
         ([Keycode.LEFT_CONTROL], Keycode.Z),
         ([Keycode.LEFT_CONTROL], Keycode.Y),
@@ -204,11 +227,21 @@ def pat_kbd_modifiers():
 
 def pat_kbd_fkeys():
     """F1–F12 function keys."""
-    px(KBD); log("[kbd-fkeys] function keys")
+    px(KBD)
+    log("[kbd-fkeys] function keys")
     fkeys = [
-        Keycode.F1,  Keycode.F2,  Keycode.F3,  Keycode.F4,
-        Keycode.F5,  Keycode.F6,  Keycode.F7,  Keycode.F8,
-        Keycode.F9,  Keycode.F10, Keycode.F11, Keycode.F12,
+        Keycode.F1,
+        Keycode.F2,
+        Keycode.F3,
+        Keycode.F4,
+        Keycode.F5,
+        Keycode.F6,
+        Keycode.F7,
+        Keycode.F8,
+        Keycode.F9,
+        Keycode.F10,
+        Keycode.F11,
+        Keycode.F12,
     ]
     for key in fkeys:
         kbd.press(key)
@@ -220,7 +253,8 @@ def pat_kbd_fkeys():
 
 def pat_mouse_circles():
     """Smooth circular mouse movement — sustained interrupt endpoint traffic."""
-    px(MOUSE_C); log("[mouse-circles] circular movement")
+    px(MOUSE_C)
+    log("[mouse-circles] circular movement")
     steps = 60
     radius = 25
     prev_x, prev_y = radius, 0
@@ -237,7 +271,8 @@ def pat_mouse_circles():
 
 def pat_mouse_clicks():
     """Left, right, middle button clicks plus scroll wheel."""
-    px(MOUSE_C); log("[mouse-clicks] buttons + scroll")
+    px(MOUSE_C)
+    log("[mouse-clicks] buttons + scroll")
     for _ in range(4):
         mouse.click(Mouse.LEFT_BUTTON)
         time.sleep(0.15)
@@ -254,7 +289,8 @@ def pat_mouse_clicks():
 
 def pat_mouse_drag():
     """Button held during movement — drag reports."""
-    px(MOUSE_C); log("[mouse-drag] click-hold-move")
+    px(MOUSE_C)
+    log("[mouse-drag] click-hold-move")
     mouse.press(Mouse.LEFT_BUTTON)
     for _ in range(40):
         mouse.move(3, 0)
@@ -270,7 +306,8 @@ def pat_mouse_drag():
 
 def pat_consumer_ctrl():
     """Consumer control / media keys — single-value HID reports."""
-    px(CONSUMER); log("[consumer-ctrl] media keys")
+    px(CONSUMER)
+    log("[consumer-ctrl] media keys")
     codes = [
         ConsumerControlCode.VOLUME_INCREMENT,
         ConsumerControlCode.VOLUME_INCREMENT,
@@ -294,25 +331,30 @@ def pat_consumer_ctrl():
 # Echo protocol: device writes → host echoes → device reads echo.
 # Each cdc.write() is followed by cdc_read_echo() on the same step.
 
+
 def pat_cdc_large():
     """64 × 64-byte writes with host echo — fills bulk pipe both directions."""
-    px(SERIAL); log("[cdc-large] bulk write+echo")
+    px(SERIAL)
+    log("[cdc-large] bulk write+echo")
     if not (cdc and cdc.connected):
-        yield; return
+        yield
+        return
     for seq in range(64):
         payload = bytes([seq & 0xFF] * 64)
         cdc.write(payload)
         echo = cdc_read_echo(len(payload))
-        if echo and echo != payload[:len(echo)]:
+        if echo and echo != payload[: len(echo)]:
             log(f"[cdc-large] echo mismatch seq={seq}")
         yield
 
 
 def pat_cdc_small():
     """Varied-size writes (1–65 B) with echo — exercises packet-boundary handling."""
-    px(SERIAL); log("[cdc-small] varied small packets + echo")
+    px(SERIAL)
+    log("[cdc-small] varied small packets + echo")
     if not (cdc and cdc.connected):
-        yield; return
+        yield
+        return
     sizes = [1, 2, 3, 7, 8, 9, 15, 16, 17, 31, 32, 33, 63, 64, 65]
     for size in sizes * 3:
         payload = bytes([size & 0xFF] * size)
@@ -324,9 +366,11 @@ def pat_cdc_small():
 
 def pat_cdc_patterns():
     """Named data patterns with echo — easy to identify in a capture hex dump."""
-    px(SERIAL); log("[cdc-patterns] data patterns + echo")
+    px(SERIAL)
+    log("[cdc-patterns] data patterns + echo")
     if not (cdc and cdc.connected):
-        yield; return
+        yield
+        return
     payloads = [
         bytes([0x00] * 64),
         bytes([0xFF] * 64),
@@ -343,10 +387,12 @@ def pat_cdc_patterns():
 
 
 def pat_cdc_receive():
-    """Device reads only — exercises host-initiated bulk OUT (probe bursts from host)."""
-    px(SERIAL); log("[cdc-receive] reading host probe bursts")
+    """Device reads only — host-initiated bulk OUT (probe bursts from host)."""
+    px(SERIAL)
+    log("[cdc-receive] reading host probe bursts")
     if not (cdc and cdc.connected):
-        yield; return
+        yield
+        return
     total = 0
     for _ in range(30):
         try:
@@ -362,7 +408,8 @@ def pat_cdc_receive():
 
 def pat_mixed_hid():
     """Keyboard and mouse interleaved — two interrupt endpoints simultaneously."""
-    px(MIXED); log("[mixed-hid] kbd + mouse")
+    px(MIXED)
+    log("[mixed-hid] kbd + mouse")
     keys = [Keycode.A, Keycode.S, Keycode.D, Keycode.F]
     for i in range(24):
         kbd.press(keys[i % 4])
@@ -376,7 +423,8 @@ def pat_mixed_hid():
 
 def pat_mixed_all():
     """HID keyboard, mouse, and CDC simultaneously."""
-    px(MIXED); log("[mixed-all] kbd + mouse + cdc")
+    px(MIXED)
+    log("[mixed-all] kbd + mouse + cdc")
     for i in range(20):
         kbd.press([Keycode.A, Keycode.B, Keycode.C][i % 3])
         kbd.release_all()
@@ -391,12 +439,15 @@ def pat_mixed_all():
 
 def pat_reconnect():
     """Hardware reset — triggers a full USB re-enumeration sequence."""
-    px(RECONNECT); log("[reconnect] triggering re-enumeration in 500 ms")
+    px(RECONNECT)
+    log("[reconnect] triggering re-enumeration in 500 ms")
     kbd.release_all()
     mouse.release_all()
     for _ in range(4):
-        px(RECONNECT); time.sleep(0.12)
-        px(OFF);        time.sleep(0.12)
+        px(RECONNECT)
+        time.sleep(0.12)
+        px(OFF)
+        time.sleep(0.12)
         yield
     microcontroller.reset()
 
@@ -422,7 +473,7 @@ PATTERNS = [
     pat_cdc_small,
     pat_cdc_patterns,
     pat_cdc_receive,
-    pat_reconnect,     # always last — resets the board
+    pat_reconnect,  # always last — resets the board
 ]
 
 
@@ -464,4 +515,4 @@ while True:
         done = run_all()
         log("--- all patterns complete ---" if done else "--- stopped ---")
         px(IDLE)
-        time.sleep(0.5)   # prevent immediate re-trigger
+        time.sleep(0.5)  # prevent immediate re-trigger
