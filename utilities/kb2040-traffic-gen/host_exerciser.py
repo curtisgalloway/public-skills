@@ -34,12 +34,19 @@ Run alongside code.py on the KB2040. Three behaviors run concurrently:
                    input buffer for later draining). Produces pure host-
                    initiated bulk OUT.
 
+By default the host runs a supervisor loop: it waits for the KB2040 to
+appear, opens its ports, sends 'start\\n', and lets the device run a full
+pattern cycle. The last pattern is [reconnect] which hard-resets the board;
+the host's serial threads exit cleanly on that disconnect, the supervisor
+re-detects the device when it re-enumerates, and starts the next cycle. Run
+forever with Ctrl+C to stop.
+
 Usage:
   uv run host_exerciser.py \\
-      [--port DATA] [--console-port CONSOLE] [--start] [--list]
+      [--port DATA] [--console-port CONSOLE] [--once] [--list]
 
---start  Sends 'start\\n' to the device after opening the port, so you can
-         kick off a full capture session without touching the board.
+--once  Run a single cycle (legacy behavior); without this flag the host
+        keeps re-triggering cycles across [reconnect] events.
 """
 
 # /// script
@@ -198,6 +205,123 @@ def _log_transfer(direction: str, data: bytes) -> None:
         print(f"{ts()}  {direction}  {len(data):4d}B  {data[:16].hex()}{tail}")
 
 
+def _open_serial(path: str, label: str) -> serial.Serial:
+    print(f"Opening {label} {path} at {BAUD} baud")
+    try:
+        return serial.Serial(path, BAUD, timeout=0.05)
+    except serial.SerialException as e:
+        print(f"Could not open {path}: {e}", file=sys.stderr)
+        if "Permission denied" in str(e):
+            print(
+                "Hint: on Linux, /dev/ttyACM* is owned by group 'dialout'. "
+                "Add yourself with:  sudo usermod -aG dialout $USER  "
+                "(then log out/in).",
+                file=sys.stderr,
+            )
+        raise
+
+
+def _wait_for_device(
+    user_done: threading.Event,
+    forced_data: str | None,
+    forced_console: str | None,
+) -> tuple[str | None, str | None]:
+    """Block until the KB2040's CDC ports appear (or user_done is set)."""
+    waited = False
+    while not user_done.is_set():
+        if forced_data:
+            return forced_console, forced_data
+        console_port, data_port = find_kb2040_ports()
+        if data_port:
+            if waited:
+                print(f"{ts()}  device present: {console_port}, {data_port}")
+            return console_port, data_port
+        if not waited:
+            print(f"{ts()}  waiting for KB2040 to enumerate...")
+            waited = True
+        time.sleep(0.5)
+    return None, None
+
+
+def run_session(
+    user_done: threading.Event,
+    forced_data: str | None,
+    forced_console: str | None,
+) -> bool:
+    """One pattern cycle: open ports, send start, wait until threads die.
+    Returns False once user_done is set so the supervisor can exit."""
+    console_port, data_port = _wait_for_device(user_done, forced_data, forced_console)
+    if user_done.is_set() or not data_port:
+        return False
+
+    try:
+        ser = _open_serial(data_port, "data   ")
+    except serial.SerialException:
+        time.sleep(1)
+        return True  # transient — let supervisor retry
+    ser_log: serial.Serial | None = None
+    if console_port:
+        try:
+            ser_log = _open_serial(console_port, "console")
+        except serial.SerialException:
+            ser_log = None
+    if ser_log is None:
+        print(
+            "Console port not available — probe gating disabled this session, "
+            "probes will fire continuously.",
+            file=sys.stderr,
+        )
+
+    time.sleep(0.3)  # let device see DTR assert
+
+    stop = threading.Event()
+    gate = ProbeGate()
+    t_echo = threading.Thread(target=echo_thread, args=(ser, stop), daemon=True)
+    t_probe = threading.Thread(
+        target=probe_thread, args=(ser, stop, gate), daemon=True
+    )
+    read_threads = [t_echo]
+    if ser_log is not None:
+        t_console = threading.Thread(
+            target=console_thread, args=(ser_log, stop, gate), daemon=True
+        )
+        read_threads.append(t_console)
+    threads = read_threads + [t_probe]
+    for t in threads:
+        t.start()
+
+    time.sleep(0.1)
+    try:
+        ser.write(b"start\n")
+        print(f"{ts()}  host→dev     7B  'start\\n'  (triggering device cycle)")
+    except (serial.SerialException, OSError) as e:
+        print(f"{ts()}  could not send start: {e}", file=sys.stderr)
+
+    # Session ends when every read thread has exited — that happens when the
+    # device hard-resets at the end of its pattern cycle ([reconnect] →
+    # microcontroller.reset()) and the serial reads raise SerialException.
+    while not user_done.is_set():
+        if not any(t.is_alive() for t in read_threads):
+            break
+        time.sleep(0.5)
+
+    stop.set()
+    gate.force_open()  # release probe_thread if it's blocked on the gate
+    for t in threads:
+        t.join(timeout=2)
+    try:
+        ser.close()
+    except OSError:
+        pass
+    if ser_log is not None:
+        try:
+            ser_log.close()
+        except OSError:
+            pass
+    print(f"{ts()}  --- session ended; device should be re-enumerating ---")
+    return not user_done.is_set()
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(
         description="KB2040 CDC bulk exerciser — echo + periodic probe"
@@ -207,9 +331,10 @@ def main() -> None:
         "--console-port", help="Console-port path (auto-detected if omitted)"
     )
     ap.add_argument(
-        "--start",
+        "--once",
         action="store_true",
-        help="Send 'start' command to trigger device pattern cycle",
+        help="Run a single cycle and exit (default: loop forever, "
+        "re-triggering after each [reconnect] reset)",
     )
     ap.add_argument(
         "--list",
@@ -225,73 +350,21 @@ def main() -> None:
             print(f"  {p.device:<30}  VID={vid}  {p.description}")
         return
 
-    auto_console, auto_data = find_kb2040_ports()
-    data_port = args.port or auto_data
-    console_port = args.console_port or auto_console
-    if not data_port:
-        print("KB2040 data port not found.")
-        print("Check USB connection, or use --port to specify manually.")
-        print("Use --list to see all available ports.")
-        sys.exit(1)
-
-    def _open(path: str, label: str) -> serial.Serial:
-        print(f"Opening {label} {path} at {BAUD} baud")
-        try:
-            return serial.Serial(path, BAUD, timeout=0.05)
-        except serial.SerialException as e:
-            print(f"Could not open {path}: {e}", file=sys.stderr)
-            if "Permission denied" in str(e):
-                print(
-                    "Hint: on Linux, /dev/ttyACM* is owned by group "
-                    "'dialout'. Add yourself with:  "
-                    "sudo usermod -aG dialout $USER  (then log out/in).",
-                    file=sys.stderr,
-                )
-            sys.exit(1)
-
-    ser = _open(data_port, "data   ")
-    ser_log = _open(console_port, "console") if console_port else None
-    if ser_log is None:
-        print(
-            "Console port not found — probe gating disabled, "
-            "probes will fire continuously.",
-            file=sys.stderr,
-        )
-    time.sleep(0.3)  # give device time to see DTR assert
-
-    stop = threading.Event()
-    gate = ProbeGate()
-    threads = [
-        threading.Thread(target=echo_thread, args=(ser, stop), daemon=True),
-        threading.Thread(target=probe_thread, args=(ser, stop, gate), daemon=True),
-    ]
-    if ser_log is not None:
-        threads.append(
-            threading.Thread(
-                target=console_thread, args=(ser_log, stop, gate), daemon=True
-            )
-        )
-    for t in threads:
-        t.start()
-
-    if args.start:
-        time.sleep(0.1)
-        ser.write(b"start\n")
-        print(f"{ts()}  host→dev     7B  'start\\n'  (triggering device cycle)")
-
+    user_done = threading.Event()
     print("Running. Ctrl+C to stop.\n")
     try:
         while True:
-            time.sleep(0.1)
+            keep_going = run_session(user_done, args.port, args.console_port)
+            if args.once or not keep_going:
+                break
+            # brief pause before re-probing for the device
+            for _ in range(20):  # ~2 s, interruptible
+                if user_done.is_set():
+                    break
+                time.sleep(0.1)
     except KeyboardInterrupt:
-        print(f"\n{ts()}  stopping")
-        stop.set()
-        gate.force_open()  # release probe_thread if it's blocked on the gate
-        for t in threads:
-            t.join(timeout=2)
-        ser.close()
-        if ser_log is not None:
-            ser_log.close()
+        print(f"\n{ts()}  user stop")
+        user_done.set()
 
 
 if __name__ == "__main__":
