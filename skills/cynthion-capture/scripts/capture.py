@@ -52,6 +52,7 @@ SPEEDS = {'auto': SPEED_AUTO, 'hs': SPEED_HS, 'fs': SPEED_FS, 'ls': SPEED_LS}
 
 PCAP_MAGIC     = 0xa1b2c3d4
 LINKTYPE_USB20 = 288       # LINKTYPE_USB_2_0
+USB_PID_SOF    = 0xA5
 
 
 def find_analyzer_interface(dev):
@@ -92,6 +93,10 @@ def parse_frames(buf, out, stats):
         if len(buf) < frame_len:
             break
         payload = buf[4:4 + pkt_len]
+        if payload and payload[0] == USB_PID_SOF:
+            stats['sof_dropped'] += 1
+            buf = buf[frame_len:]
+            continue
         out.write(pcap_record(payload, time.time()))
         out.flush()
         stats['packets'] += 1
@@ -147,7 +152,7 @@ def main():
     signal.signal(signal.SIGINT,  _stop)
     signal.signal(signal.SIGTERM, _stop)
 
-    stats = {'packets': 0, 'bytes': 0}
+    stats = {'packets': 0, 'bytes': 0, 'sof_dropped': 0}
     buf   = b''
 
     try:
@@ -176,7 +181,8 @@ def main():
             pass
         usb.util.release_interface(dev, intf_num)
 
-    print(f'Done: {stats["packets"]} packets, {stats["bytes"]} bytes → {args.output}')
+    print(f'Done: {stats["packets"]} packets, {stats["bytes"]} bytes, '
+          f'{stats["sof_dropped"]} SOF dropped → {args.output}')
 
 
 if __name__ == '__main__':

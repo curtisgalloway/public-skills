@@ -28,8 +28,12 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
+use flate2::write::GzEncoder;
+use flate2::Compression;
 use futures_lite::future::block_on;
 use nusb::transfer::{ControlOut, ControlType, Recipient, RequestBuffer};
+
+const USB_PID_SOF: u8 = 0xA5;
 
 const VID: u16 = 0x1d50;
 const PID: u16 = 0x615b;
@@ -46,7 +50,7 @@ const LINKTYPE_USB20: u32 = 288;
 const REQ_CAPTURE: u8 = 1;
 
 fn usage() -> ! {
-    eprintln!("Usage: cynthion-capture [OPTIONS] <output.pcap>");
+    eprintln!("Usage: cynthion-capture [OPTIONS] <output.pcap.gz>");
     eprintln!();
     eprintln!("Options:");
     eprintln!("  -d, --duration <seconds>   Stop after N seconds (default: run until Ctrl-C)");
@@ -136,6 +140,7 @@ fn parse_and_write_frames(
     writer: &mut impl Write,
     packets: &mut u64,
     bytes: &mut u64,
+    sof_dropped: &mut u64,
 ) -> std::io::Result<()> {
     buf.extend_from_slice(chunk);
     let mut pos = 0;
@@ -154,6 +159,11 @@ fn parse_and_write_frames(
             break;
         }
         let payload = &buf[pos + 4..pos + 4 + pkt_len];
+        if payload.first() == Some(&USB_PID_SOF) {
+            *sof_dropped += 1;
+            pos = frame_end;
+            continue;
+        }
         write_pcap_record(writer, payload)?;
         *packets += 1;
         *bytes += pkt_len as u64;
@@ -220,7 +230,8 @@ fn main() {
         eprintln!("ERROR: Cannot create {output_path}: {e}");
         std::process::exit(1);
     });
-    let mut writer = BufWriter::new(file);
+    let gz = GzEncoder::new(file, Compression::default());
+    let mut writer = BufWriter::new(gz);
     write_pcap_global_header(&mut writer).expect("failed to write pcap header");
 
     send_capture_request(&interface, intf_num, ctrl_start);
@@ -240,6 +251,7 @@ fn main() {
     let mut leftover: Vec<u8> = Vec::new();
     let mut total_packets: u64 = 0;
     let mut total_bytes: u64 = 0;
+    let mut total_sof_dropped: u64 = 0;
 
     loop {
         if !running.load(Ordering::Relaxed) {
@@ -259,13 +271,16 @@ fn main() {
                 &mut writer,
                 &mut total_packets,
                 &mut total_bytes,
+                &mut total_sof_dropped,
             );
         }
         queue.submit(RequestBuffer::new(TRANSFER_SIZE));
     }
 
     send_capture_request(&interface, intf_num, 0);
-    writer.flush().expect("failed to flush output");
+    writer.into_inner().unwrap().finish().expect("failed to finalize gzip");
 
-    eprintln!("Done: {total_packets} packets, {total_bytes} bytes -> {output_path}");
+    eprintln!(
+        "Done: {total_packets} packets, {total_bytes} bytes, {total_sof_dropped} SOF dropped -> {output_path}"
+    );
 }
