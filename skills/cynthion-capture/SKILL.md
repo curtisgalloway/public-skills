@@ -28,6 +28,9 @@ traffic to a pcap file or live in the Packetry GUI.
 - "load the analyzer bitstream"
 - "headless capture"
 - "capture without a GUI"
+- "rolling capture" / "continuous capture" / "long-running capture"
+- "rotate capture files" / "split capture into segments"
+- "index a pcap" / "build a device index"
 
 ## Prerequisites
 
@@ -140,13 +143,15 @@ Requires Rust stable (edition 2024). Dependencies: `nusb`, `futures-lite`, `ctrl
 ### Usage
 
 ```
-cynthion-capture [OPTIONS] <output.pcap>
+cynthion-capture [OPTIONS] <output.pcap.gz>
 
 Options:
   -d, --duration <seconds>   Stop after N seconds (default: run until Ctrl-C)
   -s, --speed <speed>        auto|hs|fs|ls  (default: auto)
   -h, --help                 Show this help
 ```
+
+Output is gzip-compressed and SOF tokens are dropped at capture time.
 
 **Speed modes:**
 - `auto` — captures all speeds (HS, FS, LS). Use this unless you need to filter.
@@ -158,13 +163,13 @@ Options:
 
 ```bash
 # Capture all traffic until Ctrl-C
-cynthion-capture capture.pcap
+cynthion-capture capture.pcap.gz
 
 # Capture 30 seconds of full-speed traffic only
-cynthion-capture -d 30 -s fs capture-fs.pcap
+cynthion-capture -d 30 -s fs capture-fs.pcap.gz
 
 # Capture in background for 60 seconds
-cynthion-capture -d 60 output.pcap &
+cynthion-capture -d 60 output.pcap.gz &
 ```
 
 ### Python alternative
@@ -174,6 +179,10 @@ pip install pyusb
 python3 scripts/capture.py capture.pcap
 python3 scripts/capture.py -d 30 -s fs capture-fs.pcap
 ```
+
+SOF tokens are dropped at capture time. To compress the output, pipe through gzip
+or name the output `.pcap.gz` and use `rolling_capture.py` instead (which always
+writes compressed segments).
 
 Same options as the Rust tool. On Linux without udev rules, prefix with `sudo`.
 
@@ -191,6 +200,163 @@ The speed encoding (confirmed from Packetry source `src/backend/cynthion.rs`) is
 
 `auto` (speed=3) is the correct default for general captures. It also works
 correctly when the device was already enumerated before capture started.
+
+## Procedure: Rolling capture (long-running sessions)
+
+Use `rolling_capture.py` when you need to capture over hours or days — for
+anomaly hunting, monitoring a process that runs infrequently, or any session
+where a single large pcap file would be unwieldy.
+
+It writes rotating segment files and builds a JSON index for each segment
+automatically in a background thread after every rotation.
+
+### Requirements
+
+Same as the Python headless capture tool: `pyusb`, plus the
+`cynthion-pcap-decode` skill installed alongside this one (for indexing).
+
+### Usage
+
+```bash
+# Capture with 5-minute segments (default) until Ctrl-C
+python3 scripts/rolling_capture.py captures/
+
+# 10-minute segments, custom prefix, stop after 4 hours
+python3 scripts/rolling_capture.py captures/ --interval 600 --prefix mydevice --duration 14400
+
+# Also rotate when a segment reaches 100 MB
+python3 scripts/rolling_capture.py captures/ --interval 300 --max-size 100
+
+# Measure clock offset against the target machine at capture start
+python3 scripts/rolling_capture.py captures/ --target-host user@target-machine
+
+# Skip auto-indexing (faster; index the whole directory later)
+python3 scripts/rolling_capture.py captures/ --no-index
+python3 scripts/index_pcap.py captures/*.pcap --manifest captures/
+```
+
+### Output structure
+
+```
+captures/
+  capture_20260520_143000.pcap.gz  segment 1 — gzip-compressed pcap (LINKTYPE_USB_2_0)
+  capture_20260520_143000.json     segment 1 — device index
+  capture_20260520_143500.pcap.gz  segment 2
+  capture_20260520_143500.json     segment 2
+  ...
+  manifest.json                    session index of all segments
+```
+
+SOF tokens (PID 0xA5) are dropped at capture time before writing. Wireshark and
+tshark open `.pcap.gz` files natively without any extra flags.
+
+### manifest.json format
+
+```json
+{
+  "clock_sync": {
+    "target_host": "user@target-machine",
+    "measured_at": 1748000000.0,
+    "offset_s": 0.0123,
+    "uncertainty_s": 0.0031,
+    "rtt_s": 0.0062,
+    "method": "ssh-date"
+  },
+  "segments": [
+    {
+      "file": "capture_20260520_143000.pcap",
+      "index": "capture_20260520_143000.json",
+      "start_time": 1748000000.0,
+      "end_time": 1748000300.0,
+      "duration_s": 300.0,
+      "packets": 12345,
+      "bytes": 987654,
+      "devices": [
+        {"addr": 3, "vid": "0x04e8", "pid": "0x6860"},
+        {"addr": 7}
+      ]
+    }
+  ]
+}
+```
+
+`clock_sync.offset_s` is `target_clock - capture_clock` at the moment of measurement.
+A positive value means the target is ahead; subtract `offset_s` from target syslog
+timestamps (or add it to capture timestamps) to put both on a common timeline.
+`uncertainty_s` is half the SSH round-trip time — the irreducible error from not
+knowing exactly when the remote `date` command ran within the round trip.
+
+Devices without captured enumeration traffic appear with only `addr`.
+VID/PID are populated when the tool observes a `GET_DESCRIPTOR(DEVICE)`
+exchange during the segment.
+
+### Segment JSON index format
+
+Each `.json` file contains the same device entries as the manifest, plus
+transfer counts and first/last-seen timestamps:
+
+```json
+{
+  "file": "capture_20260520_143000.pcap",
+  "start_time": 1748000000.0,
+  "end_time": 1748000300.0,
+  "duration_s": 300.0,
+  "packets": 12345,
+  "bytes": 987654,
+  "devices": {
+    "3": {
+      "first_seen": 1748000010.5,
+      "last_seen":  1748000290.1,
+      "transfers":  450,
+      "idVendor":   "0x04e8",
+      "idProduct":  "0x6860",
+      "bDeviceClass": "0x00",
+      "bcdUSB": "0x0200"
+    }
+  }
+}
+```
+
+### Finding a specific device across segments
+
+```bash
+# Which segments have traffic for VID 04e8?
+grep -l '"vid": "0x04e8"' captures/*.json
+
+# Quick manifest scan (jq):
+jq '.segments[] | select(.devices[].vid == "0x04e8") | .file' captures/manifest.json
+
+# Decode a specific segment in detail
+python3 skills/cynthion-pcap-decode/scripts/decode.py \
+    captures/capture_20260520_143000.pcap \
+    --filter address=3 --format transcript
+```
+
+### Performance note
+
+The Python rolling capture tool reads USB in a single loop. Indexing runs in a
+background thread to avoid blocking, but the USB read loop is single-threaded.
+At very high traffic rates (> ~30 MB/s of USB data), use the Rust tool for
+capture (`capture-rs/`) and run `index_pcap.py` as a post-processing step.
+
+## Procedure: Index an existing pcap file
+
+`index_pcap.py` runs standalone on any pcap file captured with Packetry or the
+headless tools. It extracts per-device statistics and writes a `.json` alongside
+the pcap.
+
+```bash
+# Index one file
+python3 scripts/index_pcap.py capture.pcap
+
+# Index all segments in a directory and build a manifest
+python3 scripts/index_pcap.py captures/*.pcap --manifest captures/
+
+# Print the index to stdout without writing a file
+python3 scripts/index_pcap.py capture.pcap --stdout
+```
+
+Requires: `cynthion-pcap-decode` skill (for decode.py).
 
 ## Offline analysis with Wireshark
 
