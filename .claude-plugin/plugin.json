@@ -1,0 +1,12 @@
+{
+  "name": "public-skills",
+  "version": "1.0.0",
+  "description": "General-purpose agent skills: USB analysis with Cynthion, intern-mode loop safety, design partnership, session learning, and more.",
+  "author": {
+    "name": "curtisgalloway",
+    "url": "https://github.com/curtisgalloway"
+  },
+  "repository": "https://github.com/curtisgalloway/public-skills",
+  "license": "Apache-2.0",
+  "keywords": ["usb", "cynthion", "pcap", "reverse-engineering", "productivity", "safety", "learning"]
+}

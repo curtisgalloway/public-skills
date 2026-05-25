@@ -15,6 +15,21 @@ Most skills assume:
 - Standard CLI tools (`git`, `curl`, etc.) available on `PATH`
 - Any skill-specific dependencies called out in the skill's own docs
 
+### Installing in Claude Code
+
+This repo is a Claude Code plugin. Add it as a marketplace and install:
+
+```bash
+claude plugins marketplace add curtisgalloway/public-skills
+claude plugins install public-skills@public-skills
+```
+
+Or install directly from a local clone:
+
+```bash
+claude plugins install --path /path/to/public-skills
+```
+
 ## License
 
 Apache 2.0 — see [LICENSE](LICENSE).

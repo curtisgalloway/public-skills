@@ -1,0 +1,18 @@
+{
+  "name": "public-skills",
+  "owner": {
+    "name": "curtisgalloway"
+  },
+  "metadata": {
+    "description": "General-purpose agent skills for USB traffic analysis (Cynthion), loop-safety posture (intern-mode), design partnership, session learning, and more."
+  },
+  "plugins": [
+    {
+      "name": "public-skills",
+      "source": "./",
+      "description": "General-purpose agent skills: USB analysis with Cynthion, intern-mode loop safety, design partnership, session learning, and more.",
+      "version": "1.0.0",
+      "author": { "name": "curtisgalloway" }
+    }
+  ]
+}
