@@ -1,0 +1,17 @@
+{
+  "name": "public-skills",
+  "description": "General-purpose agent skills from github.com/curtisgalloway/public-skills. Set PUBLIC_SKILLS_REPO to the cloned repo root before installing.",
+  "skills": [
+    { "name": "claude-session-transcript", "path": "${PUBLIC_SKILLS_REPO}/skills/claude-session-transcript" },
+    { "name": "cynthion-capture",          "path": "${PUBLIC_SKILLS_REPO}/skills/cynthion-capture" },
+    { "name": "cynthion-pcap-decode",      "path": "${PUBLIC_SKILLS_REPO}/skills/cynthion-pcap-decode" },
+    { "name": "cynthion-reverse-engineer", "path": "${PUBLIC_SKILLS_REPO}/skills/cynthion-reverse-engineer" },
+    { "name": "cynthion-setup",            "path": "${PUBLIC_SKILLS_REPO}/skills/cynthion-setup" },
+    { "name": "design-partner",            "path": "${PUBLIC_SKILLS_REPO}/skills/design-partner" },
+    { "name": "intern-mode",               "path": "${PUBLIC_SKILLS_REPO}/skills/intern-mode" },
+    { "name": "learn",                     "path": "${PUBLIC_SKILLS_REPO}/skills/learn" },
+    { "name": "teach",                     "path": "${PUBLIC_SKILLS_REPO}/skills/teach" },
+    { "name": "usb-device-profile",        "path": "${PUBLIC_SKILLS_REPO}/skills/usb-device-profile" },
+    { "name": "wrapup",                    "path": "${PUBLIC_SKILLS_REPO}/skills/wrapup" }
+  ]
+}
