@@ -34,34 +34,40 @@ What does **NOT** count (skip these):
 
 ## Procedure
 
-1. **Locate the live transcript** using the procedure in the `claude-session-transcript` skill. Read it with `Read` (use `offset`/`limit` for large files) or extract just user/tool events with `jq`.
+**Delegate all analysis to a sub-agent.** Reading the transcript inline chews up the main session's context with raw JSONL, intermediate reasoning, and file reads the user never needs to see. Do the heavy work in a sub-agent; the main session only locates the transcript, presents the proposals, and applies what the user approves.
 
-2. **Scan for the signals listed above.** Walk forward through the transcript. For each candidate, note: (a) what was tried, (b) what failed or was corrected, (c) what worked, (d) why — the underlying reason, not just the surface fix.
+1. **Locate the live transcript path** in the main session using the `claude-session-transcript` skill (one `find` command — cheap). Capture the absolute path.
 
-3. **Read the existing instruction files** before proposing anything:
-   - `$HOME/.claude/AGENTS.md` (or `CLAUDE.md` if absent) — always
-   - `<cwd>/AGENTS.md` (or `CLAUDE.md` as fallback) if it exists; also check parent directories up to the repo root
-   - Skip any candidate already covered by existing guidance. If existing guidance is close but not quite right, propose an *edit* to that section rather than a new one.
+2. **Resolve the instruction file paths** in the main session:
+   - Global: `$HOME/.claude/AGENTS.md` (or `CLAUDE.md` if absent)
+   - Workspace: `<cwd>/AGENTS.md` (or `CLAUDE.md` as fallback); also check parent directories up to repo root
 
-4. **Classify each remaining candidate** as global or workspace, and tag the platform scope:
+3. **Spawn a sub-agent** via the `Agent` tool. The sub-agent performs steps 4–8 below. Include in the sub-agent prompt:
+   - Absolute path to the transcript file
+   - Absolute paths to the instruction files found in step 2
+   - Path to this skill file (`$HOME/.claude/skills/learn/SKILL.md`) so the sub-agent can read the "What counts as a learning", classification, and style rules
+   - Instruction to return a structured list of proposed changes — for each: target file, target section (existing or new), exact text to add or change, and a one-line citation pointing to the transcript moment that motivated it
+   - Instruction to **not** write any files — only return proposals
+
+4. *(Sub-agent)* **Scan for the signals listed above.** Walk forward through the transcript. For each candidate, note: (a) what was tried, (b) what failed or was corrected, (c) what worked, (d) why — the underlying reason, not just the surface fix.
+
+5. *(Sub-agent)* **Read the existing instruction files** before proposing anything. Skip any candidate already covered. If existing guidance is close but not quite right, propose an *edit* to that section rather than a new one.
+
+6. *(Sub-agent)* **Classify each remaining candidate** as global or workspace, and tag the platform scope:
    - **Global** — applies regardless of project. OS/toolchain quirks, shell-quoting rules, CLI preferences, generic tool patterns. Goes in the global AGENTS.md.
    - **Workspace** — only relevant inside this repo. Conventions, infra endpoints, project-specific scripts, repo layout. Goes in the workspace AGENTS.md.
    - When in doubt, prefer global only if you can imagine the same lesson biting you in an unrelated project.
-   - **Platform scope.** Before filing, run `uname -s` (and `uname -m` if arch matters) to confirm what the local host actually is — don't assume from past memory. Then:
-     - If the lesson is truly cross-platform (e.g. shell-quoting, generic CLI ergonomics), state it without a platform qualifier.
-     - If the lesson is specific to the local host's OS (the most common case for the global CLAUDE.md), prefix or section-header it accordingly — e.g. "## macOS: …" or a leading "On macOS, …". Future sessions on the same machine still benefit; future sessions on a different OS need to know to skip it.
-     - If the lesson came from a *remote* host the session SSH'd into (Linux VM, container, CI runner), don't file it under the local-host platform header. It belongs either in the workspace CLAUDE.md (if the repo deploys to that host) or in a platform-tagged subsection that names the target. Misfiling a Linux-remote lesson under macOS is a real failure mode — re-read the transcript to confirm where the failing command actually ran.
+   - **Platform scope.** Run `uname -s` (and `uname -m` if arch matters) — don't assume from memory. If the lesson is cross-platform, state it without a qualifier. If it's OS-specific, prefix or section-header it accordingly. If the lesson came from a *remote* host the session SSH'd into, don't file it under the local-host platform header — misfiling a Linux-remote lesson under macOS is a real failure mode.
 
-5. **Draft the additions.** Match the existing file's style — short H2/H3 sections, imperative voice, code fences for commands. Keep each lesson tight: the rule, then a one-line "why" so a future reader can judge edge cases. Do not write multi-paragraph essays.
+7. *(Sub-agent)* **Draft the additions.** Match the existing file's style — short H2/H3 sections, imperative voice, code fences for commands. Keep each lesson tight: the rule, then a one-line "why".
 
-6. **Show the proposed diff to the user** before writing. Group by target file. For each proposed change, show:
-   - The target file and section (existing or new)
-   - The exact text to add or change
-   - A one-line citation pointing back to the transcript moment that motivated it ("from the `pip install` retry on line N" / "from the user saying 'don't use --no-verify'")
+8. *(Sub-agent)* **Return the structured proposal list** to the main session. Do not write any files.
 
-7. **Wait for confirmation.** The user may accept all, accept some, edit phrasing, or reject. Apply only what they approve, using `Edit` (preferred) or `Write` (only if creating a new workspace AGENTS.md the user agreed to).
+9. *(Main session)* **Show the proposed diff to the user.** Group by target file. For each proposed change show: target file and section, exact text, and the citation from the sub-agent.
 
-8. **Report** what was written, to which file, and which candidates were dropped (and why — usually "already covered" or "user declined").
+10. *(Main session)* **Wait for confirmation.** Apply only what the user approves, using `Edit` (preferred) or `Write` (only if creating a new workspace AGENTS.md the user agreed to).
+
+11. *(Main session)* **Report** what was written, to which file, and which candidates were dropped (and why — usually "already covered" or "user declined").
 
 ## Style for the additions
 
