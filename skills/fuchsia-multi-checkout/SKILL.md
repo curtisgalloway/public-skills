@@ -55,9 +55,11 @@ fx-tree <cmd>               # if a $PATH symlink is set up
 
 These are the only manual rules needed; `fx-tree doctor` checks both.
 
-1. **Targets:** use `fx set-device <name>` — it stores the default **per build dir** (`out/<dir>.device`).
-   **Never** `ffx target default set` — that writes a **shared** user-level default that overrides
-   every tree.
+1. **Targets:** use `fx set-device <name>` — it stores the default **per build dir** (`out/<dir>.device`,
+   surfaced to ffx as `$FUCHSIA_NODENAME`). Do **not** use `ffx target default set`: current trees removed
+   the command outright and bypass stateful `target.default` config entirely (fxbug.dev/394619603); on
+   checkouts predating that fix it writes a **shared** user-level default that overrides every tree.
+   Clear a stale value with `ffx config remove target.default` (`target default unset` is also gone).
 2. **Emulators:** always pass a unique name per tree: `fx ffx emu start --name <tree>-emu …`. Emulator
    instances are keyed by name only and shared across trees, so two trees both using `fuchsia-emulator`
    corrupt each other.
@@ -94,6 +96,7 @@ Already isolated **per build dir** — no action needed:
 | ffx daemon socket | `out/<dir>/.ffx-daemon/daemon.sock` (in-tree mode) | `config/src/paths.rs:87-99` |
 | ffx build config (product bundle, repo, qemu/sdk overrides) | `out/<dir>/ffx-config.json` | `config/.../context.rs:354-383` |
 | default target device | `out/<dir>.device` → `$FUCHSIA_NODENAME` | `tools/devshell/set-device`, `lib/vars.sh:444` |
+| default target resolution | `-t` flag, else `$FUCHSIA_DEVICE_ADDR`/`$FUCHSIA_NODENAME`; stateful user/build/global `target.default` config **bypassed** | `ffx/lib/target/src/lib.rs:690-714` (fxbug.dev/394619603) |
 | build lock | `out/<dir>.build_lock` | `lib/vars.sh:500` |
 
 So two **separate checkouts** run concurrent builds and devices without colliding out of the box.
@@ -103,8 +106,10 @@ What still needs handling:
 1. **Shell env.** A typical `~/.bashrc` pins *one* tree's `.jiri_root/bin` onto `PATH` and sources its
    `fx-env.sh`; a second tree's shell inherits the wrong tools and only survives via the cwd-redirect.
    `fx-tree env` fixes the shell.
-2. **Shared ffx user state** under `~/.local/share/Fuchsia/ffx/`: the user-level `target.default`
-   (only if someone runs `ffx target default set`) and `emu/instances/<name>`. → the two conventions.
+2. **Shared ffx user state** under `~/.local/share/Fuchsia/ffx/`: `emu/instances/<name>` — the one
+   real remaining hazard (→ convention #2). The user-level `target.default` only bites on checkouts
+   predating fxbug.dev/394619603 (current trees removed `ffx target default set` and bypass the
+   stateful value); convention #1 stays as defense-in-depth for mixed-age trees.
 
 ## Do NOT use `FFX_ISOLATE_DIR` / `--isolate-dir` as a per-tree switch
 
