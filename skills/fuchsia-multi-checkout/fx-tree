@@ -22,10 +22,13 @@
 #      tools/env and only survives via the cwd-redirect. `fx-tree env` fixes a
 #      shell to point at whatever tree it is in.
 #   2. A few SHARED per-user ffx files under ~/.local/share/Fuchsia/ffx:
-#        - config/.ffx_user_config.json  -> `target.default` (only if you ever
-#          run `ffx target default set`) and the `targets.manual` list.
 #        - emu/instances/<name>          -> emulators are keyed by NAME only, so
 #          two trees launching "fuchsia-emulator" corrupt each other.
+#        - config/.ffx_user_config.json  -> the `targets.manual` list (additive,
+#          usually harmless) and `target.default`. NOTE: current trees removed
+#          `ffx target default set` and BYPASS stateful target.default config
+#          (fxbug.dev/394619603); a stale value only affects checkouts that
+#          predate the fix.
 #      `fx-tree doctor` flags these; the runbook gives the conventions.
 #
 # NOTE: We deliberately do NOT set FFX_ISOLATE_DIR. It flips ffx out of in-tree
@@ -179,8 +182,10 @@ cmd_doctor() {
   printf '%sShared per-user ffx state (collision sources across ALL trees):%s\n' "$c_dim" "$c_off"
   local udt; udt=$(ffx_user_default_target)
   if [[ -n $udt ]]; then
-    printf '  %sWARN%s user-level `target.default`=%s is SHARED and overrides every tree.\n' "$c_yel" "$c_off" "$udt"
-    printf '       Prefer per-build-dir `fx set-device`; clear with `ffx target default unset`.\n'; ok=0
+    printf '  %sWARN%s user-level `target.default`=%s is set (shared file).\n' "$c_yel" "$c_off" "$udt"
+    printf '       Current trees bypass it (fxbug.dev/394619603), but checkouts predating that\n'
+    printf '       fix treat it as an override of EVERY tree. Prefer per-build-dir `fx set-device`;\n'
+    printf '       clear with `ffx config remove target.default`.\n'; ok=0
   else
     printf '  %sok%s   no shared user-level default target set.\n' "$c_grn" "$c_off"
   fi
