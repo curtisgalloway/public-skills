@@ -8,6 +8,7 @@
     { "name": "cynthion-reverse-engineer", "path": "${PUBLIC_SKILLS_REPO}/skills/cynthion-reverse-engineer" },
     { "name": "cynthion-setup",            "path": "${PUBLIC_SKILLS_REPO}/skills/cynthion-setup" },
     { "name": "design-partner",            "path": "${PUBLIC_SKILLS_REPO}/skills/design-partner" },
+    { "name": "fuchsia-multi-checkout",    "path": "${PUBLIC_SKILLS_REPO}/skills/fuchsia-multi-checkout" },
     { "name": "intern-mode",               "path": "${PUBLIC_SKILLS_REPO}/skills/intern-mode" },
     { "name": "learn",                     "path": "${PUBLIC_SKILLS_REPO}/skills/learn" },
     { "name": "teach",                     "path": "${PUBLIC_SKILLS_REPO}/skills/teach" },
