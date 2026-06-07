@@ -11,6 +11,7 @@
     { "name": "fuchsia-multi-checkout",    "path": "${PUBLIC_SKILLS_REPO}/skills/fuchsia-multi-checkout" },
     { "name": "intern-mode",               "path": "${PUBLIC_SKILLS_REPO}/skills/intern-mode" },
     { "name": "learn",                     "path": "${PUBLIC_SKILLS_REPO}/skills/learn" },
+    { "name": "siglent-scope",             "path": "${PUBLIC_SKILLS_REPO}/skills/siglent-scope" },
     { "name": "teach",                     "path": "${PUBLIC_SKILLS_REPO}/skills/teach" },
     { "name": "usb-device-profile",        "path": "${PUBLIC_SKILLS_REPO}/skills/usb-device-profile" },
     { "name": "wrapup",                    "path": "${PUBLIC_SKILLS_REPO}/skills/wrapup" }
