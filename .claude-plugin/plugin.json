@@ -8,5 +8,5 @@
   },
   "repository": "https://github.com/curtisgalloway/public-skills",
   "license": "Apache-2.0",
-  "keywords": ["usb", "cynthion", "pcap", "reverse-engineering", "productivity", "safety", "learning", "fuchsia"]
+  "keywords": ["usb", "cynthion", "pcap", "reverse-engineering", "productivity", "safety", "learning", "fuchsia", "clean-room", "hardware", "bring-up", "raspberry-pi", "rockchip"]
 }
