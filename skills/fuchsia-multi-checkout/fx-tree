@@ -281,12 +281,21 @@ cmd_new() {
 
   [[ -e $dest ]] && { err "$dest already exists; refusing to overwrite."; return 1; }
   warn "Creating new Fuchsia checkout at $dest (this downloads gigabytes)…"
-  local s
+  # Execute every step in ONE shell so the `cd '$dest'` step persists across
+  # the rest: `jiri import`/`jiri update` resolve `.jiri_root` from cwd, so
+  # running each step in its own `bash -c` would drop the cd and `jiri import`
+  # fails with "cannot find .jiri_root". `set -e` stops on the first failure;
+  # `set -x` echoes each command (replacing the old per-step `+ …` trace).
+  local s; local -a run_steps=()
   for s in "${steps[@]}"; do
     case "$s" in eval*|*"# activate"*) continue ;; esac
-    printf '%s+ %s%s\n' "$c_dim" "$s" "$c_off" >&2
-    bash -c "$s" || { err "step failed: $s"; return 1; }
+    run_steps+=("$s")
   done
+  local joined; printf -v joined '%s\n' "${run_steps[@]}"
+  if ! bash -c "set -ex"$'\n'"$joined"; then
+    err "checkout failed (see trace above); partial tree left at $dest"
+    return 1
+  fi
   printf '%sDone.%s Activate it with:  eval "$(%s env %s)"\n' "$c_grn" "$c_off" "$PROG" "$dest"
 }
 
