@@ -36,14 +36,22 @@ Skills should be self-contained. If a skill needs a third-party tool, call that 
 
 ## License
 
-All skills in this repository are released under the Apache 2.0 license. Add the standard header to new source files:
+All skills in this repository are released under the Apache 2.0 license. The
+full grant lives in `LICENSE` at the repo root; source files carry only the
+SPDX identifier, not the boilerplate:
 
 ```
-# Copyright <year> contributors
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
+# SPDX-FileCopyrightText: <year> contributors
+# SPDX-License-Identifier: Apache-2.0
+```
+
+Use the file's own comment syntax — `#` for Python/shell, `//` for Rust, and an
+HTML comment block for Markdown (placed *after* the YAML frontmatter, never
+before it, or the frontmatter will not parse):
+
+```
+<!--
+SPDX-FileCopyrightText: <year> contributors
+SPDX-License-Identifier: Apache-2.0
+-->
 ```
