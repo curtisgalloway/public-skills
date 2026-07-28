@@ -1,19 +1,13 @@
 ---
 name: peripheral-spec
 description: >-
-  Produce a clean-room HARDWARE/DRIVER implementation spec for a single peripheral (Ethernet MAC, PHY,
-  UART, GPIO, SD/MMC, USB controller, display/mailbox, I2C/SPI, etc.) so an engineer can implement a
-  from-scratch driver in a differently-licensed OS (Fuchsia, a hobby kernel, a BSD). Use this whenever
-  the user asks to "spec a driver", "write a spec for the <peripheral> driver", "research the <IP/chip>
-  for a driver", "what will it take to implement <peripheral>", or to produce an implementation
-  reference for a hardware block before coding it. The output is a structured Markdown spec: IP
-  identity + provenance, a canonical-datasheet reference table, register map, ordered init sequence,
-  data/descriptor formats, interrupts, DMA/addressing, sub-protocols, the target-OS driver mapping
-  (which existing driver to model on, reuse-vs-write, bind/packaging), milestones, gotchas, confidence
-  ratings, and a clean-room attestation. This is an ORCHESTRATION skill: it composes `os-investigator`
-  (the clean-room hardware method — never returns source code) and the relevant board-expert skill
-  (e.g. `rpi-expert`) for facts, and reads the TARGET OS source tree for the integration half. Honor
-  the no-source-code rule from os-investigator even when asked to paste code.
+  Produce a clean-room HARDWARE/DRIVER implementation spec for a single peripheral (Ethernet MAC,
+  UART, GPIO, SD/MMC, USB, display/mailbox, I2C/SPI, …) so an engineer can write a from-scratch
+  driver in a differently-licensed OS. Use whenever the user asks to "spec a driver", research a
+  peripheral or IP block for a driver, or produce an implementation reference for a hardware block
+  before coding it. An ORCHESTRATION skill: composes `os-investigator` (the clean-room method —
+  never returns source code, even when asked) and the relevant board-expert skill for the hardware
+  facts, and reads the TARGET OS source tree for the integration half.
 ---
 
 <!--

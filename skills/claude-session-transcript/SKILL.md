@@ -95,6 +95,39 @@ jq -c 'select(.type == "user" and .userType == "external")
 
 This emits one JSON object per real user prompt. Slash-command pair collapsing and noise stripping are not done by the jq — apply those in the calling skill.
 
+## Harness-injected pseudo-prompts (the `isMeta` trap)
+
+**The filter above is necessary but NOT sufficient.** Many events have
+`type == "user"` and `userType == "external"` and text content yet were injected
+by the harness, not typed by the human. On a busy project they can outnumber the
+real prompts 2:1 — a transcript analysis that skips this step is dominated by
+machine noise (e.g. it will report a background-task completion as the user's
+"most common prompt").
+
+The harness flags injected events with **`isMeta: true`**. But `isMeta` alone
+**over-captures**: it also flags genuine human prompts that were submitted
+programmatically (queued "Continue …" handoffs). So combine the flag with
+pattern-matching. Drop an event as noise if it is `isMeta: true` **and short**,
+or if (regardless of `isMeta`) it matches one of these injected shapes:
+
+| class | matches | what it is |
+|---|---|---|
+| `task_notif` | starts with `<task-notification>` (or `<hex-id> toolu_…`) | background sub-agent completion |
+| `caveat` | starts with `Caveat:` / `<local-command-caveat>` | local-command output wrapper |
+| `stop_hook` | starts with `Stop hook feedback` / `A session-scoped Stop hook is now active` | Stop-hook feedback |
+| `goal_eval` / `goal_echo` | `^\[[^\]]+\]:\s` / a short bare `/goal` condition re-echoed | `/goal` poll-loop injections |
+| `context_dump` | starts with `## Context Usage` / `**Model:**` / `**Tokens:**` | `/context` status |
+| `skill_body` | starts with `Base directory for this skill:` | SKILL.md injected on skill invocation |
+| `compact_summary` | starts with `This session is being continued from a previous conversation` | compaction continuation |
+| `interrupted` | contains `request interrupted by user` | the user hit ESC |
+| `cmd_stub` | has a `<command-name>` but no human body after tag-strip | `/clear`, `/exit`, … |
+
+A genuine human prompt is then either `interactive` (not `isMeta`) or
+`programmatic` (substantive but `isMeta` — keep it, tag it). **Expect to tune the
+pattern list per harness version** — new injection wrappers appear over time;
+re-check by grepping kept output for `toolu_`, `task-notification`, `completed
+Agent`, `Base directory for this skill`.
+
 ## Reading large transcripts
 
 Active sessions can produce JSONL files of hundreds of MB. For large files, prefer:

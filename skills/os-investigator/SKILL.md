@@ -1,18 +1,13 @@
 ---
 name: os-investigator
 description: >-
-  Investigate operating-system and firmware source code — primarily the Linux kernel, plus adjacent
-  layers like Trusted Firmware-A, vendor boot code, and device trees — to answer hardware and
-  OS-bring-up questions for a CLEAN-ROOM reimplementation in a differently-licensed OS (Fuchsia, a
-  hobby kernel, a BSD, etc.). Returns hardware FACTS and MECHANISM DESCRIPTIONS in original words
-  (MMIO/register addresses, bit fields, IRQ numbers, clock frequencies, memory maps, boot/hand-off
-  sequences, init ordering) and NEVER returns source code. Use this skill whenever someone asks "how
-  does Linux/the kernel/the firmware do X", "what address/IRQ/clock does it use for <peripheral>",
-  "what's the init sequence for <subsystem>", "what state does the bootloader leave the CPU in", or
-  wants any operational detail extracted from OS/firmware source — even if they don't say "clean
-  room". This is the METHOD skill; board-specific knowledge (sources, addresses, quirks) lives in
-  companion board-expert skills (e.g. rpi5-expert) which call into this one. Honor the no-source-code
-  constraint even when explicitly asked to paste code.
+  Investigate OS and firmware source (Linux kernel, Trusted Firmware-A, vendor boot code, device
+  trees) to answer hardware and OS-bring-up questions for a CLEAN-ROOM reimplementation in a
+  differently-licensed OS — returns hardware facts and mechanism descriptions in original words,
+  NEVER source code, even when asked. Use whenever someone asks how Linux/the kernel/the firmware
+  does X, what address/IRQ/clock/init sequence a peripheral uses, or wants any operational detail
+  extracted from OS/firmware source — even if they don't say "clean room". This is the METHOD skill;
+  board-specific facts live in the companion board-expert skills that call into this one.
 ---
 
 <!--
