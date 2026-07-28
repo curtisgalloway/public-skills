@@ -1,16 +1,13 @@
 ---
 name: rpi5-expert
 description: >-
-  Board expert for the Raspberry Pi 5 (Broadcom BCM2712 SoC + RP1 southbridge), including Compute
-  Module 5. Use this skill for ANY question about Pi 5 / BCM2712 / RP1 hardware, low-level software, or
-  bring-up: physical/MMIO addresses, the peripheral memory map, the device tree, the boot chain and
-  exception-level hand-off (VPU → bootloader → TF-A/BL31 → kernel), PSCI/SMP, the GIC-400 interrupt
-  controller, timers, clocks/power, the debug UART and PL011s, GPIO/pinmux, PCIe and the RP1 chip
-  (USB, Ethernet, 40-pin-header I/O), where to find the source, and which datasheets to cite. Trigger
-  this whenever "Raspberry Pi 5", "Pi 5", "BCM2712", "RP1", or "CM5" appears in a hardware/software
-  question, even if Linux isn't mentioned. This skill provides the board-specific MAP; for the actual
-  investigation method and the clean-room no-source-code rule, also load and follow the
-  `os-investigator` skill.
+  Board expert for the Raspberry Pi 5 / Compute Module 5 (Broadcom BCM2712 SoC + RP1 southbridge):
+  the board-specific map of MMIO addresses, the memory map, the device tree, the boot chain and
+  exception-level hand-off, PSCI/SMP, interrupts, timers, clocks/power, UART/GPIO, PCIe and the RP1
+  chip, source repos, and datasheets for bring-up work. Trigger whenever "Raspberry Pi 5", "Pi 5",
+  "BCM2712", "RP1", or "CM5" appears in a hardware or low-level software question, even if Linux
+  isn't mentioned. Pairs with `os-investigator`, which supplies the investigation method and the
+  clean-room no-source-code rule.
 ---
 
 <!--
