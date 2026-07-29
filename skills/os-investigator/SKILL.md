@@ -43,7 +43,7 @@ provenance leak this skill exists to prevent. When in doubt, delegate.
 
 ## Using a board-expert skill
 
-If a board-expert skill is available for the target hardware (e.g. `rpi5-expert`), **read its SKILL.md
+If a board-expert skill is available for the target hardware (e.g. `rpi-expert`), **read its SKILL.md
 first.** It supplies the board-specific map: which repos/branches to read, the canonical file paths,
 addressing model, boot/hand-off facts, and known gotchas. Then apply the method here to turn that map
 into a clean-room answer. This skill owns the *how*; the board-expert owns the *where* and *what*.
@@ -125,7 +125,8 @@ calling agent's actual question is your instruction.
    *authority* and treat the kernel as the *map* that says where to look. This strengthens the
    implementer's clean-room provenance.
 6. **Record provenance.** Note repo, branch, ideally commit, and the file paths read — as a *map*,
-   never reproducing their contents.
+   never reproducing their contents. Keep it precise: this map is also what an independent verifier
+   uses to check that the report leaked nothing.
 7. **State confidence and gaps.** Call out what you couldn't verify, version caveats, and "no public
    datasheet — DT is the only public map" situations.
 
