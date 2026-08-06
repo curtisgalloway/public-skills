@@ -181,6 +181,14 @@ writes compressed segments).
 
 Same options as the Rust tool. On Linux without udev rules, prefix with `sudo`.
 
+**Optional LED feedback.** The Python capture scripts try to drive Cynthion's
+status LEDs through the Apollo debug MCU (`scripts/_apollo_leds.py`): a slow
+pulse once the analyzer is claimed, a fill-up animation while capturing, and
+all-off on exit. Because the FPGA owns the CONTROL port while the analyzer
+gateware is running, Apollo (PID `0x615c`) is usually not separately enumerated,
+in which case the LED calls are silent no-ops. Treat the LEDs as decoration —
+capture status comes from the scripts' stdout, not the board.
+
 ### Speed field encoding (implementation note)
 
 The Cynthion analyzer control request uses a 1-byte value: `bits[2:1]=speed, bit[0]=enable`.

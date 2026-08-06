@@ -56,6 +56,7 @@ import usb.util
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _sibling import import_decode  # noqa: E402
+from _apollo_leds import ApolloLeds  # noqa: E402
 import index_pcap  # noqa: E402  (same scripts/ directory)
 
 # ---------------------------------------------------------------------------
@@ -375,6 +376,8 @@ def main():
             print(f"WARNING: {exc}\nRunning without indexing.",
                   file=sys.stderr)
 
+    leds = ApolloLeds()   # no-op unless the Apollo MCU is separately reachable
+
     dev = usb.core.find(idVendor=VID, idProduct=PID_DEVICE)
     if dev is None:
         print("ERROR: No Cynthion USB Analyzer found.\n"
@@ -394,6 +397,7 @@ def main():
     except usb.core.USBError:
         pass
     usb.util.claim_interface(dev, intf_num)
+    leds.set_ready()   # slow pulse: device found, waiting to capture
 
     speed_code = SPEEDS[args.speed]
     ctrl_start = (speed_code << 1) | 1
@@ -427,6 +431,7 @@ def main():
         flush=True,
     )
     _send_capture_request(dev, intf_num, ctrl_start)
+    leds.start_capture()   # fill-up animation: capture is running
 
     buf         = b""
     last_status = time.time()
@@ -455,6 +460,7 @@ def main():
                 last_status = now
 
     finally:
+        leds.stop()   # all LEDs off
         try:
             _send_capture_request(dev, intf_num, 0)
         except Exception:

@@ -32,8 +32,13 @@ import signal
 import struct
 import sys
 import time
+from pathlib import Path
+
 import usb.core
 import usb.util
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _apollo_leds import ApolloLeds  # noqa: E402
 
 VID            = 0x1d50
 PID            = 0x615b
@@ -117,6 +122,8 @@ def main():
         help='USB speed filter (default: auto)')
     args = ap.parse_args()
 
+    leds = ApolloLeds()   # no-op unless the Apollo MCU is separately reachable
+
     dev = usb.core.find(idVendor=VID, idProduct=PID)
     if dev is None:
         print('ERROR: No Cynthion USB Analyzer found.\n'
@@ -139,6 +146,7 @@ def main():
         pass
 
     usb.util.claim_interface(dev, intf_num)
+    leds.set_ready()   # slow pulse: device found, waiting to capture
 
     speed_code = SPEEDS[args.speed]
     ctrl_start = (speed_code << 1) | 1   # speed[2:1] | enable[0]
@@ -159,6 +167,7 @@ def main():
         with open(args.output, 'wb') as f:
             f.write(pcap_global_header())
             send_capture_request(dev, intf_num, ctrl_start)
+            leds.start_capture()   # fill-up animation: capture is running
             deadline = (time.time() + args.duration) if args.duration else None
             print(f'Capturing ({args.speed} speed) → {args.output}'
                   + (f' for {args.duration}s' if args.duration else ' until Ctrl-C'),
@@ -175,6 +184,7 @@ def main():
                     pass
 
     finally:
+        leds.stop()   # all LEDs off
         try:
             send_capture_request(dev, intf_num, 0)
         except Exception:
