@@ -15,6 +15,7 @@
     { "name": "indiedroid-nova-expert",     "path": "${PUBLIC_SKILLS_REPO}/skills/indiedroid-nova-expert" },
     { "name": "intern-mode",                "path": "${PUBLIC_SKILLS_REPO}/skills/intern-mode" },
     { "name": "learn",                      "path": "${PUBLIC_SKILLS_REPO}/skills/learn" },
+    { "name": "mcci-3411",                  "path": "${PUBLIC_SKILLS_REPO}/skills/mcci-3411" },
     { "name": "os-investigator",            "path": "${PUBLIC_SKILLS_REPO}/skills/os-investigator" },
     { "name": "peripheral-spec",            "path": "${PUBLIC_SKILLS_REPO}/skills/peripheral-spec" },
     { "name": "rpi-expert",                 "path": "${PUBLIC_SKILLS_REPO}/skills/rpi-expert" },
