@@ -163,6 +163,35 @@ first-time install** of a bare machine. It only works once gigaboot already live
 Decide the provisioning method up front — don't discover this at `gpt-init` time. Note that a failed
 `gpt-init` writes nothing, so a not-yet-wiped OS on the disk survives the attempt.
 
+### Disk-free RAM netboot of an x64 build (the working path) — and why it's serial-only
+
+To run/test a build with **no disk install**, netboot the ZBI into RAM via **GRUB** (the same
+pattern the arm64 boards use: `grub → linux-<arch>-boot-shim.bin (as `linux`) + fuchsia.zbi (as
+`initrd`) → boot`). Verified end-to-end on the NUC11:
+
+- Build a standalone GRUB EFI and serve it as the PXE boot file:
+  `grub-mkstandalone -O x86_64-efi --modules="http efinet net linux normal echo gfxterm all_video
+  configfile part_gpt" -o grubx64.efi boot/grub/grub.cfg=<cfg>`. The embedded cfg does:
+  `set gfxpayload=keep; linux (http,<server>)/linux-x86-boot-shim.bin kernel.bypass-debuglog=true;
+  initrd (http,<server>)/fuchsia.zbi; boot`.
+- **Fetch over HTTP, not TFTP** — GRUB's built-in TFTP stalls on multi-block transfers; netbootd
+  serves the same root on :80.
+- **GRUB, not iPXE** — EFI iPXE's `kernel` rejects the Fuchsia shim with `Exec format error` (it's a
+  valid bzImage but EFI iPXE can't boot a legacy bzImage). Confirmed correct against the shim source
+  (`legacy-boot-shim.cc` takes the ramdisk/initrd as the input ZBI).
+
+**But you cannot see the output without serial.** The x64 boot-test bundles set
+`kernel.serial=legacy` (console = legacy PC **COM1, I/O 0x3F8, 115200 8N1**), and the minimal
+`linux-x86-boot-shim` does **not** synthesize a framebuffer ZBI item — so zircon has **no gfxconsole**
+on this path (the HDMI screen stays frozen on GRUB's last frame; that's expected, not a hang). These
+minimal images also bring up **no network** (no netsvc traffic), so there is **no software-only way**
+to read pass/fail. This is by design and matches upstream — botanist captures x64 boot-tests over
+**serial**. So: RAM-netboot works and is the right mechanism, but a **serial console is required to
+observe/verify the tests**. On the NUC11 that's an internal 1×9 1.25 mm PicoBlade **RS-232** header
+(RX/TX/GND = pins 2/3/5; RS-232 level, not TTL; PCB pin-1 silkscreen is wrong — trust the TPS);
+capture at 115200 8N1. (`gigaboot` *does* pass a framebuffer, so a disk-installed gigaboot boot would
+have a gfxconsole — but that's the disk path blocked above.)
+
 ---
 
 ## 5. `ffx` to a *running* Fuchsia over the point-to-point link
