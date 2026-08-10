@@ -1,0 +1,29 @@
+{
+  "_": "Clean-room policy consumed by cleanroom_hook.py and session_audit.py. Copy to <project>/.claude/cleanroom-policy.json and edit. checkout_roots MUST list every local encumbered checkout (better: don't mount them in implementation workspaces at all). Denylists are leaky by nature - the environment tier (no checkout, egress allowlist) is the real guarantee.",
+  "checkout_roots": [
+    "~/src/linux",
+    "~/linux",
+    "~/src/u-boot",
+    "~/src/arm-trusted-firmware",
+    "~/src/trusted-firmware-a"
+  ],
+  "blocked_path_patterns": [
+    "/linux/drivers/", "/linux/arch/", "/linux/include/", "/linux/kernel/",
+    "/linux/sound/", "/linux/net/", "/linux/block/", "/linux/fs/",
+    "/linux/mm/", "linux.git", "linux-stable", "linux-next",
+    "/u-boot/", "u-boot.git",
+    "arm-trusted-firmware", "trusted-firmware-a", "/optee",
+    "raspberrypi/linux"
+  ],
+  "blocked_url_patterns": [
+    "kernel.org", "bootlin.com", "kernel.googlesource.com",
+    "android.googlesource.com/kernel", "github.com/torvalds",
+    "github.com/raspberrypi/linux", "github.com/u-boot",
+    "github.com/ARM-software/arm-trusted-firmware", "source.denx.de",
+    "git.trustedfirmware.org", "review.trustedfirmware.org",
+    "sources.debian.org/src/linux"
+  ],
+  "authorized_roles": ["investigator", "verifier"],
+  "log_file": "docs/provenance/hook-blocks.jsonl",
+  "gap_hint": "docs/spec-gaps/<device>.md"
+}
