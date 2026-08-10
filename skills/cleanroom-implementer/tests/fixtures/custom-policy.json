@@ -1,0 +1,9 @@
+{
+  "_": "SYNTHETIC TEST FIXTURE. Proves the hook and the auditor resolve the same policy file: acme-vendor-blob-sdk is not in the built-in defaults, so a finding against it can only come from this file being loaded.",
+  "checkout_roots": [],
+  "blocked_path_patterns": ["acme-vendor-blob-sdk"],
+  "blocked_url_patterns": ["blobs.acme-vendor.example"],
+  "authorized_roles": ["investigator", "verifier"],
+  "log_file": "docs/provenance/hook-blocks.jsonl",
+  "gap_hint": "docs/spec-gaps/<device>.md"
+}

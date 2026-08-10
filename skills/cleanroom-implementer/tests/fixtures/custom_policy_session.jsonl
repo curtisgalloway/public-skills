@@ -1,0 +1,2 @@
+{"type":"assistant","message":{"content":[{"type":"tool_use","id":"t1","name":"Read","input":{"file_path":"/home/dev/src/acme-vendor-blob-sdk/hal/widgetron.c"}}]}}
+{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"t1","content":"static int widgetron_reset(void) { return 0; }"}]}}
