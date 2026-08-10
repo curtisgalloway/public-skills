@@ -1,0 +1,27 @@
+{
+  "_": "Merge into the settings used for IMPLEMENTATION sessions (.claude/settings.json if the whole project is restricted, or a dedicated file passed with --settings). If dirty-side subagents (investigator/verifier) run inside the same project, they need CLEANROOM_ROLE=investigator|verifier in their environment - the hook then allows-and-logs their source reads. The deny rules are belt-and-suspenders; drop the WebFetch/WebSearch denies if orchestrator sessions sharing these settings need the web, and rely on the hook plus the driver-implementer agent's tool list instead. Edit the Read() paths to match your actual checkout roots (keep them in sync with cleanroom-policy.json).",
+  "permissions": {
+    "deny": [
+      "WebFetch",
+      "WebSearch",
+      "Read(~/src/linux/**)",
+      "Read(~/linux/**)",
+      "Read(~/src/u-boot/**)",
+      "Read(~/src/arm-trusted-firmware/**)",
+      "Read(~/src/trusted-firmware-a/**)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/cleanroom_hook.py"
+          }
+        ]
+      }
+    ]
+  }
+}
