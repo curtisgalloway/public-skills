@@ -38,13 +38,13 @@ without this confirmation.
 
 `cynthion-pcap-decode` must be installed for the analysis scripts to work.
 They find it as a **sibling in the same skills tree** first — install the two
-together and no configuration is needed — and otherwise search the Gemini CLI,
-Antigravity and Claude Code skills roots under `$HOME` and the workspace
-(`~/.gemini/skills/`, `~/.agents/skills/`, `~/.gemini/antigravity/skills/`,
-Antigravity plugin `skills/` directories, `.gemini/skills/`, `.agents/skills/`).
-To point at it outright, set `CYNTHION_PCAP_DECODE_SCRIPTS` to the directory
-holding `decode.py`, or `PUBLIC_SKILLS_REPO` to a clone of this repo. If it
-isn't found, the scripts fail with that list rather than a stack trace.
+together and no configuration is needed — and otherwise search the known skills
+roots under `$HOME` and the workspace: `~/.gemini/antigravity/skills/`,
+Antigravity plugin `skills/` directories, `<workspace>/.agents/skills/`, the
+cross-tool `~/.agents/skills/`, and the older Gemini CLI and Claude Code
+layouts. To point at it outright, set `CYNTHION_PCAP_DECODE_SCRIPTS` to the
+directory holding `decode.py`, or `PUBLIC_SKILLS_REPO` to a clone of this repo.
+If it isn't found, the scripts fail with that list rather than a stack trace.
 
 Below, `<cynthion-pcap-decode>` stands for that skill's directory — substitute
 wherever your agent installed it.

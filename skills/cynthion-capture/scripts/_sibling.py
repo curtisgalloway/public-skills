@@ -18,9 +18,9 @@ hardcoded to one harness. Resolution order:
   3. A sibling in the same skills tree — the repo layout, and what any
      harness that installs whole skill trees together produces. This is the
      case that works without configuration; prefer it.
-  4. Known per-harness skills roots (Gemini CLI, Antigravity, Claude Code)
-     under $HOME and the current workspace, plus Antigravity plugin
-     directories, which are globbed because the plugin name is the user's.
+  4. Known skills roots under $HOME and the current workspace -
+     Antigravity first, then others - plus Antigravity plugin directories,
+     which are globbed because the plugin name is the user's.
 """
 
 import os
@@ -33,14 +33,14 @@ MODULE = "decode.py"
 # Skills roots, relative to $HOME or to the workspace. Kept in one list so a
 # new harness is one line, not a new code path.
 HOME_SKILL_ROOTS = (
-    ".gemini/skills",                 # Gemini CLI, user-level
-    ".agents/skills",                 # tool-agnostic; Gemini CLI reads it
     ".gemini/antigravity/skills",     # Antigravity, user-level
+    ".agents/skills",                 # cross-tool convention
+    ".gemini/skills",                 # legacy Gemini CLI layout
     ".claude/skills",                 # Claude Code, user-level
 )
 WORKSPACE_SKILL_ROOTS = (
-    ".gemini/skills",                 # Gemini CLI, project-level
     ".agents/skills",                 # Antigravity workspace
+    ".gemini/skills",                 # legacy Gemini CLI layout
     ".claude/skills",
     "skills",                         # a plain checkout of a skills repo
 )
@@ -88,7 +88,7 @@ def find_decode_scripts() -> Path:
         f"{SKILL} skill not found.\n"
         "Install it alongside this skill so the two sit in one skills tree — "
         f"then {MODULE} is found with no configuration. Searched the sibling "
-        "path plus the Gemini CLI, Antigravity and Claude Code skills roots "
+        "path plus the Antigravity, cross-tool and Claude Code skills roots "
         "under $HOME and this workspace.\n"
         "To point at it directly, set one of:\n"
         f"  CYNTHION_PCAP_DECODE_SCRIPTS=<dir containing {MODULE}>\n"

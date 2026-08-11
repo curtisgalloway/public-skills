@@ -1,0 +1,36 @@
+{
+  "_": "ANTIGRAVITY CLI (agy) PERMISSIONS - the capability-denial layer, and the one an implementing agent cannot talk its way past. Merge into the settings used for implementation sessions: ~/.gemini/antigravity-cli/settings.json, or the project-scoped settings your build reads. VERIFY THE RULE GRAMMAR BEFORE TRUSTING THIS FILE: run `/permissions` in agy, add one of these denies through the TUI, then read the file back - the TUI is the authority on the exact syntax your build accepts, and it has changed between releases. `/permissions list` shows what is actually in force. Precedence is deny > ask > allow, and path matching is recursive, so a denied directory covers everything under it.",
+
+  "__toolPermission": "request-review is the default and is the right mode here. Do NOT use strict: it denies all non-read operations, and the implementer's whole job is writing driver code. proceed-in-sandbox pairs well with Tier 1 - auto-approve inside the sandbox, ask outside it - if you want an implementer that runs unattended.",
+  "toolPermission": "proceed-in-sandbox",
+
+  "permissions": {
+    "deny": [
+      "search_web",
+      "read_url_content",
+
+      "read_file(~/src/linux)",
+      "read_file(~/linux)",
+      "read_file(~/src/u-boot)",
+      "read_file(~/src/arm-trusted-firmware)",
+      "read_file(~/src/trusted-firmware-a)",
+      "view_file(~/src/linux)",
+      "view_file(~/linux)",
+      "view_file(~/src/u-boot)",
+      "view_file(~/src/arm-trusted-firmware)",
+      "view_file(~/src/trusted-firmware-a)",
+      "grep_search(~/src/linux)",
+      "grep_search(~/src/u-boot)",
+
+      "read_file(docs/provenance)",
+      "view_file(docs/provenance)",
+
+      "run_command(regex:kernel\\.org|bootlin\\.com|kernel\\.googlesource\\.com|github\\.com/torvalds|github\\.com/u-boot|github\\.com/raspberrypi/linux|source\\.denx\\.de|git\\.trustedfirmware\\.org)",
+      "run_command(regex:/linux/(drivers|arch|include|kernel)/|linux\\.git|u-boot\\.git|arm-trusted-firmware|trusted-firmware-a)"
+    ]
+  },
+
+  "__note_web": "search_web and read_url_content are denied outright: every citable reference is pre-fetched into docs/references/ by the orchestrator, so an implementation session never needs the network. This is also what stops the model from routing around a blocked path by reading a code-browser mirror.",
+  "__note_paths": "Edit the checkout paths to match your machine and keep them in sync with cleanroom-policy.json. Better still, don't mount an encumbered checkout in the implementation workspace at all - a path that isn't there needs no rule.",
+  "__note_scoping": "These rules apply to whatever session reads this settings file, and CLEANROOM_ROLE means nothing to them. The dirty side (investigator/verifier) must therefore run from settings WITHOUT these denies - a separate agy invocation, not the same session."
+}
