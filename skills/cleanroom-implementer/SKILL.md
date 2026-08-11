@@ -24,11 +24,16 @@ implementation. That one tool call is the contamination event the whole pipeline
 and it happens on the clean side where nobody is watching.
 
 Treat it as a security problem, not a prompting problem. Four layers, weakest to strongest:
-**instructions** (this skill, the usage notice, the CLAUDE.md block) reduce attempts and give the
+**instructions** (this skill, the usage notice, the `AGENTS.md` block) reduce attempts and give the
 agent the right recovery path; **attractant removal** (no file paths in specs, a cheap spec-gap
-outlet) removes the reasons to try; **capability denial** (hooks, restricted agents, sandboxing)
-removes the ability; **detection** (transcript audits, the hook log, the output scan) catches what
-leaks and produces the evidence. Install all four; only the last two are guarantees.
+outlet) removes the reasons to try; **capability denial** (hooks, policy rules, restricted agents,
+sandboxing) removes the ability; **detection** (transcript audits, the hook log, the output scan)
+catches what leaks and produces the evidence. Install all four; only the last two are guarantees.
+
+Install instructions below are written for **Antigravity** — the `agy` CLI, where the enforcement
+mechanisms actually exist, and the IDE, where some of them don't. The two shipped scripts are
+harness-neutral (they key off argument names and event fields, not tool-name tables), so they also
+work unchanged under Claude Code with `.claude/` paths.
 
 ## The standing rules (if you are the implementing agent, these bind you)
 
@@ -75,37 +80,79 @@ GPL-adjacent `third_party/` vendored code isn't in view either. A sandbox cannot
 
 **Tier 2 — harness.** Ships in `assets/` and `scripts/`:
 
-1. Copy `scripts/cleanroom_hook.py` → `<project>/.claude/hooks/cleanroom_hook.py`.
-2. Copy `assets/cleanroom-policy.json` → `<project>/.claude/cleanroom-policy.json` and edit:
+1. Copy `scripts/cleanroom_hook.py` → `<workspace>/.agents/hooks/cleanroom_hook.py` and
+   `assets/cleanroom-policy.json` → `<workspace>/.agents/cleanroom-policy.json`. Edit the policy:
    `checkout_roots` must list every local encumbered checkout; extend the URL denylist as needed
    (denylists are leaky — that's what Tier 1 is for).
-3. Merge `assets/settings-fragment.json` into the settings used for implementation sessions
-   (project `.claude/settings.json` if the whole project is restricted, or a dedicated file via
-   `--settings`). It wires the hook on matcher `*` (so MCP tools are covered too) and adds
-   belt-and-suspenders deny rules.
-4. Copy `assets/driver-implementer.md` → `<project>/.claude/agents/driver-implementer.md` and
-   spawn all ported-driver coding work into that agent. Its tool list has **no WebFetch, no
-   WebSearch, and no Task** — it can't browse and can't delegate to something that can.
+2. Install `assets/antigravity-hooks.json` as `<workspace>/.agents/hooks.json` (or merge into
+   `~/.gemini/config/hooks.json` to cover every project). The event is **`PreToolUse`**, matcher
+   `.*` — a regex over the tool name, so MCP and future tools are covered without an edit. The hook
+   reads the call from `toolCall.args` and the workspace from `workspacePaths[0]`, so it needs no
+   project-dir variable.
+3. Merge `assets/antigravity-permissions.json` into the settings used for implementation sessions.
+   This is the capability-denial layer — the part that doesn't depend on the model cooperating:
+   `search_web` and `read_url_content` denied outright, encumbered checkout paths denied per tool,
+   kernel-mirror commands denied by regex, precedence deny > ask > allow, path matching recursive.
+   **Verify the rule grammar with `/permissions`** rather than trusting the file: add one deny
+   through the TUI and read the result back — the syntax has moved between releases, and
+   `/permissions list` is the only statement of what is actually in force.
+4. Copy `assets/driver-implementer.md` → `<workspace>/.agents/agents/driver-implementer.md` and put
+   all ported-driver coding work in that subagent. Four frontmatter fields carry the weight:
+   `tools:` is an allowlist with **no `search_web`, no `read_url_content`, and no
+   `invoke_subagent`** — it can't browse and can't delegate to something that can;
+   `commandExecutionPolicy: sandbox` closes the shell, the widest hole in the wall;
+   `inheritMcp: false` closes the MCP side channel; `mainAgent: false` keeps it from driving a
+   session. Confirm with `/agents` that it loaded, and confirm the tool names against your build —
+   an unmapped name in `tools:` is dropped silently, which is either a tool you thought you'd
+   removed or one you thought you had.
+
+Choose the permission mode deliberately. `request-review` (the default) prompts per operation.
+`proceed-in-sandbox` auto-approves inside the sandbox and asks outside it, which is the right mode
+for an unattended implementer. **Do not use `strict`** — it denies all non-read operations, and
+writing driver code is the entire job.
 
 The hook blocks on match and returns the spec-gap instructions as the error the model sees —
 redirection at the moment of temptation — and appends every event to
-`docs/provenance/hook-blocks.jsonl`. **Bash blocking is best-effort** (regex over the command
-line catches `git clone`/`curl` to known targets; it cannot catch everything a shell can do) —
-only Tier 1 truly closes Bash.
+`docs/provenance/hook-blocks.jsonl`, including that session's `transcriptPath` and
+`artifactDirectoryPath` so the pre-merge audit can find what to read. It emits a deny three ways at
+once (a `decision: deny` object on stdout, the reason on stderr, exit code 2) because Antigravity
+honours the decision object *and* treats a non-zero exit as a block; exit 2 is the default because
+it fails closed. **Shell blocking is best-effort** (regex over the command line catches
+`git clone`/`curl` to known targets; it cannot catch everything a shell can do) — the sandbox and
+Tier 1 are what actually close the shell.
 
-**Role scoping (important):** hooks in project settings apply to *every* session in the project —
-including the dirty side, which *must* read source. Investigator and verifier processes therefore
-run with `CLEANROOM_ROLE=investigator` (or `verifier`) in their environment: the hook then allows
-the access **and still logs it** (`allowed-role`). Two consequences: the block log becomes a
-complete, attributed record of every encumbered-source access in the project — evidentiary gold —
-and dirty-side subagents must run as **separate processes** (e.g. headless `claude -p` with the
-env set) rather than in-session Task subagents, so the role env never leaks into an
-implementation context.
+**Allow is explicit, and that matters more than it sounds.** Antigravity's `PreToolUse` contract
+does not accept an empty object or empty stdout as permission to proceed, so a silent hook can wedge
+every tool call in the session — the failure mode that gets enforcement ripped out of a project by
+lunchtime. The shipped hook prints `{"decision": "allow"}` on every allow path, including the one it
+takes when the event JSON is malformed. If you edit it, keep that property.
 
-**Tier 3 — instructions.** Append `assets/claude-md-block.md` to the project `CLAUDE.md` and
-mirror it in `AGENTS.md` next to the docs index. The spec's usage notice was read 40k tokens ago
-and doesn't survive compaction; the CLAUDE.md block is re-injected every session. This skill is
-the third copy, loaded by the implementing role.
+**Know the IDE limit.** Hooks are the `agy` CLI's mechanism, and the Antigravity IDE has not
+reliably run them. If implementation happens in the IDE, Tier 2 collapses to permissions plus rules,
+and Tier 1 and the audit carry the weight. Verify by provocation, never by assumption: attempt one
+blocked read in the exact surface you'll be working in, and check the log.
+
+**Role scoping (important):** hooks apply to *every* session in the workspace — including the dirty
+side, which *must* read source. Investigator and verifier processes therefore run with
+`CLEANROOM_ROLE=investigator` (or `verifier`) in their environment: the hook then allows the access
+**and still logs it** (`allowed-role`). Two consequences: the block log becomes a complete,
+attributed record of every encumbered-source access in the project — evidentiary gold — and
+dirty-side work must be a **separate `agy` process** with the variable exported, not an
+`invoke_subagent` call from an implementation session, so the role never leaks into a context that
+writes code.
+
+Permissions have no such escape — `CLEANROOM_ROLE` means nothing to them — so they are scoped by
+**launch** instead: the dirty side runs from settings without the denies. Keep the two configurations
+separate and deliberate; a single shared settings file cannot serve both sides of a wall.
+
+**Tier 3 — instructions.** Append `assets/agents-md-block.md` to the workspace-root **`AGENTS.md`**
+next to the docs index — Antigravity reads it, and it stays useful if the project is ever opened by
+another tool. Or manage it as a workspace rule (`.agent/rules/cleanroom.md`; confirm the directory
+name in your build, both `.agent/` and `.agents/` have shipped). Keep exactly one copy: `GEMINI.md`
+outranks `AGENTS.md` in Antigravity, so a second full copy there means the file you edited is the one
+that loses. The spec's usage notice was read 40k tokens ago and doesn't survive compaction; the
+standing block is re-injected every session. This skill is the third copy, loaded by the implementing
+role.
 
 ## Session transcript audit (detection + evidence)
 
@@ -113,19 +160,37 @@ Per implementation session — and mandatorily as part of the pre-merge gate, al
 `leak_scan.py` output scan — run:
 
 ```
-python3 scripts/session_audit.py <session>.jsonl \
+# The session log and the artifact directory, both of which the hook log
+# records per session (transcriptPath / artifactDirectoryPath) - read the
+# paths out of docs/provenance/hook-blocks.jsonl rather than guessing.
+python3 scripts/session_audit.py <transcriptPath> <artifactDirectoryPath> \
+    --out docs/provenance/<device>-session-audit-<date>.txt
+
+# Task artifacts live under the brain directory; pass it, it is walked.
+python3 scripts/session_audit.py ~/.gemini/antigravity/brain/<GUID>/ \
     --out docs/provenance/<device>-session-audit-<date>.txt
 ```
 
+Format is sniffed, not assumed — JSONL, single-document JSON, SQLite conversation stores and plain
+markdown artifacts all work — and it understands `toolCall`/`toolCalls[]` entries,
+`functionCall`/`functionResponse` parts and `tool_use`/`tool_result` blocks alike, so it keeps
+working when a build changes how it records a session.
+
 It checks, against the same policy file the hook uses: (1) every tool call's target vs the
-blocked paths/URLs/roots — catching sessions that ran without the hook and MCP side channels;
-(2) tool-result content for GPL/kernel license markers — high-signal that source text arrived
-regardless of route; (3) code-shaped payload density in network/bash results (workspace reads of
-the target tree are exempt — they're legitimately full of C); (4) a summary of the hook log for
-cross-reference. The report cites line numbers, tools, and marker names — never the content. Add
-the ledger line it prints to `docs/provenance-ledger.md`. Blocked attempts in the hook log are
-*positive* evidence — enforcement existed and fired — provided the audit shows no successful
-alternate route after them.
+blocked paths/URLs/roots — catching sessions that ran without the hook, surfaces that don't run
+hooks at all, and MCP side channels; (2) tool-result and artifact text for GPL/kernel license
+markers — high-signal that source text arrived regardless of route; (3) code-shaped payload density
+in network/shell results (workspace reads of the target tree are exempt — they're legitimately full
+of C, and so are plans and walkthroughs, which quote the driver the agent just wrote); (4) a summary
+of the hook log for cross-reference. The report cites record/line numbers, tools, and marker names —
+never the content. Add the ledger line it prints to `docs/provenance-ledger.md`. Blocked attempts in
+the hook log are *positive* evidence — enforcement existed and fired — provided the audit shows no
+successful alternate route after them.
+
+**Antigravity's artifacts are part of the record, not a side effect.** Plans and walkthroughs are
+written by the agent from whatever was in its context, so a leak shows up there as readily as in a
+diff — and in the IDE, where hooks may not fire, they are sometimes the *only* place it shows up.
+Audit them every time, and treat a marker in an artifact exactly as you would one in a transcript.
 
 ## Contamination response (defined in advance so nobody improvises)
 
@@ -143,10 +208,20 @@ spec is missing something. Sweep the gap file.
 
 ## What ships in this skill
 
-- `scripts/cleanroom_hook.py` — PreToolUse hook: block + log, role-aware. Stdlib only.
-- `scripts/session_audit.py` — transcript auditor (imports the hook's policy/matcher so the two
-  can never drift). Stdlib only.
+- `scripts/cleanroom_hook.py` — the `PreToolUse` hook: block + log, role-aware. Keyed on argument
+  names, not tool names, so a renamed or unfamiliar tool is still checked. Stdlib only.
+- `scripts/session_audit.py` — session and artifact auditor (imports the hook's policy/matcher so
+  the two can never drift). Stdlib only.
 - `assets/cleanroom-policy.json` — shared policy: checkout roots, path/URL patterns, roles, log path.
-- `assets/settings-fragment.json` — hook wiring + deny rules for implementation-session settings.
-- `assets/driver-implementer.md` — restricted subagent definition (no web tools, no Task).
-- `assets/claude-md-block.md` — the standing-rules block for `CLAUDE.md` / `AGENTS.md`.
+- `assets/antigravity-hooks.json` — `PreToolUse` hook wiring for `.agents/hooks.json`.
+- `assets/antigravity-permissions.json` — deny rules and permission mode: the capability-denial layer.
+- `assets/driver-implementer.md` — restricted subagent (no web, no MCP, no `invoke_subagent`,
+  sandboxed shell).
+- `assets/agents-md-block.md` — the standing-rules block for `AGENTS.md` / `.agent/rules/`.
+
+Antigravity moves fast, and it has already relocated hooks, settings and skills between releases.
+Every path, event name and field name here was correct when written and is cited as such — but if a
+wiring step doesn't take, confirm the current location against your build (`/hooks`, `/permissions`,
+`/agents`) before concluding the layer is installed. **A hook you believe is running and isn't is
+worse than no hook at all**, because it buys the confidence without the enforcement. Fire one
+deliberate blocked read after every install and after every upgrade, and confirm the log line.

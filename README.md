@@ -1,10 +1,18 @@
 # public-skills
 
-A collection of reusable agent skills designed to be generally agent-neutral. Skills have been developed and tested primarily with Claude Code and Gemini, but are written to work with any agent that supports the skill/slash-command pattern.
+A collection of reusable agent skills designed to be generally agent-neutral. Skills have been developed and tested primarily with Google Antigravity (the `agy` CLI and the IDE) and Claude Code, but are written to work with any agent that supports the skill/slash-command pattern.
 
 ## What's here
 
 Each skill lives in its own directory under `skills/` and contains at minimum a `SKILL.md` describing its purpose, inputs, and behavior. Some skills include supporting scripts or templates.
+
+### Writing skills that outlive a harness
+
+- **`agent-agnostic-skills`** — how to write skills, hooks, subagent definitions and agent-facing
+  scripts that survive a change of agent, and how to port one that didn't. Harness lock-in fails
+  silently — a tool-name table that matches nothing allows everything — so the skill is mostly about
+  turning invisible no-ops into checkable behaviour. Ships `scripts/portability_scan.py` and a dated
+  cross-harness reference matrix.
 
 ### Clean-room driver porting
 
@@ -12,7 +20,9 @@ Three skills compose into one pipeline for reimplementing a driver in a differen
 
 - **`os-investigator`** — the dirty-side method: read the original source and return hardware facts and mechanism prose, never code, every fact tagged by provenance class. Ships `scripts/leak_scan.py`, the mechanical leak scanner.
 - **`peripheral-spec`** — orchestration and the wall: the transfer protocol, the independent five-check verifier, mandatory scanning, and the evidentiary provenance ledger.
-- **`cleanroom-implementer`** — the consumer side: standing rules for the implementing agent, enforcement (a PreToolUse hook, a restricted agent definition, policy and settings fragments), and the session transcript audit.
+- **`cleanroom-implementer`** — the consumer side: standing rules for the implementing agent, enforcement (a `PreToolUse` hook, permission deny rules, a restricted subagent definition, policy fragments), and the session/artifact audit.
+
+Enforcement install material targets **Antigravity**: a `PreToolUse` hook in `<workspace>/.agents/hooks.json`, permission deny rules, a sandboxed `driver-implementer` subagent in `.agents/agents/`, the `AGENTS.md` standing block, and audits over session transcripts and task artifacts (`~/.gemini/antigravity/brain/<GUID>/`). The two shipped Python scripts are harness-neutral — they key off argument names and event fields rather than tool-name tables — so they also run unchanged under Claude Code with `.claude/` paths.
 
 Board-expert skills (e.g. `rpi-expert`, `indiedroid-nova-expert`) supply the per-SoC map and are dirty-side roles that `os-investigator` calls into. The `assets/` under `cleanroom-implementer` are install material for *consuming* projects — they are not this repo's own configuration.
 
@@ -24,6 +34,30 @@ Most skills assume:
 - A Unix-like shell (macOS or Linux)
 - Standard CLI tools (`git`, `curl`, etc.) available on `PATH`
 - Any skill-specific dependencies called out in the skill's own docs
+
+### Installing in Antigravity
+
+Skills are plain directories. Clone the repo and put the skills you want where your build
+discovers them — `~/.gemini/antigravity/skills/` for user-level, `<workspace>/.agents/skills/`
+for one project, or inside a plugin's `skills/` directory:
+
+```bash
+git clone https://github.com/curtisgalloway/public-skills ~/src/public-skills
+ln -s ~/src/public-skills/skills/peripheral-spec ~/.gemini/antigravity/skills/peripheral-spec
+```
+
+Check with `/skills` that they loaded. Skills that are subagent roles (`os-investigator`, and the
+shipped `cleanroom-implementer/assets/driver-implementer.md`) install instead as
+`<workspace>/.agents/agents/<name>.md` with `subagent: true` in the frontmatter, and show up under
+`/agents`. Workspace-wide instructions go in `AGENTS.md` at the workspace root, or as rules under
+`.agent/rules/`.
+
+Antigravity has relocated skills, hooks and settings between releases, so confirm the paths your
+build actually reads before assuming an install took — the slash commands above are the quickest
+check.
+
+> Skills that read agent transcripts (`learn`, `teach`, `wrapup`, `claude-session-transcript`) are
+> still written against Claude Code's session layout and have not been ported.
 
 ### Installing in Claude Code
 

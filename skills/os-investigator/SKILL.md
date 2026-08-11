@@ -41,6 +41,18 @@ target-OS code), do **not** run this skill body inline: **spawn a subagent, have
 source; it hands back clean-room facts and mechanism prose. The main agent's entire job is: ask the
 question → receive the clean-room report back.
 
+Concretely, in Antigravity: define the role as a subagent (`.agents/agents/<name>.md`, with
+`subagent: true`) and invoke it deliberately rather than hoping the primary agent delegates, or run
+it as its own task in the Agent Manager. When clean-room enforcement is installed
+(`cleanroom-implementer`), that is not sufficient on its own: the investigator must be a **separate
+`agy` process** with `CLEANROOM_ROLE=investigator` exported, because a subagent invoked from an
+implementation session inherits that session's environment and permissions. A role variable that
+leaks into a code-writing context authorizes exactly the reads the wall exists to stop.
+
+(`agy -p "<prompt>"` is the non-interactive form, but it has known hangs when spawned into a
+non-TTY — if you script it and get silence, that's the bug, not your prompt. A dedicated terminal
+session is the reliable route today.)
+
 This split is the whole point of the clean-room discipline. If the main agent reads the source itself,
 the encumbered code lands in the same context that produces the new implementation — exactly the
 provenance leak this skill exists to prevent. When in doubt, delegate.
@@ -222,7 +234,10 @@ calling agent's actual question is your instruction.
    map is what the independent verifier scans against, and later what the implementation's output
    scan diffs against. When the consumer-side hook from `cleanroom-implementer` is installed, run
    with `CLEANROOM_ROLE=investigator` in your environment so your authorized source reads are
-   logged rather than blocked.
+   logged rather than blocked — and launch from settings *without* the implementer's deny rules,
+   since Antigravity's permissions ignore the role variable and are scoped by launch instead. If
+   your reads are being blocked outright, that is the scoping, not a bug to defeat: fix the launch,
+   don't route around the wall.
 7. **State confidence and gaps.** Call out what you couldn't verify, version caveats, and "no public
    datasheet — DT is the only public map" situations.
 8. **Self-scan** (when the tree is local) per the self-check, then send.
