@@ -1,0 +1,76 @@
+# SPDX-FileCopyrightText: 2026 Curtis Galloway
+# SPDX-License-Identifier: Apache-2.0
+#
+# GEMINI CLI POLICY ENGINE - capability denial for clean-room implementation
+# sessions. This is the layer the model cannot talk its way past: the hook
+# redirects, the policy engine refuses.
+#
+# Install to ~/.gemini/policies/cleanroom.toml, or keep it in the project and
+# point at it explicitly (workspace policy directories are not loaded in
+# current builds):
+#
+#   gemini --policy .gemini/policies/cleanroom.toml
+#   # or persist it: settings.json -> "policyPaths": [".gemini/policies"]
+#
+# --policy REPLACES ~/.gemini/policies rather than merging, so pass every
+# policy directory you rely on. Highest-priority matching rule wins (0-999).
+#
+# Patterns are JavaScript regexes and are CASE-SENSITIVE - inline flags like
+# (?i) are a syntax error there. Kernel/U-Boot paths are lowercase by
+# convention, which these patterns assume; cleanroom_hook.py lowercases
+# before matching and is the case-insensitive backstop. Keep the pattern set
+# in sync with .gemini/cleanroom-policy.json.
+#
+# ROLE SCOPING: unlike the hook, the policy engine has no environment escape -
+# CLEANROOM_ROLE means nothing here. So this file is scoped by LAUNCH, not by
+# rule: implementation sessions pass it, dirty-side (investigator/verifier)
+# processes do not. Do NOT drop it into ~/.gemini/policies if investigations
+# run under the same user account; keep it in the project and pass --policy on
+# the implementation command line instead.
+#
+# Denylists are leaky by nature. Tier 1 - an implementation workspace with no
+# encumbered checkout mounted and egress off - is the actual guarantee.
+
+# No browsing at all in an implementation session. Every citable reference is
+# pre-fetched into docs/references/ by the orchestrator, so the implementer
+# never needs the network; the spec-gap protocol covers everything else.
+[[rule]]
+toolName = ["web_fetch", "google_web_search"]
+decision = "deny"
+priority = 900
+denyMessage = "Clean room: browsing is off in implementation sessions. Cited references are pre-fetched under docs/references/. If the spec is insufficient, append the question to docs/spec-gaps/<device>.md as '- [open] <date> <section> <question>', mark the code site TODO(spec-gap), and continue with other work."
+
+# Encumbered source by path, whatever the file tool. write_file/replace are
+# included on purpose: copying source INTO the tree is the outcome this whole
+# pipeline exists to prevent.
+[[rule]]
+toolName = ["read_file", "read_many_files", "list_directory", "glob", "grep_search", "search_file_content", "write_file", "replace"]
+argsPattern = '/linux/(drivers|arch|include|kernel|sound|net|block|fs|mm)/|linux\.git|linux-stable|linux-next|/u-boot/|u-boot\.git|arm-trusted-firmware|trusted-firmware-a|/optee|raspberrypi/linux'
+decision = "deny"
+priority = 910
+denyMessage = "Clean room: Linux/U-Boot/TF-A/vendor-firmware source is off-limits in implementation sessions. The landed spec (docs/<device>-spec.md) plus its cited references are your only implementation inputs. File a spec-gap instead: docs/spec-gaps/<device>.md."
+
+# The shell is the widest hole: clones, curls, greps into a checkout.
+[[rule]]
+toolName = "run_shell_command"
+commandRegex = 'kernel\.org|bootlin\.com|kernel\.googlesource\.com|github\.com/torvalds|github\.com/u-boot|github\.com/raspberrypi/linux|source\.denx\.de|git\.trustedfirmware\.org|/linux/(drivers|arch|include|kernel)/|linux\.git|u-boot\.git|arm-trusted-firmware|trusted-firmware-a'
+decision = "deny"
+priority = 910
+denyMessage = "Clean room: that command targets encumbered source. File a spec-gap (docs/spec-gaps/<device>.md), mark the code site TODO(spec-gap), and continue with other work. This attempt is logged."
+
+# MCP servers are a side channel around every built-in tool.
+[[rule]]
+toolName = "mcp_*"
+argsPattern = 'kernel\.org|bootlin\.com|kernel\.googlesource\.com|github\.com/torvalds|github\.com/u-boot|github\.com/raspberrypi/linux|source\.denx\.de|git\.trustedfirmware\.org|/linux/(drivers|arch|include|kernel)/'
+decision = "deny"
+priority = 905
+denyMessage = "Clean room: encumbered source is off-limits in implementation sessions, through MCP as much as through built-in tools. File a spec-gap: docs/spec-gaps/<device>.md."
+
+# The provenance directory is verifier and counsel material. An implementer
+# who opens it is reading the map of exactly what not to read.
+[[rule]]
+toolName = ["read_file", "read_many_files", "list_directory", "glob", "grep_search", "search_file_content"]
+argsPattern = 'docs/provenance'
+decision = "deny"
+priority = 890
+denyMessage = "Clean room: docs/provenance/ exists for verifiers and counsel. For an implementer it is a reading list you must not have."

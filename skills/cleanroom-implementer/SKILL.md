@@ -24,11 +24,15 @@ implementation. That one tool call is the contamination event the whole pipeline
 and it happens on the clean side where nobody is watching.
 
 Treat it as a security problem, not a prompting problem. Four layers, weakest to strongest:
-**instructions** (this skill, the usage notice, the CLAUDE.md block) reduce attempts and give the
+**instructions** (this skill, the usage notice, the `AGENTS.md` block) reduce attempts and give the
 agent the right recovery path; **attractant removal** (no file paths in specs, a cheap spec-gap
-outlet) removes the reasons to try; **capability denial** (hooks, restricted agents, sandboxing)
-removes the ability; **detection** (transcript audits, the hook log, the output scan) catches what
-leaks and produces the evidence. Install all four; only the last two are guarantees.
+outlet) removes the reasons to try; **capability denial** (hooks, policy rules, restricted agents,
+sandboxing) removes the ability; **detection** (transcript audits, the hook log, the output scan)
+catches what leaks and produces the evidence. Install all four; only the last two are guarantees.
+
+Install instructions below are written for **Gemini CLI** and **Antigravity**. The two shipped
+scripts are harness-neutral — they key off argument names and event fields, not tool-name tables, so
+they also work unchanged under Claude Code (`.claude/`, `$CLAUDE_PROJECT_DIR`, `PreToolUse`).
 
 ## The standing rules (if you are the implementing agent, these bind you)
 
@@ -73,39 +77,80 @@ iptables-allowlist approach works); every cited datasheet pre-fetched by the orc
 `docs/references/` so the implementer never needs the network. Scope the workspace so
 GPL-adjacent `third_party/` vendored code isn't in view either. A sandbox cannot be argued with.
 
-**Tier 2 — harness.** Ships in `assets/` and `scripts/`:
+**Tier 2 — harness.** Ships in `assets/` and `scripts/`. Both harnesses run the same hook script;
+only the wiring differs.
 
-1. Copy `scripts/cleanroom_hook.py` → `<project>/.claude/hooks/cleanroom_hook.py`.
-2. Copy `assets/cleanroom-policy.json` → `<project>/.claude/cleanroom-policy.json` and edit:
+*Gemini CLI:*
+
+1. Copy `scripts/cleanroom_hook.py` → `<project>/.gemini/hooks/cleanroom_hook.py`.
+2. Copy `assets/cleanroom-policy.json` → `<project>/.gemini/cleanroom-policy.json` and edit:
    `checkout_roots` must list every local encumbered checkout; extend the URL denylist as needed
    (denylists are leaky — that's what Tier 1 is for).
-3. Merge `assets/settings-fragment.json` into the settings used for implementation sessions
-   (project `.claude/settings.json` if the whole project is restricted, or a dedicated file via
-   `--settings`). It wires the hook on matcher `*` (so MCP tools are covered too) and adds
-   belt-and-suspenders deny rules.
-4. Copy `assets/driver-implementer.md` → `<project>/.claude/agents/driver-implementer.md` and
-   spawn all ported-driver coding work into that agent. Its tool list has **no WebFetch, no
-   WebSearch, and no Task** — it can't browse and can't delegate to something that can.
+3. Merge `assets/gemini-settings-fragment.json` into the settings used for implementation sessions
+   (`<project>/.gemini/settings.json`). It wires the hook on the **`BeforeTool`** event with matcher
+   `.*` — a regex over the tool name, so MCP and provider tools are covered too — and invokes it as
+   `python3 "$GEMINI_PROJECT_DIR"/.gemini/hooks/cleanroom_hook.py`.
+4. Install `assets/gemini-policy.toml` as the **policy engine** layer and launch implementation
+   sessions with `gemini --policy .gemini/policies/cleanroom.toml`. This is the part the model
+   cannot argue with: `web_fetch` and `google_web_search` denied outright, encumbered paths denied
+   by `argsPattern` across every file tool, kernel-mirror commands denied by `commandRegex`, and
+   `mcp_*` covered. Keep it out of `~/.gemini/policies` if investigations run under the same
+   account — see role scoping.
+5. Copy `assets/driver-implementer.md` → `<project>/.gemini/agents/driver-implementer.md` and put
+   all ported-driver coding work in that subagent (`@driver-implementer …`). Its `tools:` allowlist
+   has **no `web_fetch`, no `google_web_search`, and no delegation tool** — it can't browse and
+   can't hand the job to something that can.
+
+*Antigravity:*
+
+1. Copy `scripts/cleanroom_hook.py` → `<workspace>/.agents/hooks/cleanroom_hook.py` and
+   `assets/cleanroom-policy.json` → `<workspace>/.agents/cleanroom-policy.json`.
+2. Install `assets/antigravity-hooks.json` as `<workspace>/.agents/hooks.json` (or merge into
+   `~/.gemini/config/hooks.json` to cover every project). The event is **`PreToolUse`**, matcher
+   `.*`. Workspace-local hooks load **only in a trusted folder** — trust the workspace, then fire
+   one deliberate blocked read and confirm the log line appears. An untrusted workspace fails open
+   silently, which is the worst possible failure for this layer.
+3. Copy `assets/driver-implementer.md` → `<workspace>/.agents/driver-implementer.md`, translating
+   the tool names to your build's vocabulary (`run_command`, `view_file`, …); the rule is
+   unchanged — file and shell tools in, anything that fetches or delegates out.
+4. Set tool permissions to `strict` (or `request-review`) for implementation sessions and add the
+   encumbered paths to the **deny** list; deny beats ask beats allow. Note that strict mode ignores
+   the terminal allowlist, so don't rely on allowlist entries surviving a mode change.
+5. **Know this limit:** hooks are the `agy` CLI's mechanism, and the GUI IDE has not reliably run
+   them. In the IDE, Tier 2 collapses to permissions plus rules, so Tier 1 and the audit carry the
+   weight. Verify by provocation rather than by assumption — attempt one blocked read in the exact
+   surface you'll be working in, and check `docs/provenance/hook-blocks.jsonl`.
 
 The hook blocks on match and returns the spec-gap instructions as the error the model sees —
 redirection at the moment of temptation — and appends every event to
-`docs/provenance/hook-blocks.jsonl`. **Bash blocking is best-effort** (regex over the command
-line catches `git clone`/`curl` to known targets; it cannot catch everything a shell can do) —
-only Tier 1 truly closes Bash.
+`docs/provenance/hook-blocks.jsonl`. It emits a deny three ways at once (a `decision: deny` object
+on stdout, the reason on stderr, exit code 2) so one script satisfies every harness's contract;
+exit 2 is the default because it fails closed. **Shell blocking is best-effort** (regex over the
+command line catches `git clone`/`curl` to known targets; it cannot catch everything a shell can
+do) — only Tier 1 truly closes the shell.
 
 **Role scoping (important):** hooks in project settings apply to *every* session in the project —
 including the dirty side, which *must* read source. Investigator and verifier processes therefore
 run with `CLEANROOM_ROLE=investigator` (or `verifier`) in their environment: the hook then allows
 the access **and still logs it** (`allowed-role`). Two consequences: the block log becomes a
 complete, attributed record of every encumbered-source access in the project — evidentiary gold —
-and dirty-side subagents must run as **separate processes** (e.g. headless `claude -p` with the
-env set) rather than in-session Task subagents, so the role env never leaks into an
-implementation context.
+and dirty-side runs must be **separate processes** (`CLEANROOM_ROLE=investigator gemini -p "…"`,
+or a separate `agy` session/window with the variable exported) rather than in-session subagents, so
+the role env never leaks into an implementation context.
 
-**Tier 3 — instructions.** Append `assets/claude-md-block.md` to the project `CLAUDE.md` and
-mirror it in `AGENTS.md` next to the docs index. The spec's usage notice was read 40k tokens ago
-and doesn't survive compaction; the CLAUDE.md block is re-injected every session. This skill is
-the third copy, loaded by the implementing role.
+The Gemini policy engine has no such escape — `CLEANROOM_ROLE` means nothing to it — so it is
+scoped by **launch** instead: implementation sessions pass `--policy`, dirty-side sessions don't.
+Beware that `--policy` *replaces* `~/.gemini/policies` rather than merging, so pass every policy
+directory you actually rely on.
+
+**Tier 3 — instructions.** Append `assets/agents-md-block.md` to the project **`AGENTS.md`** next to
+the docs index — the portable target: Antigravity reads it, and Gemini CLI does too once
+`settings.json` carries `"context": { "fileName": ["AGENTS.md", "GEMINI.md"] }`. Add
+`.agent/rules/cleanroom.md` for Antigravity workspace rules if you prefer its rules panel (confirm
+the directory name in your build). Use `GEMINI.md` only for harness-specific wording: it outranks
+`AGENTS.md` in Antigravity, and two full copies will drift. The spec's usage notice was read 40k
+tokens ago and doesn't survive compaction; the standing block is re-injected every session. This
+skill is the third copy, loaded by the implementing role.
 
 ## Session transcript audit (detection + evidence)
 
@@ -113,19 +158,37 @@ Per implementation session — and mandatorily as part of the pre-merge gate, al
 `leak_scan.py` output scan — run:
 
 ```
-python3 scripts/session_audit.py <session>.jsonl \
+# Gemini CLI: ~/.gemini/tmp/<project_hash>/chats/*.jsonl
+#             (or the transcript_path handed to any hook event)
+python3 scripts/session_audit.py ~/.gemini/tmp/<project_hash>/chats/<session>.jsonl \
+    --out docs/provenance/<device>-session-audit-<date>.txt
+
+# Antigravity: task artifacts (implementation plans, walkthroughs) and the
+#              conversation store; pass the directory, it is walked
+python3 scripts/session_audit.py ~/.gemini/antigravity/brain/<GUID>/ \
     --out docs/provenance/<device>-session-audit-<date>.txt
 ```
 
+Format is sniffed, not assumed — JSONL, single-document JSON, SQLite conversation stores and plain
+markdown artifacts all work — and it understands `functionCall`/`functionResponse` parts,
+`toolCalls[]` entries and `tool_use`/`tool_result` blocks alike, so one auditor covers both
+harnesses.
+
 It checks, against the same policy file the hook uses: (1) every tool call's target vs the
-blocked paths/URLs/roots — catching sessions that ran without the hook and MCP side channels;
-(2) tool-result content for GPL/kernel license markers — high-signal that source text arrived
-regardless of route; (3) code-shaped payload density in network/bash results (workspace reads of
-the target tree are exempt — they're legitimately full of C); (4) a summary of the hook log for
-cross-reference. The report cites line numbers, tools, and marker names — never the content. Add
-the ledger line it prints to `docs/provenance-ledger.md`. Blocked attempts in the hook log are
-*positive* evidence — enforcement existed and fired — provided the audit shows no successful
-alternate route after them.
+blocked paths/URLs/roots — catching sessions that ran without the hook, surfaces that don't run
+hooks at all, and MCP side channels; (2) tool-result and artifact text for GPL/kernel license
+markers — high-signal that source text arrived regardless of route; (3) code-shaped payload density
+in network/shell results (workspace reads of the target tree are exempt — they're legitimately full
+of C, and so are plans and walkthroughs, which quote the driver the agent just wrote); (4) a summary
+of the hook log for cross-reference. The report cites record/line numbers, tools, and marker names —
+never the content. Add the ledger line it prints to `docs/provenance-ledger.md`. Blocked attempts in
+the hook log are *positive* evidence — enforcement existed and fired — provided the audit shows no
+successful alternate route after them.
+
+**Antigravity's artifacts are part of the record, not a side effect.** Plans and walkthroughs are
+written by the agent from whatever was in its context, so a leak shows up there as readily as in a
+diff — and in the IDE, where hooks may not fire, they are sometimes the *only* place it shows up.
+Audit them every time, and treat a marker in an artifact exactly as you would one in a transcript.
 
 ## Contamination response (defined in advance so nobody improvises)
 
@@ -143,10 +206,20 @@ spec is missing something. Sweep the gap file.
 
 ## What ships in this skill
 
-- `scripts/cleanroom_hook.py` — PreToolUse hook: block + log, role-aware. Stdlib only.
-- `scripts/session_audit.py` — transcript auditor (imports the hook's policy/matcher so the two
-  can never drift). Stdlib only.
+- `scripts/cleanroom_hook.py` — the hook: block + log, role-aware. Wires to Gemini CLI `BeforeTool`
+  or Antigravity `PreToolUse`; keyed on argument names, not tool names, so an unfamiliar tool from
+  an unfamiliar harness is still checked. Stdlib only.
+- `scripts/session_audit.py` — session/artifact auditor for both harnesses (imports the hook's
+  policy/matcher so the two can never drift). Stdlib only.
 - `assets/cleanroom-policy.json` — shared policy: checkout roots, path/URL patterns, roles, log path.
-- `assets/settings-fragment.json` — hook wiring + deny rules for implementation-session settings.
-- `assets/driver-implementer.md` — restricted subagent definition (no web tools, no Task).
-- `assets/claude-md-block.md` — the standing-rules block for `CLAUDE.md` / `AGENTS.md`.
+- `assets/gemini-settings-fragment.json` — `BeforeTool` hook wiring for `.gemini/settings.json`.
+- `assets/gemini-policy.toml` — policy-engine rules: the capability-denial layer.
+- `assets/antigravity-hooks.json` — `PreToolUse` hook wiring for `.agents/hooks.json`.
+- `assets/driver-implementer.md` — restricted subagent definition (no web tools, no delegation).
+- `assets/agents-md-block.md` — the standing-rules block for `AGENTS.md` / `GEMINI.md` /
+  `.agent/rules/`.
+
+Harness details drift fast in both tools. Every path and event name here was correct at the time of
+writing; if a wiring step doesn't take, confirm the current path against your build's docs before
+concluding the layer is installed. **A hook you believe is running and isn't is worse than no hook**
+— fire one deliberate blocked read after install and confirm the log line.
