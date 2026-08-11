@@ -1,7 +1,0 @@
-{"type":"session_metadata","sessionId":"gemini-test-session","projectHash":"0000","startTime":"2026-08-11T10:00:00Z"}
-{"type":"user","id":"m1","content":[{"text":"Finish the widgetron reset path from docs/widgetron-spec.md."}]}
-{"type":"gemini","id":"m2","content":[{"functionCall":{"id":"c1","name":"read_file","args":{"file_path":"docs/widgetron-spec.md"}}}]}
-{"type":"user","id":"m3","content":[{"functionResponse":{"id":"c1","name":"read_file","response":{"output":"# Widgetron spec\nRegister map grouped per the databook. Init sequence tagged per fact.\nNo source code reproduced; facts and mechanism only."}}}]}
-{"type":"gemini","id":"m4","content":[{"functionCall":{"id":"c2","name":"write_file","args":{"file_path":"src/devices/widgetron/driver.rs","content":"// Ported clean-room from docs/widgetron-spec.md; do not consult\n// trusted-firmware-a or linux/drivers/ for this.\n"}}}]}
-{"type":"message_update","id":"m4","toolCalls":[{"id":"c2","name":"write_file","args":{"file_path":"src/devices/widgetron/driver.rs"},"result":[{"text":"Wrote 2 lines"}]}]}
-{"type":"gemini","id":"m5","content":[{"functionCall":{"id":"c3","name":"replace","args":{"file_path":"docs/spec-gaps/widgetron.md","instruction":"append an open gap","old_string":"","new_string":"- [open] 2026-08-11 §5 reset ordering - must DCTL.CSFTRST complete before PHY writes?"}}}]}

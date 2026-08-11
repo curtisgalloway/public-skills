@@ -8,12 +8,14 @@ implementation sessions (the detection layer behind the hook).
 Scans agent session records for evidence that encumbered source entered the
 context, regardless of route. Point it at any of:
 
-  Gemini CLI    ~/.gemini/tmp/<project_hash>/chats/*.jsonl
-                (or the `transcript_path` handed to a hook event)
-  Antigravity   ~/.gemini/antigravity/brain/<GUID>/          (task artifacts:
-                implementation plans, walkthroughs - pass the directory)
-                plus any conversation .db from the CLI's store
-  Claude Code   ~/.claude/projects/<slug>/<session>.jsonl
+  transcriptPath           the session log, as reported to every hook event
+                           (cleanroom_hook.py records it in the block log, so
+                           read the path from there rather than guessing)
+  artifactDirectoryPath    that session's artifacts, likewise recorded
+  ~/.gemini/antigravity/   task artifacts: implementation plans, walkthroughs.
+    brain/<GUID>/          Pass the directory; it is walked.
+  conversation .db         Antigravity keeps conversations in SQLite.
+  ~/.claude/projects/...   Claude Code session JSONL, if you implement there.
 
 Format is sniffed, not assumed: SQLite, JSONL, single-document JSON, and
 plain text/markdown all work, and a directory is walked recursively.
@@ -23,11 +25,11 @@ Four checks:
   1. TOOL TARGETS - every tool call in the record is checked against the
      same clean-room policy the hook enforces (paths, checkout roots,
      kernel-mirror URLs, shell commands). Catches sessions that ran without
-     the hook, harnesses that do not run hooks at all (the Antigravity IDE
-     does not), and MCP side channels. Tool-call shapes understood:
-     `functionCall`/`functionResponse` parts and `toolCalls[]` entries
-     (Gemini CLI / Antigravity), `tool_use`/`tool_result` blocks (Claude
-     Code), and raw `tool_name`/`tool_input` hook payloads.
+     the hook, surfaces that do not run hooks at all (the Antigravity IDE
+     has not reliably run them), and MCP side channels. Tool-call shapes
+     understood: `toolCall` objects and `toolCalls[]` entries (Antigravity),
+     `functionCall`/`functionResponse` parts, `tool_use`/`tool_result`
+     blocks (Claude Code), and raw `tool_name`/`tool_input` hook payloads.
   2. LICENSE MARKERS - tool-result and artifact text is scanned for
      GPL/kernel markers (SPDX GPL tags, MODULE_LICENSE, EXPORT_SYMBOL,
      '#include <linux/', GPL boilerplate). A marker in ANY result is
@@ -75,13 +77,13 @@ CODE_LINE = re.compile(
     r"^\s*(#include\b|#define\b|static\b|struct\b|switch\b|case\b|"
     r"return\b.*;|[^=<>!]+=[^=].*;|.*[;{}]\s*$)")
 
-# Tools that can pull bytes in from outside the workspace, per harness:
-# Gemini CLI, Antigravity, Claude Code. Anything with "fetch" in the name
-# counts too (MCP fetchers).
+# Tools that can pull bytes in from outside the workspace. Antigravity's
+# names first, then the ones a legacy transcript may carry. Anything with
+# "fetch" in the name counts too (MCP fetchers).
 NETWORKISH_TOOLS = {
-    "web_fetch", "google_web_search", "run_shell_command",
-    "read_url_content", "search_web", "run_command", "run_terminal_command",
-    "WebFetch", "WebSearch", "Bash",
+    "run_command", "read_url_content", "search_web", "browser_navigate",
+    "run_terminal_command", "run_shell_command", "web_fetch",
+    "google_web_search", "WebFetch", "WebSearch", "Bash",
 }
 
 TEXT_SUFFIXES = {".md", ".txt", ".log", ".patch", ".diff", ".html"}
@@ -99,7 +101,8 @@ def _tool_input_of(node):
 
 def _result_of(node):
     for key in ("result", "response", "output", "tool_response",
-                "toolResponse", "resultDisplay", "content"):
+                "toolResponse", "toolResult", "tool_result", "observation",
+                "resultDisplay", "content"):
         if key in node:
             return node[key]
     return None
@@ -128,8 +131,8 @@ def walk(node, tool_uses, results):
 
     tool_uses entries are {"name", "input", "id"}. Correlation keys are the
     tool-call id where the format has one (Claude Code) and the tool name
-    where the result is carried inside the call itself (Gemini CLI's
-    toolCalls[], Antigravity artifacts, functionResponse parts).
+    where the result is carried inside the call itself (Antigravity's
+    toolCall/toolCalls[] records, functionResponse parts).
     """
     if isinstance(node, dict):
         # Claude Code content blocks.
@@ -142,7 +145,23 @@ def walk(node, tool_uses, results):
             results.append((node.get("tool_use_id"),
                             _text_of(node.get("content"))))
             return
-        # Gemini / Antigravity function-call parts.
+        # Antigravity: the call is nested under toolCall, and the result may
+        # sit beside it on the record rather than inside it.
+        tc = node.get("toolCall") or node.get("tool_call")
+        if isinstance(tc, dict) and (isinstance(tc.get("name"), str)
+                                     or "args" in tc):
+            name = tc.get("name", "?")
+            cid = tc.get("id") or tc.get("callId")
+            tool_uses.append({"name": name, "input": _tool_input_of(tc),
+                              "id": cid})
+            res = _result_of(tc)
+            if res is None:
+                res = _result_of(node)
+            if res is not None:
+                results.append((cid or name, _text_of(res)))
+            return
+
+        # Function-call parts.
         call = node.get("functionCall") or node.get("function_call")
         if isinstance(call, dict):
             name = call.get("name", "?")
@@ -157,8 +176,8 @@ def walk(node, tool_uses, results):
             results.append((resp.get("id") or resp.get("name"),
                             _text_of(_result_of(resp) or resp)))
             return
-        # Gemini CLI toolCalls[] records and raw hook payloads: the call and
-        # its result live in one object.
+        # toolCalls[] entries and raw hook payloads: the call and its
+        # result live in one object.
         name = None
         for key in ("tool_name", "toolName"):
             if isinstance(node.get(key), str):
@@ -378,7 +397,8 @@ def hook_log_summary(pol):
 def main():
     ap = argparse.ArgumentParser(
         description="Audit clean-room implementation session records "
-                    "(Gemini CLI, Antigravity, Claude Code).")
+                    "(Antigravity transcripts, artifacts and conversation "
+                    "stores).")
     ap.add_argument("transcripts", nargs="+",
                     help="session transcript(s), artifact directory, or "
                          "conversation database")

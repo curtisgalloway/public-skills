@@ -11,8 +11,8 @@ imports the hook's policy loader and matcher so enforcement and detection
 cannot drift apart. If that import is ever severed, a policy edit would
 silently protect one and not the other, and this test goes red.
 
-The rest cover the record formats the auditor has to read: Gemini CLI chat
-JSONL (functionCall/functionResponse parts, toolCalls[] entries), Antigravity
+The rest cover the record formats the auditor has to read: Antigravity
+session logs (toolCall objects with PascalCase args, toolCalls[] entries),
 task artifacts in a directory, a SQLite conversation store, and Claude Code
 JSONL. Format is sniffed per file, so each shape needs its own case.
 """
@@ -99,33 +99,35 @@ class TestSessionAudit(unittest.TestCase):
         self.assertEqual(rc, 2, out)
 
 
-class TestGeminiTranscripts(unittest.TestCase):
-    """~/.gemini/tmp/<project_hash>/chats/*.jsonl, and hook transcript_path."""
+class TestAntigravityTranscripts(unittest.TestCase):
+    """The session log named by transcriptPath on every hook event."""
 
-    def test_gemini_dirty_session_is_flagged(self):
-        rc, out = run_audit(FIX / "gemini_dirty_session.jsonl")
+    def test_dirty_session_is_flagged(self):
+        rc, out = run_audit(FIX / "antigravity_dirty_session.jsonl")
         self.assertEqual(rc, 1, out)
-        self.assertIn("read_file matched 'path:/linux/drivers/'", out)
-        self.assertIn("web_fetch matched 'url:kernel.org'", out)
+        # PascalCase argument names, nested under toolCall.
+        self.assertIn("view_file matched 'path:/linux/drivers/'", out)
+        self.assertIn("run_command matched 'url:github.com/torvalds'", out)
+        self.assertIn("search_web matched 'url:kernel.org'", out)
 
-    def test_function_response_markers_are_attributed_to_the_call(self):
-        """A result part must be correlated back to the tool that ran.
+    def test_results_are_attributed_to_the_call(self):
+        """A result must be correlated back to the tool that ran.
 
-        `functionResponse` carries the call id, not the tool name; losing
-        that mapping would report every marker against '?'.
+        Antigravity puts the result beside toolCall on the record rather
+        than inside it; losing that would report every marker against '?'.
         """
-        rc, out = run_audit(FIX / "gemini_dirty_session.jsonl")
+        rc, out = run_audit(FIX / "antigravity_dirty_session.jsonl")
         self.assertEqual(rc, 1, out)
-        self.assertIn("MODULE_LICENSE x1 in read_file result", out)
+        self.assertIn("MODULE_LICENSE x1 in view_file result", out)
 
-    def test_gemini_clean_session_passes(self):
+    def test_clean_session_passes(self):
         """Also pins the content exemption on the audit side.
 
-        The fixture's write_file content names trusted-firmware-a and
-        linux/drivers/ in a code comment, exactly as a real clean-room
-        driver's header does. Authored content is not a tool target.
+        The fixture's CodeEdit names trusted-firmware-a, linux/drivers/,
+        kernel.org and bootlin.com in a code comment, exactly as a real
+        clean-room driver header does. Authored content is not a tool target.
         """
-        rc, out = run_audit(FIX / "gemini_clean_session.jsonl")
+        rc, out = run_audit(FIX / "antigravity_clean_session.jsonl")
         self.assertEqual(rc, 0, out)
         self.assertIn("verdict: clean", out)
 

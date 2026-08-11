@@ -2,20 +2,24 @@
 SPDX-FileCopyrightText: 2026 Curtis Galloway
 SPDX-License-Identifier: Apache-2.0
 
-Append to the project's context file(s), next to the docs index:
+Append to the project's context file, next to the docs index:
 
-  AGENTS.md                     the portable one — Antigravity reads it, and so
-                                does Gemini CLI once settings.json carries
-                                "context": { "fileName": ["AGENTS.md", "GEMINI.md"] }
-  GEMINI.md                     Gemini CLI's default, and it outranks AGENTS.md
-                                in Antigravity — use it only for harness-specific
-                                wording, or the two copies will drift
-  .agent/rules/cleanroom.md     Antigravity workspace rules (confirm the path in
-                                your build's rules panel; `.agents/rules/` in some)
+  AGENTS.md                     the one to use — Antigravity reads it at the
+                                workspace root, and it is the cross-tool
+                                standard, so it keeps working if the project
+                                is opened by something else
+  GEMINI.md                     outranks AGENTS.md in Antigravity. Use it only
+                                for wording that must differ, never as a second
+                                full copy — two copies drift, and the one that
+                                loses is the one you edited
+  .agent/rules/cleanroom.md     workspace rules, if you'd rather manage this
+                                through Antigravity's rules panel (confirm the
+                                directory name in your build — both `.agent/`
+                                and `.agents/` have shipped)
 
-One copy is enough per harness; a rule the agent reads twice is not enforced
-twice. This block is re-injected every session and survives compaction; the
-spec's usage notice does not — that's why the rules live here too.
+One copy is enough; a rule the agent reads twice is not enforced twice. This
+block is re-injected every session and survives compaction; the spec's usage
+notice does not — that's why the rules live here too.
 -->
 
 ## Clean-room rules (standing — apply to every session in this project)

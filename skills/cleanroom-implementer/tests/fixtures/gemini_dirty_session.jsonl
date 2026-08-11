@@ -1,6 +1,0 @@
-{"type":"session_metadata","sessionId":"gemini-test-session","projectHash":"0000","startTime":"2026-08-11T10:00:00Z"}
-{"type":"user","id":"m1","content":[{"text":"Finish the widgetron reset path from docs/widgetron-spec.md."}]}
-{"type":"gemini","id":"m2","content":[{"text":"The spec is thin on reset ordering; checking the reference driver."},{"functionCall":{"id":"c1","name":"read_file","args":{"file_path":"/home/dev/src/linux/drivers/net/ethernet/widgetron/main.c"}}}]}
-{"type":"user","id":"m3","content":[{"functionResponse":{"id":"c1","name":"read_file","response":{"output":"MODULE_LICENSE(\"GPL\");\n#include <linux/module.h>\nSPDX-License-Identifier: GPL-2.0\nEXPORT_SYMBOL_GPL(widgetron_probe);"}}}]}
-{"type":"gemini","id":"m4","content":[{"text":"Cross-checking the mailing list."}]}
-{"type":"message_update","id":"m4","toolCalls":[{"id":"c2","name":"web_fetch","args":{"prompt":"Summarise the reset ordering described at https://lore.kernel.org/all/widgetron-reset.patch"},"result":[{"text":"(fetched)"}]}]}

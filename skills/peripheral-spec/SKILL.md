@@ -130,12 +130,11 @@ The main/orchestrating agent — the one that will write the differently-license
 **never run those skills inline or read the source-OS tree / board cache itself.**
 
 - **Per peripheral, prefer one subagent per spec** so several specs progress in parallel and the main
-  context stays lean. Under Gemini CLI, define the investigator as a subagent (`.gemini/agents/`, or
-  `~/.gemini/agents/` for a personal one) and invoke it explicitly — `@spec-investigator <task>` —
-  rather than hoping automatic delegation picks it; under Antigravity, launch it as its own task in
-  the Agent Manager so the work runs in a separate context and its artifacts stay separate too.
-  Either way, instruct it to load `os-investigator` + the board-expert skill and give it the spec
-  subagent template filled in.
+  context stays lean. In Antigravity, define the investigator as a subagent
+  (`.agents/agents/spec-investigator.md`, `subagent: true`) and invoke it deliberately rather than
+  hoping the primary agent delegates, or launch it as its own task in the Agent Manager so the work
+  runs in a separate context and its artifacts stay separate too. Either way, instruct it to load
+  `os-investigator` + the board-expert skill and give it the spec subagent template filled in.
 - **A subagent's context is separate; its *credentials and environment* are not.** Delegation buys
   you a clean orchestrator context, not enforcement — that's Tier 1 and 2 in
   `cleanroom-implementer`. If the dirty side must be *authorized* to read source (role scoping), it
@@ -197,9 +196,9 @@ something, and reading the source is one tool call away. The fix is a sanctioned
    `[resolved <date>]`.
 
 The protocol appears in three places on purpose — the usage notice, the implementer's standing
-rules (`cleanroom-implementer`), and the project context file (`AGENTS.md`, which both Antigravity
-and Gemini CLI can read; `GEMINI.md` or `.agent/rules/` if you want harness-specific wording) —
-because a notice read 40k tokens ago does not survive context pressure; the standing block does.
+rules (`cleanroom-implementer`), and the project context file (`AGENTS.md` at the workspace root, or
+a workspace rule under `.agent/rules/`) — because a notice read 40k tokens ago does not survive
+context pressure; the standing block does.
 
 ### The output-side scan (pre-merge gate)
 
@@ -220,24 +219,24 @@ python3 <os-investigator>/scripts/leak_scan.py <new driver sources...> \
 
 ### Consumer-side enforcement (see `cleanroom-implementer`)
 
-Instructions are the weakest layer; the companion skill ships the enforcement: a hook that blocks
-and logs encumbered-source access (checkout paths, kernel-mirror URLs, shell fetches, MCP tools) —
-wired as Gemini CLI's `BeforeTool` or Antigravity's `PreToolUse` — Gemini policy-engine rules that
-deny the web tools and encumbered paths outright, a restricted `driver-implementer` subagent
-definition (no web tools, no delegation), the `AGENTS.md` standing block, and `session_audit.py` for
-the pre-merge transcript and artifact audit. Layering, strongest first: environment (no encumbered
-checkout mounted, egress off or allowlisted, datasheets pre-fetched into `docs/references/`),
-harness (hook + policy/deny rules + restricted subagent), instructions (notice + standing rules).
+Instructions are the weakest layer; the companion skill ships the enforcement: an Antigravity
+`PreToolUse` hook that blocks and logs encumbered-source access (checkout paths, kernel-mirror URLs,
+shell fetches, MCP tools), permission deny rules that take the web tools and encumbered paths away
+outright, a restricted `driver-implementer` subagent (no web, no MCP, no `invoke_subagent`,
+sandboxed shell), the `AGENTS.md` standing block, and `session_audit.py` for the pre-merge transcript
+and artifact audit. Layering, strongest first: environment (no encumbered checkout mounted, egress
+off or allowlisted, datasheets pre-fetched into `docs/references/`), harness (hook + permissions +
+restricted subagent), instructions (notice + standing rules).
 
 **Role scoping:** the hook applies to every session in the project — including the dirty side,
 which *must* read source. Investigator and verifier processes therefore run with
 `CLEANROOM_ROLE=investigator` (or `verifier`) in their environment: the hook then allows the
 access but still logs it, so the log doubles as a complete, attributed record of every
-encumbered-source access. Run dirty-side work as **separate processes** — e.g.
-`CLEANROOM_ROLE=investigator gemini -p "<filled-in template>"`, or a separate `agy` session with the
-variable exported — so the role env never leaks into an implementation context. Gemini policy rules
-have no environment escape, so scope them by launch instead: implementation sessions pass
-`--policy`, dirty-side sessions don't.
+encumbered-source access. Run dirty-side work as a **separate `agy` process** with the variable
+exported — not an `invoke_subagent` call from an implementation session, which inherits that
+session's environment — so the role never leaks into a context that writes code. Permissions have no
+environment escape at all, so scope them by launch instead: the dirty side runs from settings
+without the implementer's deny rules.
 
 ### Spec subagent prompt template
 
