@@ -2,6 +2,7 @@
   "name": "public-skills",
   "description": "General-purpose agent skills from github.com/curtisgalloway/public-skills. Set PUBLIC_SKILLS_REPO to the cloned repo root before installing.",
   "skills": [
+    { "name": "agent-agnostic-skills",      "path": "${PUBLIC_SKILLS_REPO}/skills/agent-agnostic-skills" },
     { "name": "bus-pirate",                 "path": "${PUBLIC_SKILLS_REPO}/skills/bus-pirate" },
     { "name": "claude-session-transcript",  "path": "${PUBLIC_SKILLS_REPO}/skills/claude-session-transcript" },
     { "name": "cleanroom-implementer",      "path": "${PUBLIC_SKILLS_REPO}/skills/cleanroom-implementer" },

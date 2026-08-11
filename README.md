@@ -6,6 +6,14 @@ A collection of reusable agent skills designed to be generally agent-neutral. Sk
 
 Each skill lives in its own directory under `skills/` and contains at minimum a `SKILL.md` describing its purpose, inputs, and behavior. Some skills include supporting scripts or templates.
 
+### Writing skills that outlive a harness
+
+- **`agent-agnostic-skills`** — how to write skills, hooks, subagent definitions and agent-facing
+  scripts that survive a change of agent, and how to port one that didn't. Harness lock-in fails
+  silently — a tool-name table that matches nothing allows everything — so the skill is mostly about
+  turning invisible no-ops into checkable behaviour. Ships `scripts/portability_scan.py` and a dated
+  cross-harness reference matrix.
+
 ### Clean-room driver porting
 
 Three skills compose into one pipeline for reimplementing a driver in a differently-licensed OS, splitting the work across contexts so encumbered source never reaches the one that writes the new code:

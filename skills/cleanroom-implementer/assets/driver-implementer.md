@@ -24,8 +24,10 @@ tools:
 SPDX-FileCopyrightText: 2026 Curtis Galloway
 SPDX-License-Identifier: Apache-2.0
 
-Install to <workspace>/.agents/agents/driver-implementer.md (or
-.agents/agents/driver-implementer/agent.md). Confirm with `/agents` that it
+Install to <workspace>/.agents/agents/driver-implementer.md (or            portability-ok
+.agents/agents/driver-implementer/agent.md). This asset is deliberately     portability-ok
+Antigravity-shaped - the frontmatter fields below are its vocabulary, not a
+portable one. Confirm with `/agents` that it
 loaded, and confirm the tool names against your build before trusting the list:
 a misspelled or unmapped name in `tools:` is not an error you will be told
 about, and a silently dropped entry is either a tool you thought you had or a
