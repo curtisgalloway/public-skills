@@ -1,0 +1,16 @@
+{
+  "_": "ANTIGRAVITY CLI (agy). Install as <workspace>/.agents/hooks.json for one project, or merge into ~/.gemini/config/hooks.json to cover every project. Workspace-local hooks load only in a TRUSTED folder - trust the workspace or the file is silently ignored, which is a fail-open you must check for (fire one deliberate blocked read and confirm the log line appears). The matcher is a regex over the tool name; '.*' covers the shell tool, file tools, MCP tools and anything a future build adds. Antigravity denies on a stdout decision object AND on a non-zero exit, both of which the hook emits. Verify the paths your build actually reads (`agy` has moved them between releases) before relying on this file.",
+  "cleanroom": {
+    "enabled": true,
+    "PreToolUse": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "command": "python3 ./.agents/hooks/cleanroom_hook.py"
+          }
+        ]
+      }
+    ]
+  }
+}

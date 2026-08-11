@@ -12,7 +12,9 @@ Three skills compose into one pipeline for reimplementing a driver in a differen
 
 - **`os-investigator`** — the dirty-side method: read the original source and return hardware facts and mechanism prose, never code, every fact tagged by provenance class. Ships `scripts/leak_scan.py`, the mechanical leak scanner.
 - **`peripheral-spec`** — orchestration and the wall: the transfer protocol, the independent five-check verifier, mandatory scanning, and the evidentiary provenance ledger.
-- **`cleanroom-implementer`** — the consumer side: standing rules for the implementing agent, enforcement (a PreToolUse hook, a restricted agent definition, policy and settings fragments), and the session transcript audit.
+- **`cleanroom-implementer`** — the consumer side: standing rules for the implementing agent, enforcement (a pre-tool-use hook, Gemini policy-engine rules, a restricted subagent definition, policy and settings fragments), and the session/artifact audit.
+
+Enforcement install material targets **Gemini CLI** (`BeforeTool` hook, `.gemini/settings.json`, `~/.gemini/policies/*.toml`, `.gemini/agents/`) and **Antigravity** (`PreToolUse` hook in `.agents/hooks.json`, workspace rules, task artifacts under `~/.gemini/antigravity/brain/`). The two shipped Python scripts are harness-neutral — they key off argument names and event fields rather than tool-name tables — so they also run unchanged under Claude Code with `.claude/` paths and `$CLAUDE_PROJECT_DIR`.
 
 Board-expert skills (e.g. `rpi-expert`, `indiedroid-nova-expert`) supply the per-SoC map and are dirty-side roles that `os-investigator` calls into. The `assets/` under `cleanroom-implementer` are install material for *consuming* projects — they are not this repo's own configuration.
 
@@ -24,6 +26,39 @@ Most skills assume:
 - A Unix-like shell (macOS or Linux)
 - Standard CLI tools (`git`, `curl`, etc.) available on `PATH`
 - Any skill-specific dependencies called out in the skill's own docs
+
+### Installing in Gemini CLI
+
+Skills are plain directories, so point Gemini CLI's context at them and load a skill by name. The
+simplest route is a clone plus an import line in your context file:
+
+```bash
+git clone https://github.com/curtisgalloway/public-skills ~/src/public-skills
+```
+
+```markdown
+<!-- in GEMINI.md or AGENTS.md -->
+@~/src/public-skills/skills/peripheral-spec/SKILL.md
+```
+
+To make `AGENTS.md` the context file Gemini CLI reads, set it in `~/.gemini/settings.json`:
+
+```json
+{ "context": { "fileName": ["AGENTS.md", "GEMINI.md"] } }
+```
+
+Skills written as subagent roles (`os-investigator`, and the shipped
+`cleanroom-implementer/assets/driver-implementer.md`) install as `.gemini/agents/*.md` and are
+invoked with `@<name>`.
+
+### Installing in Antigravity
+
+Copy or symlink the skills you want into the workspace rules directory (`.agent/rules/` in current
+builds — confirm in your build's rules panel), or reference them from `AGENTS.md` at the workspace
+root, which Antigravity reads. Subagent definitions go in `<workspace>/.agents/`, and hooks in
+`<workspace>/.agents/hooks.json`. Note that workspace-local hooks load only in a **trusted**
+workspace, and that hooks are the `agy` CLI's mechanism — verify they fire in the surface you
+actually use before relying on them.
 
 ### Installing in Claude Code
 
