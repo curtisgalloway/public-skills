@@ -30,6 +30,13 @@ an empty object or empty stdout as permission to proceed - a hook that stays
 silent can wedge every tool call in the session. So every allow path here,
 including the malformed-input path, prints {"decision": "allow"}.
 
+And ONLY that. The allow deliberately omits Claude Code's
+hookSpecificOutput.permissionDecision: "allow", which is not a no-op there -
+it auto-approves the call and consumes the user's permission prompt. Deny
+broadcasts to every dialect because withholding permission is safe to
+repeat; allow does not, because granting it is not. Keep that asymmetry if
+you edit this.
+
 DENY is emitted three ways at once - {"decision": "deny", "reason": ...} on
 stdout, the reason on stderr, and exit code 2 - because Antigravity honours
 the decision object and treats a non-zero exit as a block, while other

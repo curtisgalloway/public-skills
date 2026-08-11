@@ -177,6 +177,24 @@ class TestAllowing(HookCase):
         self.assertEqual(json.loads(self.stdout), ALLOW)
         self.assertEqual(log, [], "benign calls must not be logged")
 
+    def test_allow_does_not_auto_approve(self):
+        """Allow speaks only Antigravity's dialect, deliberately.
+
+        Deny is broadcast to every harness because withholding permission is
+        safe to repeat. Allow is not: Claude Code's
+        hookSpecificOutput.permissionDecision "allow" auto-approves the call
+        and consumes the user's permission prompt, so broadcasting it would
+        turn "no objection" into "granted" on every benign call the hook sees.
+        """
+        rc, err, _ = self.fire("view_file",
+                               {"TargetFile": "docs/widgetron-spec.md"})
+        self.assertEqual(rc, 0, err)
+        payload = json.loads(self.stdout)
+        self.assertEqual(payload, ALLOW, "allow must carry nothing extra")
+        self.assertNotIn(
+            "permissionDecision", json.dumps(payload),
+            "emitting Claude Code's allow field would skip the user's prompt")
+
     def test_investigator_role_allows_and_logs(self):
         rc, err, log = self.fire("view_file", {"TargetFile": BLOCKED_PATH},
                                  role="investigator")
