@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This repository contains agent skills intended for public sharing. Skills here are general-purpose and agent-neutral, though most have been tested primarily with Claude Code and Gemini.
+This repository contains agent skills intended for public sharing. Skills here are general-purpose and agent-neutral, though most have been tested primarily with Google Antigravity (`agy` CLI and IDE) and Claude Code.
 
 ## Privacy rules — read before committing
 

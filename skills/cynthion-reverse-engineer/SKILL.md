@@ -37,9 +37,17 @@ without this confirmation.
 | `cynthion-pcap-decode` | Decode a single pcap; required by this skill |
 
 `cynthion-pcap-decode` must be installed for the analysis scripts to work.
-The scripts look for it at `~/.claude/skills/cynthion-pcap-decode/scripts/`
-and also as a sibling in the same skills tree. If not found, they fail with
-a clear message pointing to the install location.
+They find it as a **sibling in the same skills tree** first — install the two
+together and no configuration is needed — and otherwise search the known skills
+roots under `$HOME` and the workspace: `~/.gemini/antigravity/skills/`,
+Antigravity plugin `skills/` directories, `<workspace>/.agents/skills/`, the
+cross-tool `~/.agents/skills/`, and the older Gemini CLI and Claude Code
+layouts. To point at it outright, set `CYNTHION_PCAP_DECODE_SCRIPTS` to the
+directory holding `decode.py`, or `PUBLIC_SKILLS_REPO` to a clone of this repo.
+If it isn't found, the scripts fail with that list rather than a stack trace.
+
+Below, `<cynthion-pcap-decode>` stands for that skill's directory — substitute
+wherever your agent installed it.
 
 ## Prerequisites
 
@@ -73,10 +81,10 @@ with the device behaving differently."*
 ### Step 2 — Decode each capture
 
 ```bash
-python3 ~/.claude/skills/cynthion-pcap-decode/scripts/decode.py \
+python3 <cynthion-pcap-decode>/scripts/decode.py \
     idle.pcap --format json > idle.json
 
-python3 ~/.claude/skills/cynthion-pcap-decode/scripts/decode.py \
+python3 <cynthion-pcap-decode>/scripts/decode.py \
     button_press.pcap --format json > button_press.json
 ```
 
@@ -86,7 +94,7 @@ internally via the same pipeline.
 Check the enumeration phase for device identity:
 
 ```bash
-python3 ~/.claude/skills/cynthion-pcap-decode/scripts/decode.py \
+python3 <cynthion-pcap-decode>/scripts/decode.py \
     idle.pcap --phase enumeration --format transcript
 ```
 

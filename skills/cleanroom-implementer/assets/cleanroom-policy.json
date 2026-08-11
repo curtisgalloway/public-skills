@@ -1,5 +1,5 @@
 {
-  "_": "Clean-room policy consumed by cleanroom_hook.py and session_audit.py. Copy to <project>/.claude/cleanroom-policy.json and edit. checkout_roots MUST list every local encumbered checkout (better: don't mount them in implementation workspaces at all). Denylists are leaky by nature - the environment tier (no checkout, egress allowlist) is the real guarantee.",
+  "_": "Clean-room policy consumed by cleanroom_hook.py and session_audit.py. Copy to <workspace>/.agents/cleanroom-policy.json and edit; the hook checks .agents, .agent, .gemini then .claude, or $CLEANROOM_POLICY if you'd rather name it outright. Keep the patterns in sync with assets/antigravity-permissions.json, which denies the same targets at the permissions layer. checkout_roots MUST list every local encumbered checkout (better: don't mount them in implementation workspaces at all). Matching is case-insensitive substring, not glob. Denylists are leaky by nature - the environment tier (no checkout, egress allowlist) is the real guarantee.",
   "checkout_roots": [
     "~/src/linux",
     "~/linux",
