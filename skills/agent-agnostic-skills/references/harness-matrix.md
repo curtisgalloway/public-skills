@@ -69,7 +69,9 @@ filesystems). Discovered at:
 - Antigravity, user: `~/.gemini/antigravity/skills/`
 - Antigravity, plugins: `~/.gemini/antigravity-cli/plugins/<plugin>/skills/`
 - Antigravity, workspace: `<workspace>/.agents/skills/`
-- Cross-tool convention: `~/.agents/skills/`
+- `~/.agents/skills/` — reads as the tool-agnostic location and is worth keeping as a search rung,
+  but **Antigravity does not read it** (Gemini CLI did). Do not install here and expect `agy` to
+  find it.
 - Claude Code: `~/.claude/skills/`, `<project>/.claude/skills/`
 - Legacy Gemini CLI: `~/.gemini/skills/`, `<project>/.gemini/skills/`
 

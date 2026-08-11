@@ -22,12 +22,16 @@ Antigravity actually reports the workspace; the legacy `GEMINI_PROJECT_DIR` and
 These suites exist mostly to protect decisions that look like bugs until you
 know why they are there. Five in particular:
 
-- **`test_allow_is_explicit`** — the allow path prints
-  `{"decision": "allow"}`, and that is not decoration. Antigravity's PreToolUse
-  contract does not accept empty stdout as permission to proceed, so a hook that
-  stays silent on the happy path can deny every tool call in the session. An
-  enforcement layer that breaks normal work gets deleted by lunchtime, so this
-  is as load-bearing as the blocking itself.
+- **`test_allow_is_explicit`** / **`test_allow_does_not_auto_approve`** — the
+  allow path prints `{"decision": "allow"}`, and exactly that. Antigravity's
+  PreToolUse contract does not accept empty stdout as permission to proceed, so
+  a hook that stays silent on the happy path can deny every tool call in the
+  session; an enforcement layer that breaks normal work gets deleted by
+  lunchtime. But allow must not be broadcast the way deny is: Claude Code's
+  `hookSpecificOutput.permissionDecision: "allow"` auto-approves the call and
+  consumes the user's permission prompt, so copying the deny pattern here would
+  silently grant every benign call the hook inspects. Withholding permission is
+  safe to repeat; granting it is not.
 - **`test_edit_content_is_not_scanned`** / **`test_code_edit_content_is_not_scanned`**
   — the hook checks tool *targets*, not written *content*. A code comment
   mentioning `trusted-firmware-a`, or a pre-fetch list naming `kernel.org`, must

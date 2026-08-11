@@ -80,6 +80,16 @@ Three properties make a ladder worth the extra lines:
   a user staring at "not found: `~/.claude/skills/foo`" on a machine that has never had Claude Code
   learns nothing; a user seeing all six candidate roots knows immediately which one to create.
 
+**Bound the walk-up rung, and say where you landed.** A ladder that ends in "walk up until you find
+`.git` or a config directory" will always resolve to *something*, and that something can be
+correct-by-the-rule and wrong-in-fact — a nested checkout, a sandbox inside a larger repo, a
+worktree. Then your tool writes its log or reads its policy somewhere nobody expected, silently,
+because every rung reported success. (This is not hypothetical: while this skill was being written,
+a hook under test walked past its own working directory into the enclosing repository and left its
+audit log there.) Two cheap defences: stop the walk at a boundary you name rather than at the
+filesystem root, and record the resolved root in your first log line, so "where did it think it
+was?" is answerable after the fact instead of by re-deriving it.
+
 Same pattern for skills directories, config files, and policy files. See
 `skills/cynthion-capture/scripts/_sibling.py` in this repo for a worked example that prefers the
 zero-configuration sibling case and keeps dead harnesses only as labelled legacy rungs.
@@ -122,13 +132,29 @@ Protocol contracts differ, and they differ in ways that fail *open*:
 
 | | Antigravity | Claude Code |
 |---|---|---|
-| deny a call | `{"decision":"deny","reason":…}` on stdout | exit 2 + stderr, or `hookSpecificOutput.permissionDecision` |
-| allow a call | `{"decision":"allow"}` — **required** | exit 0, silence is fine |
-| payload shape | `toolCall.{name,args}`, camelCase | `tool_name`/`tool_input`, flat |
+| deny a call | `{"decision":"deny","reason":…}` on stdout | exit 2 + stderr, or `hookSpecificOutput.permissionDecision: "deny"` |
+| allow a call | `{"decision":"allow"}` — **required**, empty stdout is rejected | exit 0; silence is "no objection". `permissionDecision: "allow"` is **not** silence — it auto-approves |
+| payload shape | `toolCall.{name,args}`, camelCase envelope, PascalCase args | `tool_name`/`tool_input`, flat, snake_case |
 
-These formats are additive: harnesses ignore fields they don't recognise. So don't detect the
-harness and branch — **emit all of them in one response** and let each reader take what it knows.
-One code path, no detection logic, no "which agent am I" heuristic to get wrong.
+For a **deny**, these formats are additive: harnesses ignore the fields they don't recognise. So
+don't detect the harness and branch — **emit every deny dialect in one response** and let each
+reader take what it knows. One code path, no detection logic, no "which agent am I" heuristic to
+get wrong.
+
+**Allow is the exception, and getting it wrong is a permission escalation.** The symmetry breaks
+because an allow field is not inert: Claude Code's `permissionDecision: "allow"` doesn't mean "no
+objection", it means *auto-approve* — it consumes the user's permission prompt and lets the call
+through unasked. Broadcast that alongside Antigravity's allow and your hook quietly grants every
+call it was only supposed to have no opinion about. So:
+
+- **Deny** — every dialect at once.
+- **Allow** — only the dialect that *requires* it (Antigravity's `{"decision":"allow"}`), and
+  nothing that any other harness would read as approval. Where silence means "no objection", stay
+  silent.
+
+The general rule this is an instance of: broadcasting is safe for fields that *withhold*
+permission and dangerous for fields that *grant* it. Before you add a field to a
+fire-and-forget response, ask which of the two it is.
 
 **Do not assume silence means yes.** Antigravity's pre-tool-use contract rejects an empty response,
 so a hook that allows by printing nothing can deny *every* tool call in the session. That failure is
