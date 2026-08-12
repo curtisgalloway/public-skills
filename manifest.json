@@ -12,6 +12,7 @@
     { "name": "cynthion-setup",             "path": "${PUBLIC_SKILLS_REPO}/skills/cynthion-setup" },
     { "name": "design-partner",             "path": "${PUBLIC_SKILLS_REPO}/skills/design-partner" },
     { "name": "framework13-expert",         "path": "${PUBLIC_SKILLS_REPO}/skills/framework13-expert" },
+    { "name": "fuchsia-boot-test-ci",       "path": "${PUBLIC_SKILLS_REPO}/skills/fuchsia-boot-test-ci" },
     { "name": "fuchsia-driver-bind-debug",  "path": "${PUBLIC_SKILLS_REPO}/skills/fuchsia-driver-bind-debug" },
     { "name": "fuchsia-hardware-bench",     "path": "${PUBLIC_SKILLS_REPO}/skills/fuchsia-hardware-bench" },
     { "name": "fuchsia-multi-checkout",     "path": "${PUBLIC_SKILLS_REPO}/skills/fuchsia-multi-checkout" },

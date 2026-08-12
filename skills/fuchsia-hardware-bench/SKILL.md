@@ -163,11 +163,32 @@ first-time install** of a bare machine. It only works once gigaboot already live
 Decide the provisioning method up front — don't discover this at `gpt-init` time. Note that a failed
 `gpt-init` writes nothing, so a not-yet-wiped OS on the disk survives the attempt.
 
-### Disk-free RAM netboot of an x64 build (the working path) — and why it's serial-only
+### Disk-free RAM netboot of an x64 build — DOES NOT WORK on a UEFI-only x64 box
 
-To run/test a build with **no disk install**, netboot the ZBI into RAM via **GRUB** (the same
-pattern the arm64 boards use: `grub → linux-<arch>-boot-shim.bin (as `linux`) + fuchsia.zbi (as
-`initrd`) → boot`). Verified end-to-end on the NUC11:
+> **Correction (supersedes an earlier "verified working path" claim here).** On arm64 this pattern
+> is fine. On a UEFI-only x64 machine it is **closed**, and the original claim was only ever
+> verified as far as GRUB *handing off* — there was no serial console at the time to see what
+> happened next. With serial attached, the truth is: **zircon never executes.** GRUB fetches the
+> shim and ZBI over HTTP correctly, prints its `boot`, and then the *UEFI firmware* reports
+> `!!!! X64 Exception Type - 06(#UD - Invalid Opcode) !!!!` with `RIP = 0x1000`.
+>
+> Cause, from the shim's own bzImage setup header: `handover_offset = 0`, neither
+> `XLF_EFI_HANDOVER_32` nor `XLF_EFI_HANDOVER_64` set, and `code32_start = 0` with
+> `kernel_alignment = 0x1000`. GRUB's EFI `linux` loader has no handover entry to call, and the
+> zero entry aligned up to 0x1000 is exactly the faulting `RIP`. This is the **legacy BIOS** shim;
+> modern x64 boxes have no CSM. It is **not fixable by patching the header** — there is no EFI
+> entry code to point the offset at. Use gigaboot (Fuchsia's UEFI loader) instead; changing the
+> image on such a box means reprovisioning the disk.
+>
+> Check any shim before trusting this path:
+> ```python
+> import struct; d = open('linux-x86-boot-shim.bin','rb').read()
+> print('xloadflags 0x%04x' % struct.unpack_from('<H', d, 0x236)[0])   # bit3 = EFI_HANDOVER_64
+> print('handover_offset 0x%08x' % struct.unpack_from('<I', d, 0x264)[0])  # 0 = unusable from EFI
+> ```
+
+The mechanics below are still correct for **arm64** boards, and for the Linux-installer variant of
+this flow on x64 (an ordinary distro `vmlinuz` *does* boot this way — only the Fuchsia shim fails):
 
 - Build a standalone GRUB EFI and serve it as the PXE boot file:
   `grub-mkstandalone -O x86_64-efi --modules="http efinet net linux normal echo gfxterm all_video
@@ -186,8 +207,9 @@ pattern the arm64 boards use: `grub → linux-<arch>-boot-shim.bin (as `linux`) 
 on this path (the HDMI screen stays frozen on GRUB's last frame; that's expected, not a hang). These
 minimal images also bring up **no network** (no netsvc traffic), so there is **no software-only way**
 to read pass/fail. This is by design and matches upstream — botanist captures x64 boot-tests over
-**serial**. So: RAM-netboot works and is the right mechanism, but a **serial console is required to
-observe/verify the tests**. On the NUC11 that's an internal 1×9 1.25 mm PicoBlade **RS-232** header
+**serial**. So on any of these paths a **serial console is required to observe/verify the tests** —
+and, as the correction above shows, serial is also the only thing that can tell you whether a boot
+path works at all. On the NUC11 that's an internal 1×9 1.25 mm PicoBlade **RS-232** header
 (RX/TX/GND = pins 2/3/5; RS-232 level, not TTL; PCB pin-1 silkscreen is wrong — trust the TPS);
 capture at 115200 8N1. (`gigaboot` *does* pass a framebuffer, so a disk-installed gigaboot boot would
 have a gfxconsole — but that's the disk path blocked above.)
