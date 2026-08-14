@@ -1,15 +1,12 @@
 ---
 name: fuchsia-boot-test-ci
 description: >-
-  Turn a Fuchsia boot on real hardware into a trustworthy machine-readable pass/fail verdict.
-  Use when building or debugging a Fuchsia CI runner that boots a board and captures test results
-  over a serial console: choosing a test image, discovering that a booted image runs no tests,
-  driving `runtests` over the console shell, parsing `SUMMARY:` / `[runtests][PASSED|FAILED]` /
-  the boot-test success marker, or diagnosing a run that reported INCOMPLETE, a false FAIL, or a
-  verdict from the *previous* boot. Also covers the bench preconditions that silently void a run
-  (netboot daemon on a dead interface, no carrier, rolling log windows). Complements
-  `fuchsia-hardware-bench`, which covers the physical bench; this skill covers what happens after
-  the board boots.
+  Turn a Fuchsia boot on real hardware into a trustworthy machine-readable pass/fail verdict. Use
+  when building or debugging a CI runner that boots a board and reads test results over serial:
+  choosing a test image, driving runtests over the console shell, parsing the SUMMARY and runtests
+  markers, and diagnosing INCOMPLETE, false-FAIL, or stale-verdict runs. Complements
+  fuchsia-hardware-bench (the physical bench); this skill covers what happens after the board
+  boots.
 ---
 
 # Fuchsia boot-test CI: capturing a verdict you can trust

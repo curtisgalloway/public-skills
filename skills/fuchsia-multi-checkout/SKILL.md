@@ -1,14 +1,11 @@
 ---
 name: fuchsia-multi-checkout
 description: >-
-  Run several Fuchsia checkouts (or several agents) concurrently on one machine without their builds,
-  ffx daemons, or target devices colliding. Use when: the user wants multiple Fuchsia trees / multiple
-  agents working different topics at once; a second checkout's `fx`/`ffx` is picking up the wrong tree;
-  `fx ffx` targets the wrong device or emulator across trees; the user asks to "set up a new Fuchsia
-  tree" for a topic; or you see cross-tree symptoms (one tree's `fx set-device` ignored, two emulators
-  fighting, a daemon on the wrong socket). Provides the `fx-tree` helper (env / doctor / list / new /
-  shim) and the two conventions that prevent the only real collisions. NOT for general Fuchsia source
-  questions (use fuchsia-source) or clean-room hardware questions (use os-investigator + rpi-expert).
+  Run several Fuchsia checkouts (or several agents) on one machine without their builds, ffx
+  daemons, or target devices colliding. Use when setting up a second tree, when fx/ffx picks up
+  the wrong tree or targets the wrong device, or on cross-tree symptoms (two emulators fighting, a
+  daemon on the wrong socket). Provides the fx-tree helper and the two conventions that prevent
+  the real collisions.
 ---
 
 <!--

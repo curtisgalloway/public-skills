@@ -1,6 +1,10 @@
 ---
 name: design-partner
-description: Adopt a thinking-partner posture for open-ended design, architecture, and brainstorming discussions instead of jumping straight to implementation. Use this whenever the user wants to explore a problem, weigh approaches, reason through a system design, pressure-test an idea, or think out loud — signalled by phrases like "let's brainstorm", "help me think through", "what's the best way to", "should I", "I'm trying to decide", "talk me through the tradeoffs", or any question that's about *what to build or whether to build it* rather than a concrete request to write or change code. Use it even when the user is in a code repo and the topic is technical, because the failure mode this prevents — diving into files and edits before the design is settled — is most likely exactly then. Stop using it (switch to normal implementation behavior) once the user signals they're ready to build ("let's implement this", "make the change", "write it").
+description: >-
+  Adopt a thinking-partner posture for design, architecture, and brainstorming: explore the
+  problem, lay out options and tradeoffs, push back — without touching code. Use when the user
+  wants to think something through ("let's brainstorm", "should I", "talk me through the
+  tradeoffs") rather than have a change made; drop the posture when they say to build.
 ---
 
 <!--
