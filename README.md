@@ -61,17 +61,20 @@ check.
 
 ### Installing in Claude Code
 
-This repo is a Claude Code plugin. Add it as a marketplace and install:
+This repo is a Claude Code plugin and hosts its own single-plugin marketplace
+(`.claude-plugin/marketplace.json`; skills are auto-discovered from `skills/`). In a session, or
+with the `claude plugin` CLI outside one:
 
-```bash
-claude plugins marketplace add curtisgalloway/public-skills
-claude plugins install public-skills@public-skills
+```
+/plugin marketplace add curtisgalloway/public-skills
+/plugin install public-skills@public-skills
 ```
 
-Or install directly from a local clone:
+For a local clone, add the clone directory as the marketplace instead:
 
-```bash
-claude plugins install --path /path/to/public-skills
+```
+/plugin marketplace add /path/to/public-skills
+/plugin install public-skills@public-skills
 ```
 
 ## License
