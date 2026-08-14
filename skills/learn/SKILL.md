@@ -1,99 +1,107 @@
 ---
 name: learn
-description: Review the current session transcript for things that would have gone smoother with prior knowledge — failed commands and retries, wrong tool arguments, code patterns that didn't work, user corrections — and propose additions to either the workspace AGENTS.md or the global AGENTS.md. Use when the user invokes /learn or asks to "extract learnings" / "update AGENTS.md from this session".
+description: >-
+  Review the current session transcript for lessons that would have made it go smoother — failed
+  commands, wrong tool arguments, user corrections, environment surprises — and propose additions
+  to the workspace or global instruction file (AGENTS.md/CLAUDE.md). The promotion path from
+  private auto-memory into reviewed, versioned instructions. Use when the user invokes /learn or
+  asks to "extract learnings" from the session.
 ---
 
 # Learn: extract durable lessons from the current session
 
-The goal is to convert *this session's* mistakes, retries, and corrections into instructions that future sessions will see in their context. The output is one or more proposed edits to a CLAUDE.md file — never silent writes.
+Convert *this session's* mistakes, retries, and corrections into instructions future sessions
+will see. The output is proposed edits to an instruction file — never silent writes.
+
+## Division of labor with auto-memory
+
+Harnesses with persistent memory (Claude Code's auto-memory is on by default) already capture
+corrections, preferences, and environment facts privately as they work. That does not replace
+this skill; it changes its job:
+
+- **Memory is private and unreviewed** — per-user, per-project, invisible to teammates and to
+  other agents. Instruction files are versioned, reviewed, and shared. `/learn` is the
+  *promotion* path: it moves a lesson from "this agent happens to know it" to "every session in
+  this repo (or every project) is told it".
+- **Promote, don't duplicate.** A lesson that only matters for this user on this machine can
+  stay in memory — skip it. A lesson any agent or teammate working in the repo would need
+  belongs in the workspace file; one that bites in unrelated projects belongs in the global file.
+- **Memory is also a source.** If the session's memory directory exists, scan its index for
+  facts worth promoting alongside what the transcript surfaces.
 
 ## Where things live
 
-- **Current-session transcript:** see the companion `claude-session-transcript` skill for the JSONL location and how to find the live session. Its SKILL.md lives in a sibling directory of this skill's base directory (the harness reports the base directory when a skill is invoked) — read `<base-dir>/../claude-session-transcript/SKILL.md` before doing transcript work.
-- **Global AGENTS.md:** `$HOME/.claude/AGENTS.md` (or `CLAUDE.md` if AGENTS.md is absent) — applies to every project. Use for OS, language toolchain, CLI ergonomics, shell quoting, generic tool gotchas.
-- **Workspace AGENTS.md:** `<repo-root>/AGENTS.md` (or `CLAUDE.md` as fallback) if one exists. Use for project conventions, paths, infra specifics, and anything that only matters inside this repo. If neither exists and the lesson is project-scoped, ask the user whether to create one before writing.
-- **This skill itself:** the SKILL.md in this skill's own base directory (the harness reports that directory when the skill is invoked). If the session surfaced a *kind* of learning the procedure below didn't anticipate, the skill itself is a valid target — see "Self-update" near the bottom.
+- **Current-session transcript:** see the companion `claude-session-transcript` skill — its
+  SKILL.md is in a sibling directory of this skill's base directory (the harness reports the
+  base directory on invocation). Read it before doing transcript work.
+- **Global instruction file:** the user-level file the harness actually loads — for Claude Code
+  `$HOME/.claude/CLAUDE.md` (check what exists; some setups symlink it into a dotfiles repo, and
+  other harnesses load their own user-level files, so confirm what yours actually reads). Use for
+  OS, toolchain, CLI ergonomics, shell quoting, generic tool gotchas.
+- **Workspace instruction file:** `<repo-root>/AGENTS.md` (the cross-agent convention), or
+  `CLAUDE.md` where that's what the repo uses. Use for project conventions, paths, infra
+  specifics. If neither exists and the lesson is project-scoped, ask before creating one.
+- **Session memory (if present):** the harness names the directory in its system prompt (Claude
+  Code: `$HOME/.claude/projects/<project-key>/memory/`, with `MEMORY.md` as the index).
+- **This skill itself:** the SKILL.md in this skill's own base directory — a valid target when
+  the session surfaced a kind of learning the procedure didn't anticipate (see "Self-update").
 
 ## What counts as a learning
 
-A learning is something a future session would benefit from knowing *before* it starts working. Strong signals from the transcript:
+Something a future session benefits from knowing *before* it starts. Strong signals:
 
-- **Failed-then-fixed commands.** A Bash call returns non-zero, then a follow-up call with different flags / different tool / different syntax succeeds. The fix is the lesson.
-- **Tool-call validation errors or wrong arguments.** A tool was called with a missing/invalid parameter, then re-called correctly.
-- **User corrections.** The user said "no, don't do X" / "use Y instead" / "stop doing Z". These are the highest-signal items — capture them faithfully.
-- **Environment surprises.** A command failed because of something specific to this machine/repo (PEP 668, blocked URL, missing tool, custom path).
-- **Platform / OS differences.** A command worked one way on the host platform and a different way somewhere else: BSD vs GNU coreutils flags (`sed -i ''` on macOS vs `sed -i` on Linux; `find`, `xargs`, `date`, `stat`), package managers (`brew` vs `apt`/`dnf`/`pacman`), shell version (macOS bash 3.x has no `declare -A`/no `${var^^}`), platform-only tools (`pbcopy`, `osascript`, `launchctl` vs `systemctl`), or arch (`arm64` vs `x86_64`, Rosetta). Always note *which* platform the rule applies to — see classification below.
-- **Code patterns that didn't work.** A first-attempt implementation got rejected by tests/lints/the user, and a different approach worked.
-- **Validated non-obvious choices.** The user explicitly approved an unusual approach ("yeah, the bundled PR was right"). Worth capturing so the next session doesn't second-guess it.
+- **Failed-then-fixed commands** — the fix is the lesson.
+- **Tool-call validation errors** followed by a corrected call.
+- **User corrections** ("no, don't do X", "use Y instead") — highest signal; capture faithfully.
+- **Environment surprises** — machine/repo-specific failures (PEP 668, blocked URL, custom path).
+- **Platform / OS differences** — BSD vs GNU flags, package managers, shell versions,
+  platform-only tools, arch. Always note *which* platform the rule applies to, and don't file a
+  lesson from a remote host under the local host's platform.
+- **Code patterns that didn't work** — first attempt rejected, different approach succeeded.
+- **Validated non-obvious choices** the user explicitly approved.
 
-What does **NOT** count (skip these):
-- Bugs you fixed in the code itself — those live in the commit, not in CLAUDE.md.
-- One-off file paths or values from this task.
-- Things already covered by an existing instruction in either CLAUDE.md (check first — don't duplicate).
-- Routine work that succeeded on the first try.
+Not learnings: bugs fixed in the code (they live in the commit), one-off values from this task,
+anything already covered by an existing instruction (check first), routine first-try successes,
+and private-machine detail that memory already holds (see the division of labor above).
 
 ## Procedure
 
-**Delegate all analysis to a sub-agent.** Reading the transcript inline chews up the main session's context with raw JSONL, intermediate reasoning, and file reads the user never needs to see. Do the heavy work in a sub-agent; the main session only locates the transcript, presents the proposals, and applies what the user approves.
+Delegate the transcript analysis to a sub-agent — raw JSONL and intermediate reasoning would
+chew up the main session's context. The main session only locates inputs, presents proposals,
+and applies what the user approves.
 
-1. **Locate the live transcript path** in the main session using the `claude-session-transcript` skill (one `ls -t` command — cheap). Capture the absolute path.
-
-2. **Resolve the instruction file paths** in the main session:
-   - Global: `$HOME/.claude/AGENTS.md` (or `CLAUDE.md` if absent)
-   - Workspace: `<cwd>/AGENTS.md` (or `CLAUDE.md` as fallback); also check parent directories up to repo root
-
-3. **Spawn a sub-agent** via the `Agent` tool. The sub-agent performs steps 4–8 below. Include in the sub-agent prompt:
-   - Absolute path to the transcript file
-   - Absolute paths to the instruction files found in step 2
-   - The resolved absolute path of this skill's SKILL.md (from the base directory the harness reported when the skill was invoked) so the sub-agent can read the "What counts as a learning", classification, and style rules
-   - Instruction to return a structured list of proposed changes — for each: target file, target section (existing or new), exact text to add or change, and a one-line citation pointing to the transcript moment that motivated it
-   - Instruction to **not** write any files — only return proposals
-
-4. *(Sub-agent)* **Scan for the signals listed above.** Walk forward through the transcript. For each candidate, note: (a) what was tried, (b) what failed or was corrected, (c) what worked, (d) why — the underlying reason, not just the surface fix.
-
-5. *(Sub-agent)* **Read the existing instruction files** before proposing anything. Skip any candidate already covered. If existing guidance is close but not quite right, propose an *edit* to that section rather than a new one.
-
-6. *(Sub-agent)* **Classify each remaining candidate** as global or workspace, and tag the platform scope:
-   - **Global** — applies regardless of project. OS/toolchain quirks, shell-quoting rules, CLI preferences, generic tool patterns. Goes in the global AGENTS.md.
-   - **Workspace** — only relevant inside this repo. Conventions, infra endpoints, project-specific scripts, repo layout. Goes in the workspace AGENTS.md.
-   - When in doubt, prefer global only if you can imagine the same lesson biting you in an unrelated project.
-   - **Platform scope.** Run `uname -s` (and `uname -m` if arch matters) — don't assume from memory. If the lesson is cross-platform, state it without a qualifier. If it's OS-specific, prefix or section-header it accordingly. If the lesson came from a *remote* host the session SSH'd into, don't file it under the local-host platform header — misfiling a Linux-remote lesson under macOS is a real failure mode.
-
-7. *(Sub-agent)* **Draft the additions.** Match the existing file's style — short H2/H3 sections, imperative voice, code fences for commands. Keep each lesson tight: the rule, then a one-line "why".
-
-8. *(Sub-agent)* **Return the structured proposal list** to the main session. Do not write any files.
-
-9. *(Main session)* **Show the proposed diff to the user.** Group by target file. For each proposed change show: target file and section, exact text, and the citation from the sub-agent.
-
-10. *(Main session)* **Wait for confirmation.** Apply only what the user approves, using `Edit` (preferred) or `Write` (only if creating a new workspace AGENTS.md the user agreed to).
-
-11. *(Main session)* **Report** what was written, to which file, and which candidates were dropped (and why — usually "already covered" or "user declined").
+1. **Main session:** locate the live transcript (per `claude-session-transcript`), resolve the
+   instruction-file paths above, and note the memory index path if one exists.
+2. **Spawn a sub-agent** with those absolute paths plus this skill's own SKILL.md path. It scans
+   for the signals above; reads the existing instruction files, skips anything covered, and
+   proposes an edit to a near-miss section rather than a new one;
+   classifies each candidate global vs workspace (verify platform with `uname`, don't assume)
+   and applies the memory boundary; drafts additions in the target file's style; and returns a
+   structured proposal list — target file, section, exact text, one-line transcript citation.
+   It must not write any files.
+3. **Main session:** show the proposed diff grouped by target file, with citations. Wait for
+   confirmation; apply only what the user approves (with `Edit`; `Write` only when creating a new
+   file the user agreed to). Report what was written and which candidates were dropped and why.
 
 ## Style for the additions
 
-- **Lead with the rule, then `Why:`.** One sentence each. The why lets a future session judge edge cases instead of cargo-culting.
-- **Imperative, not narrative.** "Use `op run --env-file`" beats "I learned that op run is better".
-- **No session-specific names.** Don't reference "the bug we hit today" or specific filenames from this task — generalize so the lesson reads correctly six months from now.
-- **Don't editorialize.** No "this is important" / "remember that". The fact that it's in the instruction file already says it's important.
-- **Code fences for commands.** Show the right pattern, and if the wrong pattern is instructive, show that too with a clear ✗/✓ or "don't" / "do" framing.
+- **Rule first, then `Why:`** — one sentence each; the why lets future sessions judge edge cases.
+- **Imperative, not narrative.** "Use `op run --env-file`" beats "I learned that…".
+- **No session-specific names** — generalize so the lesson reads correctly in six months.
+- **No editorializing** ("this is important") and code fences for commands, with ✗/✓ framing
+  where the wrong pattern is instructive.
 
 ## Self-update: improving this skill
 
-After scanning the transcript, also ask: *did this session contain a kind of learning the procedure above didn't anticipate?* The "What counts as a learning" list is not exhaustive — sessions surface new categories of friction over time (a new tool gotcha pattern, a new class of user correction, a new place lessons should be filed). When that happens, the skill itself becomes a target.
-
-Signals that the skill needs an update:
-- A genuine learning showed up that didn't match any signal in the list above — the procedure missed it on the first pass and you had to reach for it.
-- A new file or system became a sensible home for lessons (e.g. a per-tool config file, a shared playbook), and the "Where things live" section doesn't mention it.
-- A heuristic in this skill steered you wrong — e.g. you classified something as global that belonged in the workspace, or you proposed a duplicate of existing guidance because the dedup step was too loose.
-- The user explicitly says "the learn skill should also …" or rejects a proposal in a way that reveals a gap in the procedure.
-
-Treat self-updates the same as any other proposed edit: show the diff, cite the moment that motivated it, wait for confirmation. Don't expand the skill speculatively — only add a category when a concrete session moment justifies it. Prefer editing existing sections over appending new ones; this file should stay scannable.
-
-When updating the skill, also keep the frontmatter `description` field in sync if the scope of the skill changes — that string is what future sessions see when deciding whether to invoke it.
+If the session surfaced a kind of learning the signal list missed, a new sensible home for
+lessons, or a heuristic here that steered wrong, the skill itself is a valid edit target. Treat
+self-updates like any other proposal: show the diff, cite the motivating moment, wait for
+confirmation, and keep the frontmatter description in sync if the scope changes. Don't expand
+speculatively.
 
 ## Things to avoid
 
-- Don't write learnings the transcript doesn't actually support. If you can't point to the moment that motivated a rule, don't propose the rule.
-- Don't propose rules that contradict existing CLAUDE.md guidance without flagging the conflict to the user explicitly.
-- Don't bundle unrelated lessons into one section — keep them granular so the user can accept/reject individually.
-- Don't write to any instruction file without showing the diff first. Silent writes to instruction files are exactly the kind of thing that erodes trust.
+- No learnings the transcript can't support — if you can't cite the moment, don't propose it.
+- Don't contradict existing instructions without flagging the conflict explicitly.
+- Keep lessons granular so the user can accept/reject individually.
+- Never write to an instruction file without showing the diff first.
