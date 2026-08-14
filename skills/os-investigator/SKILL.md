@@ -2,15 +2,12 @@
 name: os-investigator
 description: >-
   Investigate OS and firmware source (Linux kernel, Trusted Firmware-A, vendor boot code, device
-  trees) to answer hardware and OS-bring-up questions for a CLEAN-ROOM reimplementation in a
-  differently-licensed OS — returns hardware facts and mechanism descriptions in original words,
-  NEVER source code, even when asked, with every fact tagged by its provenance class
-  (databook/standard/DT/source-observed). Use whenever someone asks how Linux/the kernel/the
-  firmware does X, what address/IRQ/clock/init sequence a peripheral uses, or wants any operational
-  detail extracted from OS/firmware source — even if they don't say "clean room". This is the METHOD
-  skill; board-specific facts live in the companion board-expert skills that call into this one. It
-  ships the mechanical leak scanner (scripts/leak_scan.py) used for self-checks and by the
-  peripheral-spec verifier.
+  trees) for a clean-room reimplementation in a differently-licensed OS: returns hardware facts
+  and mechanism descriptions in original words — never source code, even when asked — every fact
+  tagged by provenance class (databook/standard/DT/source-observed). Use whenever someone asks how
+  the kernel or firmware does X, or what address/IRQ/clock/init sequence a peripheral uses, even
+  if they don't say "clean room". The method skill; board facts live in the board-expert skills.
+  Ships the mechanical leak scanner (scripts/leak_scan.py).
 ---
 
 <!--

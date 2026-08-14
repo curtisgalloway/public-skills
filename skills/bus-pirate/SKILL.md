@@ -1,6 +1,12 @@
 ---
 name: bus-pirate
-description: Drive a Bus Pirate 5/5XL/6 (buspirate) universal serial interface tool from its terminal or from a host script — bus transaction syntax (square/curly brackets for start and stop, r for reads, repeat and bit-count suffixes, delays), mode selection, IO pinout, programmable power supply and pull-ups, per-pin voltage measurement, frequency generator/counter, logic analyzer, and the BPIO2 binary scripting port. Use when probing, sniffing, scanning, or bit-banging an I2C, SPI, UART, 1-Wire, half-duplex UART, 2-wire, 3-wire, or JTAG/SWD bus from the command line; reading a pin voltage or dumping an EEPROM/flash chip with a Bus Pirate; talking to a chip without writing firmware; or figuring out which of the two Bus Pirate serial ports is which. Covers Bus Pirate 5 and later — the classic v3.x is entirely different firmware.
+description: >-
+  Drive a Bus Pirate 5/5XL/6 (buspirate) from its terminal or a host script: transaction syntax,
+  mode selection, IO pinout, programmable power supply and pull-ups, per-pin voltage measurement,
+  logic analyzer, and the BPIO2 binary scripting port. Use when probing, sniffing, scanning, or
+  bit-banging an I2C, SPI, UART, 1-Wire, 2-wire, 3-wire, or JTAG/SWD bus, dumping an EEPROM or
+  flash chip, or figuring out which of the two serial ports is which. Covers Bus Pirate 5 and
+  later only — classic v3.x is entirely different firmware.
 ---
 
 <!--

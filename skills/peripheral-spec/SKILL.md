@@ -1,16 +1,12 @@
 ---
 name: peripheral-spec
 description: >-
-  Produce a clean-room HARDWARE/DRIVER implementation spec for a single peripheral (Ethernet MAC,
-  UART, GPIO, SD/MMC, USB, display/mailbox, I2C/SPI, …) so an engineer can write a from-scratch
-  driver in a differently-licensed OS. Use whenever the user asks to "spec a driver", research a
-  peripheral or IP block for a driver, or produce an implementation reference for a hardware block
-  before coding it. An ORCHESTRATION skill: composes `os-investigator` (the clean-room method —
-  never returns source code, even when asked) and the relevant board-expert skill for the hardware
-  facts, and reads the TARGET OS source tree for the integration half. Enforces a transfer protocol
-  (unverified spec text never enters the orchestrator), mandatory mechanical leak scanning, and an
-  evidentiary provenance ledger; consumer-side enforcement (implementer rules, hooks, session
-  audits) lives in the companion `cleanroom-implementer` skill.
+  Produce a clean-room implementation spec for a single peripheral (Ethernet MAC, UART, GPIO,
+  SD/MMC, USB, display/mailbox, I2C/SPI, …) so an engineer can write a from-scratch driver in a
+  differently-licensed OS. Use when asked to spec a driver or research a hardware block before
+  coding it. Orchestrates os-investigator and the board-expert skill, and enforces the transfer
+  protocol, mandatory leak scanning, and the provenance ledger; consumer-side enforcement lives in
+  cleanroom-implementer.
 ---
 
 <!--

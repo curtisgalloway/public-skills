@@ -1,6 +1,9 @@
 ---
 name: intern-mode
-description: Engage a loop-safety posture that forces the agent to stop and report to the user if it goes more than 12 turns without making meaningful progress. Use when the user wants to prevent runaway loops, thrashing, or spinning on a stuck problem — signalled by "intern mode", "stop if you get stuck", "check in if you're looping", or any concern about the agent going off the rails unattended. The mode stays active until the user explicitly releases it.
+description: >-
+  A loop-safety posture: after 12 turns without meaningful progress, stop, file a stuck report,
+  and wait for direction. Use when the user wants protection against runaway loops or silent
+  thrashing ("intern mode", "stop if you get stuck"). Stays active until explicitly released.
 ---
 
 <!--

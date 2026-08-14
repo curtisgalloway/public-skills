@@ -1,18 +1,13 @@
 ---
 name: fuchsia-source
 description: >-
-  Launch a high-capability subagent to investigate Fuchsia source code questions. Trigger whenever you
-  need to trace through multiple layers of the Fuchsia tree to answer a technical question — DO NOT
-  guess or reason from training data alone. Specific triggers: (1) a driver fails at runtime with
-  ZX_ERR_PEER_CLOSED, ZX_ERR_NOT_FOUND, or ZX_ERR_NOT_SUPPORTED and the cause is unclear; (2) you're
-  unsure what instance name, path, or constant to pass to a DFv2 API (PDev::Connect, incoming->Connect,
-  MakeOffer2, AddChild, etc.); (3) you need to know what a CML shard, bind library entry, or service
-  offer does to the driver's namespace at runtime; (4) you need a working in-tree example of a driver
-  using a specific pattern (PDev, serialimpl, composite, non-composite); (5) an API call compiles but
-  behaves wrong and the root cause requires reading the framework implementation; (6) you don't know
-  the DFv2-correct way to do something you'd know how to do in DFv1. NOT for Linux/clean-room hardware
-  questions (use os-investigator + rpi-expert) or simple file lookup (use Explore). Returns: the
-  answer, the correct API call or pattern, and the key source locations as path:line.
+  Launch a subagent to answer deep Fuchsia source questions by reading the tree — DFv2 API usage,
+  CML shard and bind routing, framework behavior behind runtime errors (ZX_ERR_PEER_CLOSED,
+  ZX_ERR_NOT_FOUND, ZX_ERR_NOT_SUPPORTED), and working in-tree examples (PDev, serialimpl,
+  composite) to model on. Use whenever the answer requires tracing Fuchsia source rather than
+  recalling it. Not for Linux/clean-room hardware questions (use os-investigator + rpi-expert) or
+  simple symbol lookups (use Explore). Returns the answer, the correct pattern, and path:line
+  sources.
 ---
 
 <!--
