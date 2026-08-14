@@ -22,19 +22,17 @@ Each line of the file is one JSON event — user message, assistant message, too
 
 ## Locating the live session
 
-Prefer `${CLAUDE_SESSION_ID}` — the harness substitutes this for the current session's UUID in skill argument contexts. Combine with a glob across all project-key dirs, because the project key is derived from cwd at session start but cwd may have changed mid-session (newly-created repo, `cd` into a subdir):
+**In a hook context**, the hook's JSON stdin carries `transcript_path` (and `session_id`) — use those. This is the authoritative mechanism: the path travels with the event, so it cannot be out of sync with the session that fired the hook.
 
-```bash
-ls "$HOME"/.claude/projects/*/"${CLAUDE_SESSION_ID}".jsonl
-```
-
-If `${CLAUDE_SESSION_ID}` substitution is not available in the calling context, fall back to the most-recently-modified `.jsonl` anywhere under `$HOME/.claude/projects/`:
+**Otherwise**, fall back to the most-recently-modified `.jsonl` anywhere under `$HOME/.claude/projects/`:
 
 ```bash
 ls -t "$HOME"/.claude/projects/*/*.jsonl | head -1
 ```
 
 The `*.jsonl` glob (not bare `*`) matters — it excludes the `memory/` subdir and any per-session subdirs.
+
+If the running harness does provide a session-id substitution or environment variable, globbing on it across all project-key dirs beats the mtime heuristic (the project key is derived from cwd at session start, but cwd may have changed mid-session).
 
 ## Listing sessions for the current project
 

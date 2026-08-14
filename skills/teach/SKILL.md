@@ -9,7 +9,7 @@ The user produces teaching material that shows students how they used agentic co
 
 ## Where things live
 
-- **Session transcripts (input):** see the `claude-session-transcript` skill for the JSONL location, how to find the live session, and how to list all sessions for the current project. Read `$HOME/.claude/skills/claude-session-transcript/SKILL.md` before doing transcript work.
+- **Session transcripts (input):** see the companion `claude-session-transcript` skill for the JSONL location, how to find the live session, and how to list all sessions for the current project. Its SKILL.md lives in a sibling directory of this skill's base directory (the harness reports the base directory when a skill is invoked) — read `<base-dir>/../claude-session-transcript/SKILL.md` before doing transcript work.
 - **Summaries (output):** `sessions/YYYY-MM-DD-<slug>.md` relative to the repo root (the current working directory). Create the `sessions/` dir if it does not exist.
 
 ## Procedure
