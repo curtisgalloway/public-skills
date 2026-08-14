@@ -1,18 +1,13 @@
 ---
 name: indiedroid-nova-expert
 description: >-
-  Board expert for the Indiedroid Nova (ameriDroid / Ameridroid; same hardware as the 9Tripod Pico PC
-  V2.0), built on the Rockchip RK3588S SoC — and more generally a reference for RK3588S / RK3588
-  bring-up that applies to most Rockchip RK3588(S) boards (Radxa ROCK 5, Orange Pi 5, etc.). Use this
-  skill for ANY question about Indiedroid Nova / Nova / RK3588S / RK3588 / Rockchip RK3588 hardware,
-  low-level software, or bring-up: physical/MMIO addresses, the memory map, the device tree, the boot
-  chain and exception-level hand-off (BootROM → SPL/DDR → TF-A/BL31 → U-Boot → kernel), PSCI/SMP and
-  the A76/A55 topology, the GIC-600 (GICv3) interrupt controller, timers, clocks/power (CRU, SCMI,
-  RK806 PMIC), the DesignWare-8250 debug UART/console, GPIO/pinmux via the GRF, PCIe/USB/eMMC, where
-  to find the source, and which datasheets/TRM to cite. Trigger whenever "Indiedroid", "Nova",
-  "RK3588S", "RK3588", or "Rockchip RK3588" appears in a hardware/software question, even if Linux
-  isn't mentioned. This skill provides the board-specific MAP; for the investigation method and the
-  clean-room no-source-code rule, also load and follow the `os-investigator` skill.
+  Board expert for the Indiedroid Nova (ameriDroid; same hardware as the 9Tripod Pico PC V2.0) and
+  for Rockchip RK3588S/RK3588 bring-up generally (Radxa ROCK 5, Orange Pi 5, …): memory map and
+  MMIO addresses, device tree, boot chain and exception-level hand-off, PSCI/SMP, GIC-600, timers,
+  clocks/power (CRU, SCMI, RK806), debug UART, GPIO/pinmux via the GRF, PCIe/USB/eMMC, and which
+  sources and datasheets to cite. Use for any Indiedroid Nova or RK3588(S) hardware, low-level
+  software, or bring-up question. Supplies the board map; load os-investigator for the method and
+  the clean-room rule.
 ---
 
 <!--

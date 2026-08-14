@@ -1,13 +1,11 @@
 ---
 name: rpi-expert
 description: >-
-  Board expert for the Raspberry Pi 5 / Compute Module 5 (Broadcom BCM2712 SoC + RP1 southbridge):
-  the board-specific map of MMIO addresses, the memory map, the device tree, the boot chain and
-  exception-level hand-off, PSCI/SMP, interrupts, timers, clocks/power, UART/GPIO, PCIe and the RP1
-  chip, source repos, and datasheets for bring-up work. Trigger whenever "Raspberry Pi 5", "Pi 5",
-  "BCM2712", "RP1", or "CM5" appears in a hardware or low-level software question, even if Linux
-  isn't mentioned. Pairs with `os-investigator`, which supplies the investigation method and the
-  clean-room no-source-code rule.
+  Board expert for the Raspberry Pi 5 / Compute Module 5 (BCM2712 SoC + RP1 southbridge): memory
+  map and MMIO addresses, device tree, boot chain and exception-level hand-off, PSCI/SMP,
+  interrupts, timers, clocks/power, UART/GPIO, PCIe and the RP1, plus sources and datasheets for
+  bring-up. Use for any Pi 5, CM5, BCM2712, or RP1 hardware or low-level question. Pairs with
+  os-investigator, which supplies the method and the clean-room no-source-code rule.
 ---
 
 <!--

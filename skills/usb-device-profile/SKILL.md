@@ -1,6 +1,10 @@
 ---
 name: usb-device-profile
-description: Generate a USB device profile JSON for a known device by reading its driver source code. The profile encodes the device's endpoint configuration — transfer types, directions, max packet sizes, across all USB configurations — so the Cynthion decode pipeline can correctly type endpoints when enumeration traffic was not captured. Use when the user asks to generate, update, or inspect a device profile, or when preparing a device for analysis with cynthion-anomaly-analysis.
+description: >-
+  Generate a USB device-profile JSON — endpoint transfer types, directions, and max packet sizes
+  across all configurations — by reading the device's driver source, so the Cynthion decode
+  pipeline can type endpoints when enumeration traffic wasn't captured. Use when asked to
+  generate, update, or inspect a device profile, or when preparing a device for capture analysis.
 ---
 
 <!--

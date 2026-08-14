@@ -1,14 +1,11 @@
 ---
 name: fuchsia-hardware-bench
 description: >-
-  Drive and provision Fuchsia on real hardware over a fully remote bench — no hands on the box.
-  Use when bringing up or reprovisioning a Fuchsia DUT (x64 Intel NUC / gigaboot, or arm64 VIM3 /
-  Nova / RPi5), when you must reach a headless board via HDMI capture + a serial-HID keyboard and a
-  network-controlled power outlet, when talking to gigaboot fastboot-over-TCP or a running Fuchsia
-  over an IPv6 link-local point-to-point link, or when a flash/`ffx`/`fastboot` step fails with
-  "bad IPv6 address", "Failed to get block device", a Secure Boot Violation, or an unreachable
-  link-local target. Captures the non-obvious gotchas (numeric IPv6 scope, host `fe80::1/64`,
-  PXE-gigaboot cannot flash the local disk, VMD, BIOS nav over a slow-polling KVM keyboard).
+  Drive and provision Fuchsia on real hardware over a fully remote bench (x64 NUC/gigaboot, arm64
+  VIM3/Nova/RPi5): HDMI capture, serial-HID keyboard, network-controlled power, gigaboot
+  fastboot-over-TCP, and IPv6 link-local ffx. Use when bringing up or reprovisioning a DUT with no
+  hands on the box, or when a flash/ffx/fastboot step fails with "bad IPv6 address", "Failed to
+  get block device", a Secure Boot Violation, or an unreachable link-local target.
 ---
 
 # Fuchsia hardware bench: remote bring-up & provisioning

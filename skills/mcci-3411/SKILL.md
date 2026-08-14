@@ -1,6 +1,12 @@
 ---
 name: mcci-3411
-description: Operate an MCCI Model 3411 "Merganser" USB 3.2 Gen2 test device — find and drive its FTDI control port, run the on-device RTEMS shell (setdevicemode, setdevicespeed, setbuffersize, getserialnum, appversion, controlssc), switch between loopback / USB-IF compliance / multi-bulk personalities, and run host-side throughput and data-integrity tests with usbiotest. Use when the user mentions an MCCI 3411, Merganser, a USB loopback or USB-IF compliance test device, a SuperMUTT-compatible device, or wants to benchmark USB 3.2 Gen2 host throughput. Also covers the VID/PID confusion between the control port and the data port.
+description: >-
+  Operate an MCCI Model 3411 "Merganser" USB 3.2 Gen2 test device: find and drive its FTDI control
+  port and on-device RTEMS shell, switch between loopback, USB-IF compliance, and multi-bulk
+  personalities, and run host-side throughput and data-integrity tests with usbiotest. Use when an
+  MCCI 3411, Merganser, or SuperMUTT-compatible loopback/compliance device comes up, or to
+  benchmark USB 3.2 Gen2 host throughput. Covers the VID/PID confusion between the control and
+  data ports.
 ---
 
 <!--

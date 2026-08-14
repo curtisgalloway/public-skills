@@ -1,16 +1,11 @@
 ---
 name: agent-agnostic-skills
 description: >-
-  How to write skills, hooks, subagent definitions and agent-facing scripts that survive a change of
-  harness — Antigravity, Claude Code, whatever ships next — and how to port one that didn't. Use
-  this whenever authoring or reviewing a SKILL.md, a pre-tool-use hook, a settings/permissions
-  fragment, a subagent definition, or any script that resolves a project directory, a skills
-  directory, a tool name, or a session transcript; whenever a path like `~/.claude/skills`, a
-  variable like `$CLAUDE_PROJECT_DIR`, or a tool name like `Read`/`view_file` is about to be written
-  down as a constant; whenever a skill "does nothing" under a different agent; and whenever a
-  harness deprecation forces a migration. Reach for it even when the request sounds like ordinary
-  skill-writing — most lock-in is added by accident, one hardcoded path at a time. Ships
-  `scripts/portability_scan.py`, a mechanical check for the assumptions below.
+  How to write skills, hooks, subagent definitions, and agent-facing scripts that survive a change
+  of harness (Claude Code, Antigravity, whatever ships next), and how to port one that didn't. Use
+  when authoring or reviewing any of those, before hardcoding a path, variable, or tool name
+  another harness wouldn't have, or when a skill "does nothing" under a different agent. Ships
+  scripts/portability_scan.py, a mechanical check for these assumptions.
 ---
 
 <!--
