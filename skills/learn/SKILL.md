@@ -9,10 +9,10 @@ The goal is to convert *this session's* mistakes, retries, and corrections into 
 
 ## Where things live
 
-- **Current-session transcript:** see the `claude-session-transcript` skill for the JSONL location and how to find the live session. Read `$HOME/.claude/skills/claude-session-transcript/SKILL.md` before doing transcript work.
+- **Current-session transcript:** see the companion `claude-session-transcript` skill for the JSONL location and how to find the live session. Its SKILL.md lives in a sibling directory of this skill's base directory (the harness reports the base directory when a skill is invoked) — read `<base-dir>/../claude-session-transcript/SKILL.md` before doing transcript work.
 - **Global AGENTS.md:** `$HOME/.claude/AGENTS.md` (or `CLAUDE.md` if AGENTS.md is absent) — applies to every project. Use for OS, language toolchain, CLI ergonomics, shell quoting, generic tool gotchas.
 - **Workspace AGENTS.md:** `<repo-root>/AGENTS.md` (or `CLAUDE.md` as fallback) if one exists. Use for project conventions, paths, infra specifics, and anything that only matters inside this repo. If neither exists and the lesson is project-scoped, ask the user whether to create one before writing.
-- **This skill itself:** `$HOME/.claude/skills/learn/SKILL.md`. If the session surfaced a *kind* of learning the procedure below didn't anticipate, the skill itself is a valid target — see "Self-update" near the bottom.
+- **This skill itself:** the SKILL.md in this skill's own base directory (the harness reports that directory when the skill is invoked). If the session surfaced a *kind* of learning the procedure below didn't anticipate, the skill itself is a valid target — see "Self-update" near the bottom.
 
 ## What counts as a learning
 
@@ -36,7 +36,7 @@ What does **NOT** count (skip these):
 
 **Delegate all analysis to a sub-agent.** Reading the transcript inline chews up the main session's context with raw JSONL, intermediate reasoning, and file reads the user never needs to see. Do the heavy work in a sub-agent; the main session only locates the transcript, presents the proposals, and applies what the user approves.
 
-1. **Locate the live transcript path** in the main session using the `claude-session-transcript` skill (one `find` command — cheap). Capture the absolute path.
+1. **Locate the live transcript path** in the main session using the `claude-session-transcript` skill (one `ls -t` command — cheap). Capture the absolute path.
 
 2. **Resolve the instruction file paths** in the main session:
    - Global: `$HOME/.claude/AGENTS.md` (or `CLAUDE.md` if absent)
@@ -45,7 +45,7 @@ What does **NOT** count (skip these):
 3. **Spawn a sub-agent** via the `Agent` tool. The sub-agent performs steps 4–8 below. Include in the sub-agent prompt:
    - Absolute path to the transcript file
    - Absolute paths to the instruction files found in step 2
-   - Path to this skill file (`$HOME/.claude/skills/learn/SKILL.md`) so the sub-agent can read the "What counts as a learning", classification, and style rules
+   - The resolved absolute path of this skill's SKILL.md (from the base directory the harness reported when the skill was invoked) so the sub-agent can read the "What counts as a learning", classification, and style rules
    - Instruction to return a structured list of proposed changes — for each: target file, target section (existing or new), exact text to add or change, and a one-line citation pointing to the transcript moment that motivated it
    - Instruction to **not** write any files — only return proposals
 

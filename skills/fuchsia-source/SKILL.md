@@ -11,7 +11,7 @@ description: >-
   using a specific pattern (PDev, serialimpl, composite, non-composite); (5) an API call compiles but
   behaves wrong and the root cause requires reading the framework implementation; (6) you don't know
   the DFv2-correct way to do something you'd know how to do in DFv1. NOT for Linux/clean-room hardware
-  questions (use os-investigator + rpi5-expert) or simple file lookup (use Explore). Returns: the
+  questions (use os-investigator + rpi-expert) or simple file lookup (use Explore). Returns: the
   answer, the correct API call or pattern, and the key source locations as path:line.
 ---
 
@@ -22,8 +22,7 @@ SPDX-License-Identifier: Apache-2.0
 
 # fuchsia-source — Fuchsia internal source investigation
 
-Launches a general-purpose subagent — on the most capable reasoning model available — to answer deep
-Fuchsia source questions.
+Launches a general-purpose subagent to answer deep Fuchsia source questions.
 Designed for multi-layer investigations: SDK API → framework implementation → working examples →
 concrete recommendation.
 
@@ -37,7 +36,7 @@ concrete recommendation.
 - What Zircon kernel API or constant should I use for X?
 - What does a bind library symbol expand to?
 
-Do NOT use this for Linux kernel / clean-room hardware questions — use `os-investigator` + `rpi5-expert`
+Do NOT use this for Linux kernel / clean-room hardware questions — use `os-investigator` + `rpi-expert`
 for those. Do NOT use this for a simple "where is this file / symbol defined" lookup — use `Explore`.
 
 ---
@@ -210,14 +209,14 @@ Do research only; do not write or edit any code or files.
 
 Use `Agent` with:
 - `subagent_type: "general-purpose"`
-- `model` — select the **most capable reasoning model available** in your environment. This task
-  demands multi-file reasoning across a large tree; do not downgrade to a faster/cheaper tier.
+- **Omit the `model` parameter** so the subagent inherits the session's model (the default). This
+  task demands multi-file reasoning across a large tree — it needs the session's full-capability
+  model; do not pass a cheaper/faster tier.
 
 ```
 Agent({
   description: "Fuchsia source investigation: <one-line question>",
   subagent_type: "general-purpose",
-  model: "<most capable reasoning model available>",  // top tier — needs strong multi-file reasoning
   prompt: "<full investigation prompt per guidelines above, with resolved paths substituted>"
 })
 ```
