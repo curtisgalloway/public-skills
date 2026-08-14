@@ -1,13 +1,11 @@
 ---
 name: cleanroom-implementer
 description: >-
-  The CONSUMER side of the clean-room driver-porting pipeline: rules, enforcement, and auditing for
-  agents that write target-OS driver code from a verified clean-room spec (docs/<device>-spec.md).
-  Use whenever implementing, editing, or reviewing code for a ported driver; whenever setting up or
-  installing clean-room enforcement (hooks, restricted agents, settings) in a project; whenever a
-  spec is insufficient and a spec-gap must be filed; or whenever auditing an implementation session
-  for contamination. Companion to `os-investigator` (dirty-side method) and `peripheral-spec`
-  (orchestration): those produce the spec; this skill keeps the context that consumes it clean.
+  The consumer side of the clean-room driver-porting pipeline: rules, enforcement, and auditing
+  for agents that write target-OS driver code from a verified spec. Use when implementing or
+  reviewing ported-driver code, installing enforcement (hooks, restricted agents, settings),
+  filing a spec-gap, or auditing a session for contamination. Companion to os-investigator and
+  peripheral-spec, which produce the spec this skill consumes.
 ---
 
 <!--

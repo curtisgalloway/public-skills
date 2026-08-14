@@ -1,6 +1,10 @@
 ---
 name: cynthion-reverse-engineer
-description: Orchestrate a structured USB protocol reverse-engineering session using Cynthion hardware. Guides the user through capturing, diffing, and inferring command structure for a proprietary USB device, then generates replay and Facedancer emulation scaffolds. Use when the user wants to reverse-engineer a USB device's protocol, understand what commands a proprietary USB device sends, build a clone or replay of a USB device, or make a device emulator with Facedancer. Do NOT trigger on generic "analyze a USB capture" requests — use cynthion-pcap-decode for that.
+description: >-
+  Orchestrate a structured USB protocol reverse-engineering session with Cynthion hardware:
+  capture, diff, infer command structure for a proprietary device, then generate replay and
+  Facedancer emulation scaffolds. Use to reverse a USB device's protocol or build a clone or
+  emulator. Not for generic capture analysis — use cynthion-pcap-decode.
 ---
 
 <!--

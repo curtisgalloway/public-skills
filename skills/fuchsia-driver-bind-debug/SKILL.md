@@ -1,15 +1,11 @@
 ---
 name: fuchsia-driver-bind-debug
 description: >-
-  Diagnose why a Fuchsia (DFv2) driver did NOT bind — a node sits unbound, no driver was selected, or
-  the wrong driver matched. This is a reference METHOD skill: it teaches an ordered ladder of
-  techniques (ffx driver doctor / list-devices --unbound, log severity, the offline bind debugger, and
-  zxdb on the match path) plus the realistic limits of each. Trigger whenever a driver "isn't loading"
-  with no error, a node is unbound, you're comparing bind rules against node properties, or someone
-  asks "why didn't my driver bind". This skill is the MATCH-failure counterpart to runtime debugging:
-  use it for "the driver never started"; for "it started but start() failed" or deep source questions
-  use `fuchsia-source`. Composed by `rpi-expert` and `os-investigator`; honor their constraints. Does
-  NOT cover Linux/clean-room hardware questions (use `os-investigator` + a board-expert skill).
+  Diagnose why a Fuchsia DFv2 driver did not bind — a node sits unbound, no driver was selected,
+  or the wrong driver matched. An ordered ladder of techniques (ffx driver doctor and list-devices
+  --unbound, log severity, the offline bind debugger, zxdb on the match path) with the realistic
+  limits of each. Use for "my driver isn't loading / didn't bind"; for a driver that bound but
+  failed in start(), or deep source questions, use fuchsia-source.
 ---
 
 <!--
