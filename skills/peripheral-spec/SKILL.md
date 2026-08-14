@@ -143,13 +143,15 @@ The main/orchestrating agent — the one that will write the differently-license
 The wall only holds if the orchestrator never holds unverified spec text — a leak the verifier would
 have caught must not first transit the very context that writes the target-OS code. So:
 
-1. The orchestrator picks a scratch path and spawns the spec subagent (template below). The subagent
+1. The orchestrator picks a scratch path and spawns the spec subagent
+   (`templates/spec-subagent-prompt.md`). The subagent
    **writes the spec to that path itself**, writes the file map to the provenance sidecar
    (`docs/provenance/<device>-map.txt`), and returns **only** `{path, one-paragraph summary,
    <repo>@<commit>}` — no spec text and no file paths in its reply. The spec body itself is
    attractant-free: facts stated as hardware facts, no source-tree paths, no "Linux does X in
    file Y" narration.
-2. The orchestrator spawns a **fresh verifier subagent** on the path (template below) — never the
+2. The orchestrator spawns a **fresh verifier subagent** on the path
+   (`templates/verifier-prompt.md`) — never the
    subagent that wrote the spec, never the main agent. The verifier is itself a designated
    clean-room reader.
 3. **PASS** → the orchestrator moves the file to `docs/<device>-spec.md`, computes `sha256sum`,
@@ -236,57 +238,16 @@ without the implementer's deny rules.
 
 ### Spec subagent prompt template
 
-```
-Produce a clean-room HARDWARE/DRIVER spec for <PERIPHERAL> (<IP block>, compatible "<dt-compat>",
-on <bus>, CPU-phys <addr>, IRQ <irq>) so an engineer can implement a from-scratch <OS> <framework>
-driver in <language>. <board/prereq facts>.
-
-TRANSFER PROTOCOL: write the finished spec to <scratch path> yourself, and write the provenance
-file map to docs/provenance/<device>-map.txt (file paths go in the sidecar, never in the spec
-body). Return ONLY: the spec path, a one-paragraph summary (for the docs index), and the pinned
-source provenance as <repo>@<commit>. Do not return spec text or source file paths in your reply —
-neither may enter the orchestrator before verification.
-
-CONSTRAINTS:
-- Load and follow `os-investigator` for method + the clean-room rule: facts/mechanism only, NEVER
-  source code; every constant and sequence step tagged [databook]/[standard]/[DT]/[source-observed];
-  [source-observed] orderings marked "order not known to be required" and [source-observed]
-  constants marked "re-derive on hardware"; register tables grouped per the databook, never
-  driver-touch order; provenance pinned to an exact commit. Use `<board-expert>` for board
-  specifics + cached references.
-- You are the designated clean-room reader: you read the source-OS/firmware so the orchestrating
-  agent never has to. `os-investigator` and `<board-expert>` are subagent roles; if a step needs
-  deep source reading, delegate it to a fresh subagent and keep only the clean facts — do not let
-  encumbered source pile up in a context that also drafts the spec text.
-- Self-scan before returning if the source tree is local:
-    python3 <os-investigator>/scripts/leak_scan.py <scratch path> --against <source paths> \
-        [--whitelist <databook nomenclature>]
-  Rewrite any finding. If sources were read remotely, note that the self-scan was skipped.
-- ATTRACTANT RULES: the spec body contains no source-tree file paths and no "Linux does X in
-  file Y" narration — state facts as hardware facts. The [source-observed] tag says a fact came
-  from code; it never says where.
-- OPEN the spec with the CLEAN-ROOM USAGE NOTICE (required section 1), including the spec-gap,
-  [source-observed], provenance-dir, pre-merge-gate, and hash-match clauses.
-- HALF 2 is the TARGET tree at <path> — read it directly and cite file:line.
-
-Cover (HALF 1 clean-room): IP identity & provenance; canonical references TABLE; register map
-(grouped per databook, offsets+bits, tagged); ordered init sequence (incl. prerequisites, steps
-tagged); data/descriptor formats; interrupts (routing + status bits + ack/quirks); DMA/addressing
-(bus↔CPU translation, cache); sub-protocols.
-Cover (HALF 2 tree-read): which existing driver to model on (file:line); the OS protocol(s) to
-implement; reuse-vs-write; bind rule + DT node shape; packaging into the board.
-End with: milestones (minimal-observable → full; note prereq drivers; full integration includes
-the pre-merge output scan), consolidated gotchas, per-area confidence ratings (mark NDA/inferred
-bits "verify on hardware"), and the clean-room attestation with the pinned provenance
-(<repo>@<commit>; file map in the sidecar) plus an empty verification record for the verifier
-to fill.
-Be exhaustive on registers/sequences/references — this spec is the implementation source of truth.
-```
+The fill-in prompt ships next to this skill at `templates/spec-subagent-prompt.md`. Read it when
+spawning, substitute every `<angle-bracket>` placeholder (peripheral identity, scratch path, target
+tree, board-expert skill name), and pass the result as the subagent's prompt. It encodes the
+transfer protocol, the os-investigator constraints, the self-scan, the attractant rules, the
+usage-notice requirement, and the required coverage for both halves.
 
 ### Verify before saving (mandatory, every spec)
 
 A returned spec is not done until an **independent verification subagent** has passed it. Fire off a
-*fresh* subagent — never the one that wrote the spec, never the main agent — with the template below.
+*fresh* subagent — never the one that wrote the spec, never the main agent — with the verifier template.
 It checks exactly five things: mechanical scan, leak judgment, hardware-derived structure,
 attractants, and the usage notice. It does **not** check technical accuracy — accuracy belongs to a separate pass or to
 hardware, and folding it in would dilute the one job that must be done adversarially. Its verdict
@@ -298,41 +259,9 @@ The verdict is **PASS + scan-report path**, or **FAIL + scan-report path** with 
 
 ### Verifier prompt template
 
-```
-Independently verify the clean-room spec at <path-to-spec>. You did not write it; do not fix it.
-Load `os-investigator` — it is the canonical statement of allowed/forbidden and ships the scanner.
-Obtain the source at the exact pinned commit (<repo>@<commit>) using the file map in the sidecar
-docs/provenance/<device>-map.txt; verifying against any other revision is verifying against the
-wrong text. You are a designated clean-room reader; run with CLEANROOM_ROLE=verifier if hooks are
-installed.
-
-1. MECHANICAL: run
-     python3 <os-investigator>/scripts/leak_scan.py <path-to-spec> \
-         --against <files from the sidecar map> [--whitelist <databook nomenclature file>]
-   Save the full report to docs/provenance/<device>-scan-<date>.txt. Review every finding:
-   ALL-CAPS identifier hits that are genuine databook nomenclature go into the whitelist file
-   (record that you did), everything else is a failure.
-2. LEAK JUDGMENT: confirm the spec contains NO source code from <repo(s)>: no verbatim or
-   near-verbatim code in any language, no struct/enum/#define/macro/function bodies or initializer
-   tables, no copied code comments, no prose that tracks a function statement-by-statement. You may
-   open the sidecar-map files at the pinned commit to compare. NEVER quote source code or the
-   offending spec text — cite spec section + line range only.
-3. STRUCTURE: registers are grouped per the databook's organization and sections follow hardware
-   function — the spec does not mirror the source driver's file/function decomposition. Constants
-   and sequence steps carry provenance tags; [source-observed] orderings/constants carry their
-   required caveats ("order not known to be required" / "re-derive on hardware").
-4. ATTRACTANTS: the spec body contains NO source-tree file paths and no "<source OS> does X in
-   file Y" narration — facts read as hardware facts; the sidecar map exists at
-   docs/provenance/<device>-map.txt and the spec's attestation carries only <repo>@<commit>.
-5. NOTICE: the spec opens with the clean-room usage notice instructing consumers (human or agent)
-   NOT to read the original source, naming the spec + its cited public references as the only
-   implementation inputs, routing gaps through the spec-gap protocol (docs/spec-gaps/), forbidding
-   verification of [source-observed] facts against the source and the opening of
-   docs/provenance/, and containing the pre-merge-gate and hash-match clauses.
-
-Return exactly: "PASS + <scan-report path>", or "FAIL + <scan-report path>" + a list of
-{section, line range, one-line reason} + whether the usage notice is missing or deficient.
-```
+The fill-in prompt ships at `templates/verifier-prompt.md`. Substitute the placeholders (spec path,
+pinned `<repo>@<commit>`, sidecar map path) and pass it verbatim to the fresh verifier subagent. It
+walks the five checks above and pins the required verdict format.
 
 ## Quality bar
 
