@@ -13,8 +13,7 @@ Skills roots differ per agent — and per release — so nothing here is
 hardcoded to one harness. Resolution order:
 
   1. $CYNTHION_PCAP_DECODE_SCRIPTS, if you want to point at it outright.
-  2. $PUBLIC_SKILLS_REPO/skills/ (the variable this repo's manifest.json
-     already uses).
+  2. $PUBLIC_SKILLS_REPO/skills/ (point it at a clone of this repo).
   3. A sibling in the same skills tree — the repo layout, and what any
      harness that installs whole skill trees together produces. This is the
      case that works without configuration; prefer it.
