@@ -48,7 +48,7 @@ In each transcript, find `type == "assistant"` events that contain a `tool_use` 
 Classify each as **user-configured** or **built-in**:
 
 - **User-configured**: skills the user has added or installed — anything not shipped as part of the agent's standard installation. Always mention these if detected, even if the agent invoked them autonomously rather than the user typing a slash command.
-- **Built-in**: skills that ship with the agent. For Claude Code, these currently include: `init`, `review`, `security-review`. Mention built-in skills **only** if the user explicitly invoked them (i.e. there is a corresponding slash-command stub in the transcript).
+- **Built-in**: skills that ship with the agent. For Claude Code, current examples: `init`, `code-review` (with `/review` as an alias), `security-review`, `simplify`, `loop`, `schedule` — the set grows with releases, so treat any list as examples, not an inventory. When unsure whether a skill is built-in or user-configured, check whether it appears in the user's own skills or plugin directories. Mention built-in skills **only** if the user explicitly invoked them (i.e. there is a corresponding slash-command stub in the transcript).
 
 If the same skill is invoked multiple times, list it once.
 

@@ -1,5 +1,5 @@
 ---
-name: rpi5-expert
+name: rpi-expert
 description: >-
   Board expert for the Raspberry Pi 5 / Compute Module 5 (Broadcom BCM2712 SoC + RP1 southbridge):
   the board-specific map of MMIO addresses, the memory map, the device tree, the boot chain and
