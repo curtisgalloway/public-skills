@@ -75,8 +75,8 @@ def clamp(x, lo=0.0, hi=10.0):
 def resolve_registry(eco, name, use_cache):
     """Return dict: repo (owner/name or None), license, dependents, downloads,
     deprecated, plus 'notes' list."""
-    out = {"repo": None, "license": None, "dependents": None,
-           "downloads": None, "deprecated": False, "notes": []}
+    out = {"repo": None, "license": None, "dependents": None, "downloads": None,
+           "deprecated": False, "release_dates": None, "notes": []}
     if eco == "cargo":
         d, err = http_json(f"https://crates.io/api/v1/crates/{name}", use_cache=use_cache)
         if err:
@@ -85,6 +85,7 @@ def resolve_registry(eco, name, use_cache):
         out["license"] = (d.get("versions") or [{}])[0].get("license")
         out["downloads"] = c.get("downloads")
         out["repo"] = _gh_repo_from_url(c.get("repository"))
+        out["release_dates"] = [v.get("created_at") for v in d.get("versions") or []]
         rd, err = http_json(
             f"https://crates.io/api/v1/crates/{name}/reverse_dependencies?per_page=1",
             use_cache=use_cache)
@@ -101,6 +102,8 @@ def resolve_registry(eco, name, use_cache):
         out["repo"] = _gh_repo_from_url((v.get("repository") or {}).get("url")
                                         if isinstance(v.get("repository"), dict)
                                         else v.get("repository"))
+        out["release_dates"] = [ts for k, ts in (d.get("time") or {}).items()
+                                if k not in ("created", "modified")]
     elif eco == "pypi":
         d, err = http_json(f"https://pypi.org/pypi/{name}/json", use_cache=use_cache)
         if err:
@@ -116,6 +119,8 @@ def resolve_registry(eco, name, use_cache):
             out["repo"] = _gh_repo_from_url(info.get("home_page"))
         if info.get("yanked"):
             out["deprecated"] = True
+        out["release_dates"] = [files[0].get("upload_time_iso_8601")
+                                for files in (d.get("releases") or {}).values() if files]
     return out
 
 def _gh_repo_from_url(url):
@@ -143,6 +148,23 @@ def try_depsdev(eco, name, use_cache):
         f"https://api.deps.dev/v3/systems/{sysname}/packages/{urllib.request.quote(name, safe='')}",
         use_cache=use_cache)
     return None if err else d
+
+def depsdev_dependents(eco, name, ddev, use_cache):
+    """Dependent count for the package's default version (v3alpha endpoint).
+    Per-version, so it reflects the current default version's adoption —
+    useful for npm/pypi where no registry-native dependents source exists."""
+    sysname = DDEV_SYS.get(eco)
+    if not sysname or not isinstance(ddev, dict):
+        return None
+    ver = next(((v.get("versionKey") or {}).get("version")
+                for v in ddev.get("versions") or [] if v.get("isDefault")), None)
+    if not ver:
+        return None
+    d, err = http_json(
+        f"https://api.deps.dev/v3alpha/systems/{sysname}/packages/"
+        f"{urllib.request.quote(name, safe='')}/versions/{ver}:dependents",
+        use_cache=use_cache)
+    return None if err or not isinstance(d, dict) else d.get("dependentCount")
 
 # --------------------------------------------------------------- GitHub layer
 
@@ -184,8 +206,9 @@ def score_package(spec, args, token):
     if not name:                       # --repo mode
         eco, name = None, None
         repo = spec
-        reg = {"repo": repo, "license": None, "dependents": None,
-               "downloads": None, "deprecated": False, "notes": ["repo mode: no registry data"]}
+        reg = {"repo": repo, "license": None, "dependents": None, "downloads": None,
+               "deprecated": False, "release_dates": None,
+               "notes": ["repo mode: no registry data"]}
         ddev = None
     else:
         reg = resolve_registry(eco, name, not args.no_cache)
@@ -228,7 +251,7 @@ def score_package(spec, args, token):
     allow = set(args.licenses.split(",")) if args.licenses else DEFAULT_LICENSES
     if lic and lic not in allow and lic != "NOASSERTION":
         gates.append(f"license '{lic}' not in allowlist")
-    elif not lic:
+    elif not lic or lic == "NOASSERTION":
         notes.append("license undetermined — verify manually")
     if repo_d and repo_d.get("archived"):
         gates.append("repository is archived")
@@ -249,9 +272,18 @@ def score_package(spec, args, token):
         if unpatched_crit:
             gates.append(f"{len(unpatched_crit)} unpatched critical advisory(ies)")
 
-    # ---- responsiveness (conditional on demand)
+    # ---- responsiveness (conditional on *external* demand)
+    # Items filed by people who committed in the trailing year are excluded:
+    # a maintainer opening and same-day-closing their own PRs is routine
+    # development, not evidence anyone answers outside contributors.
+    maintainer_logins = set()
+    if commits:
+        for c in commits:
+            if not is_bot_commit(c) and (c.get("author") or {}).get("login"):
+                maintainer_logins.add(c["author"]["login"])
     if issues is not None:
-        recent = [i for i in issues if (days_ago(i["created_at"]) or 999) <= 365]
+        recent = [i for i in issues if (days_ago(i["created_at"]) or 999) <= 365
+                  and (i.get("user") or {}).get("login") not in maintainer_logins]
         inflow = len(recent)
         if inflow >= 5:
             responded = [i for i in recent if i.get("comments", 0) > 0
@@ -264,23 +296,26 @@ def score_package(spec, args, token):
             if med is not None and med > 90:
                 s *= 0.5
             comps["responsiveness"].set(
-                s, f"{len(responded)}/{inflow} recent issues/PRs engaged"
+                s, f"{len(responded)}/{inflow} recent external issues/PRs engaged"
                    + (f", median close {med:.0f}d" if med is not None else ""))
         else:
             lr = days_ago(releases[0]["published_at"]) if releases else \
                  days_ago(repo_d.get("pushed_at")) if repo_d else None
-            s = 8 if (lr or 9999) < 365 else 6 if lr < 730 else 4 if lr < 1095 else 2
+            lr = 9999 if lr is None else lr
+            s = 8 if lr < 365 else 6 if lr < 730 else 4 if lr < 1095 else 2
             comps["responsiveness"].set(
-                s, f"low demand ({inflow} issues/yr); scored by recency "
+                s, f"low external demand ({inflow} issues/yr); scored by recency "
                    f"({lr}d since last release/push)", primary=False)
 
     # ---- adoption
     dep_n = reg["dependents"]
-    if ddev:  # deps.dev may carry dependent counts / scorecard
-        dep_n = dep_n or (ddev.get("dependentCount") if isinstance(ddev, dict) else None)
+    dep_src = "reverse dependencies"
+    if dep_n is None and ddev:
+        dep_n = depsdev_dependents(eco, name, ddev, not args.no_cache)
+        dep_src = "dependents of default version (deps.dev)"
     if dep_n is not None:
         comps["adoption"].set(10 * math.log10(1 + dep_n) / 4,
-                              f"{dep_n} reverse dependencies")
+                              f"{dep_n} {dep_src}")
     elif repo_d:
         stars = repo_d.get("stargazers_count", 0)
         comps["adoption"].set(10 * math.log10(1 + stars / 3) / 4,
@@ -328,16 +363,28 @@ def score_package(spec, args, token):
                                   comps["security"].reason + f"; scorecard {sc}")
 
     # ---- release discipline
-    if releases is not None:
-        dated = sorted([d for r in releases if (d := days_ago(r.get("published_at"))) is not None])
+    # Registry version history is preferred: GitHub releases mislead for
+    # crates living in monorepos (tags belong to other components, or the
+    # repo publishes to the registry without cutting releases at all).
+    src = None
+    dated = sorted(d for iso in reg["release_dates"] or []
+                   if (d := days_ago(iso)) is not None)
+    if dated:
+        src = "registry"
+    elif releases is not None:
+        dated = sorted(d for r in releases
+                       if (d := days_ago(r.get("published_at"))) is not None)
+        src = "github"
+    if src is not None:
         n24 = sum(1 for d in dated if d <= 730)
         s = 2 if n24 == 0 else 5 if n24 <= 2 else 8 if n24 <= 6 else 9
         gaps = [b - a for a, b in zip(dated, dated[1:])]
         if len(gaps) >= 3 and max(gaps) < 3 * statistics.median(gaps):
             s += 1
-        comps["releases"].set(s, f"{n24} releases in 24mo"
+        comps["releases"].set(s, f"{n24} releases in 24mo ({src})"
                               + (", regular cadence" if s in (9, 10) else ""))
-        if n24 == 0 and repo_d and (days_ago(repo_d.get("pushed_at")) or 9999) < 90:
+        if src == "github" and n24 == 0 and repo_d \
+                and (days_ago(repo_d.get("pushed_at")) or 9999) < 90:
             comps["releases"].set(4, "no releases but active pushes (rolling repo?)",
                                   primary=False)
 
@@ -361,18 +408,58 @@ def score_package(spec, args, token):
 
 # ------------------------------------------------------------------ manifests
 
+def _cargo_workspace_deps(manifest_path):
+    """[workspace.dependencies] of the enclosing workspace root, as
+    {name: value-string}. Empty dict if no workspace root is found."""
+    d = os.path.dirname(os.path.abspath(manifest_path))
+    for _ in range(6):
+        root = os.path.join(d, "Cargo.toml")
+        if os.path.exists(root) and "[workspace" in open(root).read():
+            deps, section = {}, None
+            for line in open(root).read().splitlines():
+                line = line.split("#")[0].strip()
+                if line.startswith("["):
+                    section = line.strip("[]")
+                elif section == "workspace.dependencies" and "=" in line:
+                    name, _, val = line.partition("=")
+                    deps[name.strip().strip('"')] = val
+            return deps
+        parent = os.path.dirname(d)
+        if parent == d:
+            break
+        d = parent
+    return {}
+
 def deps_from_manifest(path):
     base = os.path.basename(path)
     text = open(path).read()
     if base == "Cargo.toml":
-        deps, section = [], None
+        # path deps are workspace-internal; workspace = true deps resolve
+        # through the root manifest, whose entry may itself be a path dep.
+        # Anything unresolvable is skipped loudly rather than scored as a
+        # same-named stranger crate on crates.io.
+        ws = None
+        deps, section, skipped = [], None, []
         for line in text.splitlines():
             line = line.split("#")[0].strip()
             if line.startswith("["):
                 section = line.strip("[]")
             elif section in ("dependencies", "dev-dependencies", "build-dependencies") \
                     and "=" in line:
-                deps.append("cargo:" + line.split("=")[0].strip().strip('"'))
+                name, _, val = line.partition("=")
+                name = name.strip().strip('"')
+                if re.search(r"\bpath\s*=", val):
+                    skipped.append(name); continue
+                if name.endswith(".workspace") or re.search(r"\bworkspace\s*=\s*true", val):
+                    name = name.removesuffix(".workspace")
+                    if ws is None:
+                        ws = _cargo_workspace_deps(path)
+                    if re.search(r"\bpath\s*=", ws.get(name, "path =")):
+                        skipped.append(name); continue
+                deps.append("cargo:" + name)
+        if skipped:
+            print(f"note: skipped path/workspace-internal deps: {', '.join(skipped)}",
+                  file=sys.stderr)
         return deps
     if base == "package.json":
         d = json.loads(text)
