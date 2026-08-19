@@ -91,6 +91,10 @@ fx build
 `fx set` and `fx build` behave normally inside a worktree; the build dir is an ordinary `out/` inside
 it. To retire a workstream: `fx worktree remove <topic>` returns the slot for reuse.
 
+**Claude Code users:** the agent bridge (`AGENTS.md` symlink, `.claude/skills/` farm) is
+git-excluded local state and does **not** come along into a new worktree or checkout — run
+`fuchsia-claude-setup` in each one.
+
 ## The two conventions (this is the whole trick)
 
 These apply to worktrees and separate checkouts alike.
