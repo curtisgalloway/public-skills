@@ -64,20 +64,22 @@ Rules of thumb when comparing alternatives:
 
 | Component | Weight | What it measures |
 |---|---|---|
-| Responsiveness | 0.30 | Maintainer response to issue/PR inflow, *conditional on demand*: quiet-but-finished projects are scored by release recency instead of penalized for silence; ignored inflow is what signals abandonment. |
-| Adoption | 0.25 | Reverse-dependency count (log-scaled), not stars. Stars measure marketing; dependents measure other engineers betting on the project. Falls back to stars with a confidence penalty where dependents are unavailable. |
+| Responsiveness | 0.30 | Maintainer response to *external* issue/PR inflow — items filed by anyone who committed in the trailing year are excluded, so a solo maintainer merging their own PRs can't self-score. Conditional on demand: quiet-but-finished projects are scored by release recency instead of penalized for silence; ignored inflow is what signals abandonment. |
+| Adoption | 0.25 | Reverse-dependency count (log-scaled), not stars. Stars measure marketing; dependents measure other engineers betting on the project. crates.io reports this natively; for npm/PyPI it is the deps.dev dependent count of the default version (an undercount of all-versions use — the log scale absorbs most of the difference). Falls back to stars with a confidence penalty where no dependents source exists. |
 | Bus factor | 0.20 | Distinct **human** stewards in trailing-year commits. Bots and AI agents are excluded: accounts with GitHub `type: Bot`, `*[bot]` logins, known bot/agent author names, and commits whose only human trace is an agent `Co-Authored-By` trailer. Agent-authored commits landed under a human identity count for that human — they reviewed and carry stewardship. Heavy concentration in one human is penalized. |
 | Security hygiene | 0.15 | Advisory *fix latency* (how fast past CVEs were patched), not CVE count — counting CVEs punishes popular, well-audited projects. Blends in OpenSSF Scorecard when reachable. |
-| Release discipline | 0.10 | Cadence over trailing 24 months and gap regularity. |
+| Release discipline | 0.10 | Cadence over trailing 24 months and gap regularity, from registry version history when available — GitHub releases mislead for crates living in monorepos, whose tags belong to other components or don't exist at all. |
 
 **Aggregation:** weighted geometric mean over (component + 0.5), minus 0.5.
 
 ## Data sources and fallbacks
 
-1. **deps.dev API** (preferred when reachable): dependents, OpenSSF
-   Scorecard, OSV advisories, license — one call per package.
-2. **Registry-native**: crates.io (reverse deps, downloads), npm registry
-   (metadata), PyPI JSON (metadata). Used to resolve package → source repo.
+1. **deps.dev API** (preferred when reachable): OpenSSF Scorecard, and the
+   default-version dependent count (v3alpha `:dependents` endpoint) for
+   npm/PyPI adoption.
+2. **Registry-native**: crates.io (reverse deps, downloads, version dates),
+   npm registry (metadata, version dates), PyPI JSON (metadata, upload
+   dates). Used to resolve package → source repo and for release cadence.
 3. **GitHub REST**: repo metadata, trailing-year commit sample (bus
    factor + agent-trailer detection), recent issues (responsiveness),
    releases, advisories. Needs `GITHUB_TOKEN` — unauthenticated is
@@ -93,6 +95,11 @@ pass `--no-cache` to force refresh.
   use is invisible.
 - Git-pinned or vendored dependencies skip registry data entirely
   (`--repo` mode, lower confidence).
+- `--manifest` on a Cargo.toml skips `path` and workspace-internal
+  dependencies (announced on stderr) rather than scoring a same-named
+  stranger crate from crates.io.
+- A license GitHub reports as `NOASSERTION` passes the gate but is
+  flagged "verify manually" — check the repo's LICENSE file yourself.
 - Non-GitHub hosting (GitLab, sourcehut, codeberg) currently scores
   registry-side components only.
 - The responsiveness sample reads the most recent ~30 issues; very
