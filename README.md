@@ -42,6 +42,15 @@ Enforcement install material targets **Antigravity**: a `PreToolUse` hook in `<w
 
 Board-expert skills (e.g. `rpi-expert`, `indiedroid-nova-expert`) supply the per-SoC map and are dirty-side roles that `os-investigator` calls into. The `assets/` under `cleanroom-implementer` are install material for *consuming* projects — they are not this repo's own configuration.
 
+### Dependency evaluation
+
+- **`dep-quality`** — score the health of open-source packages (0–10 "Dependency Fitness
+  Score") to choose between dependency alternatives on evidence instead of fame. Hard gates
+  (license allowlist, archived repo, unpatched critical advisory), then a weighted geometric
+  mean of responsiveness, adoption, bus factor, security hygiene, and release cadence.
+  Bot and AI-agent commits are excluded from bus factor. Ships `scripts/depscore.py`
+  (stdlib-only; wants a read-only `GITHUB_TOKEN`).
+
 ## Using these skills
 
 Skills are designed to be dropped into an agent's skills directory and invoked via slash command or natural language trigger. See each skill's `SKILL.md` for trigger phrases, required tools, and usage notes.
