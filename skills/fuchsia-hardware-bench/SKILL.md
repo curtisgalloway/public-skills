@@ -91,10 +91,38 @@ PXE-serve that file (`paniolo netboot ... boot_file=BOOTX64.EFI`). Entry into fa
    `openterface_key.py --repeat 45 f` running across the power-cycle. Success line on screen:
    **`Fastboot TCP is ready`**.
 
-gigaboot's fastboot has **no `boot`/ramboot command** (`getvar`, `flash`, `continue`, `reboot`,
-`reboot-bootloader`, `reboot-recovery`, `set_active`, `oem gpt-init`, `oem
-add-staged-bootloader-file`, `oem efi-*`). So x64 test cycles are **flash slot A → continue**, not
-RAM boot.
+**Check serial before reaching for video/OCR.** Some firmware redirects the EFI console to the
+serial port, in which case the whole gigaboot session — `Gigaboot main`, `Secure Boot: Off`,
+`Press f to enter fastboot.`, `Fastboot TCP is ready` — arrives as text on the same channel that
+later carries zircon, and no HDMI capture is needed for the bootloader phase at all. Confirmed on
+the Dell OptiPlex 7060 (2026-08-19); the Intel NUC11 does **not** do this, which is why the older
+guidance here assumes a screen. Cheap to check: capture serial across one PXE boot and look for
+`Gigaboot main`.
+
+**Stock** gigaboot's fastboot has **no `boot`/ramboot command** (`getvar`, `flash`, `continue`,
+`reboot`, `reboot-bootloader`, `reboot-recovery`, `set_active`, `oem gpt-init`, `oem
+add-staged-bootloader-file`, `oem efi-*`). With stock gigaboot, x64 test cycles are **flash slot A
+→ continue**, not RAM boot.
+
+**With the local `fastboot boot` patch, RAM boot works — and it is the better loop.** Verified on
+two machines (NUC11 2026-08-13; Dell OptiPlex 7060 2026-08-19, where a 74 MB
+`bringup_with_tests.x64` went over the wire in 4.7 s at 18.8 MB/s and produced the same
+`Ran 90 tests: 0 failed` as a disk-provisioned boot, **writing no partition**). Two gotchas that
+cost time:
+
+- **Nothing that ships can issue the verb.** `ffx target fastboot` has no `boot` subcommand, and
+  AOSP `fastboot` must not be used here at all (below). Use
+  `fuchsia-ci/tools/fastboot_tcp.py --addr <ll> --iface <if> boot <zbi>` — a stdlib fastboot-TCP
+  client written for exactly this.
+- **Chunk the download.** gigaboot puts a 30 s timer around each read, while the download phase
+  accumulates across packets and stays silent until the last one. One giant packet works on a 4 MB
+  test image and times out on a 74 MB one; `fastboot_tcp.py` sends 1 MB chunks.
+
+**Check the binary before you trust it.** Several similarly-named gigaboot builds accumulate in a
+TFTP root and filenames/timestamps lie about which patches they carry. Confirm by content:
+`strings -a <efi> | grep "booting downloaded ZBI"` (the `boot` verb) and
+`grep "using the disk with a Fuchsia GPT"` (the disk-discovery fallback), and `sha256sum` against
+`out/<build>/kernel.efi_x64/fuchsia-efi.efi` to prove which tree built it.
 
 ### Reaching it — the address dance (this is where hours go)
 
