@@ -115,7 +115,27 @@ regression.
 
 ## 5. Reading the log window without lying to yourself
 
-Two failure modes here each produced a confidently wrong verdict:
+Three failure modes here each produced a confidently wrong verdict:
+
+**One NUL byte turns your log into a "binary file" and `grep` goes silent.** Serial captures pick
+up stray NULs at connect — line noise, or an adapter opening mid-frame. GNU grep then treats the whole
+file as binary and, with `-c`, prints **nothing at all**: not a count, not "Binary file matches".
+It just exits 1, which reads exactly like "the marker isn't there" — so a passing run is scored
+INCOMPLETE because of one byte. Observed 2026-08-19 on a 228,793-byte capture containing a single
+NUL:
+
+```sh
+$ grep -c "physload" run.log ; echo "exit=$?"     # prints nothing
+exit=1
+$ grep -a -c "physload" run.log                   # -a = treat binary as text
+47
+```
+
+`sed`, `head` and Python are unaffected, which makes it worse — the file looks fine when you
+inspect it by eye. **Always `grep -a` on serial captures**, and in code read `bytes` and decode
+with `errors="replace"` rather than trusting text mode.
+
+The other two:
 
 **Default tails.** A serial-log CLI may default to a short tail (~200 lines). Grepping it for the
 success marker returns nothing on a run that *did* pass — the real log was ~12,000 lines with the
