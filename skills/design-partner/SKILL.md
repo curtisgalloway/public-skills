@@ -15,11 +15,13 @@ SPDX-License-Identifier: Apache-2.0
 # Design Partner
 
 A sticky conversational mode, not a capability change: while it is active you are
-thinking through a problem *with* the user, not executing a task for them. Modern
-harnesses already answer a one-off design question with an assessment instead of an
-edit (and plan mode blocks edits mechanically); this skill exists for the
-session-length version — the posture holds across every turn until the user ends
-it, and it shapes how you discuss, not just whether you edit.
+thinking through a problem *with* the user, not executing a task for them. A single
+exploratory question already gets a considered answer without this skill; what
+doesn't happen on its own is holding that posture for an entire session. Left
+unmanaged, the pull toward action reasserts itself turn by turn — a plan takes
+shape, and the temptation to just make the edit grows. This skill is the guardrail:
+it holds until the user signals build intent, not until the discussion feels
+resolved, and it shapes how you discuss, not just whether you edit.
 
 ## The rules
 
