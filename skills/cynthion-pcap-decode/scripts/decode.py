@@ -20,6 +20,7 @@ Usage:
 """
 
 import argparse
+import gzip
 import json
 import struct
 import subprocess
@@ -72,6 +73,22 @@ REQ_GET_CONFIGURATION = 0x08
 # MSC signatures
 CBW_SIG = 0x43425355
 CSW_SIG = 0x53425355
+
+# USB 2.0 hub class requests (spec 11.24.2). These collide with CDC-ACM
+# request codes, so dispatch must use the SETUP recipient, not bRequest alone.
+HUB_REQUESTS = {
+    0x00: "GET_STATUS", 0x01: "CLEAR_FEATURE", 0x03: "SET_FEATURE",
+    0x06: "GET_DESCRIPTOR", 0x07: "SET_DESCRIPTOR", 0x08: "CLEAR_TT_BUFFER",
+    0x09: "RESET_TT", 0x0A: "GET_TT_STATE", 0x0B: "STOP_TT",
+}
+
+HUB_PORT_FEATURES = {
+    0: "PORT_CONNECTION", 1: "PORT_ENABLE", 2: "PORT_SUSPEND",
+    3: "PORT_OVER_CURRENT", 4: "PORT_RESET", 8: "PORT_POWER",
+    9: "PORT_LOW_SPEED", 16: "C_PORT_CONNECTION", 17: "C_PORT_ENABLE",
+    18: "C_PORT_SUSPEND", 19: "C_PORT_OVER_CURRENT", 20: "C_PORT_RESET",
+    21: "PORT_TEST", 22: "PORT_INDICATOR",
+}
 
 # CDC-ACM request names
 CDC_REQUESTS = {
@@ -229,12 +246,30 @@ def _token_addr_endp(raw: bytes) -> Tuple[int, int]:
     return word & 0x7F, (word >> 7) & 0x0F
 
 
+def _open_maybe_gzip(path: str):
+    """Open a pcap, transparently decompressing gzip.
+
+    The Cynthion capture tools write gzip by default (`<output>.pcap.gz`), so a
+    plain open() here silently reads the gzip header as a pcap magic number.
+    Sniff the two-byte gzip magic rather than trusting the file extension —
+    rolling captures and hand-renamed files do not always carry `.gz`.
+    """
+    with open(path, "rb") as probe:
+        head = probe.read(2)
+    if head == b"\x1f\x8b":
+        return gzip.open(path, "rb")
+    return open(path, "rb")
+
+
 def stream_packets_native(pcap_path: str) -> Iterator[Packet]:
     """Stream Packets by reading the pcap file directly — no tshark required."""
-    with open(pcap_path, "rb") as f:
+    with _open_maybe_gzip(pcap_path) as f:
         magic = struct.unpack("<I", f.read(4))[0]
         if magic not in (PCAP_MAGIC_LE, PCAP_MAGIC_NS):
-            raise ValueError(f"Unrecognised pcap magic: {magic:#010x}")
+            raise ValueError(
+                f"Unrecognised pcap magic: {magic:#010x} "
+                f"(expected a libpcap file; gzip is handled transparently)"
+            )
         ns = (magic == PCAP_MAGIC_NS)
         _, _, _, _, _, linktype = struct.unpack("<HHiIII", f.read(20))
         if linktype != LINKTYPE_USB_2_0:
@@ -543,9 +578,41 @@ def _decode_midi(d: bytes) -> dict:
     return {"class": "MIDI", "events": events}
 
 
+def _decode_hub(setup: dict, payload: bytes) -> dict:
+    """Decode a hub class request (recipient device = hub, other = port)."""
+    req = setup.get("bRequest", 0)
+    out: dict = {"class": "hub", "request": HUB_REQUESTS.get(req, f"req({req:#04x})")}
+    recipient = setup.get("recipient", "device")
+    if recipient == "other":
+        out["port"] = int(str(setup.get("wIndex", 0)), 0) & 0xFF
+    if req in (0x01, 0x03):
+        feat = int(str(setup.get("wValue", "0x0")), 0)
+        out["feature"] = HUB_PORT_FEATURES.get(feat, f"feature({feat})")
+    elif req == 0x00 and len(payload) >= 4:
+        status, change = struct.unpack_from("<HH", payload)
+        out["status"] = f"{status:#06x}"
+        out["change"] = f"{change:#06x}"
+        if recipient == "other":
+            out["flags"] = [n for b, n in HUB_PORT_FEATURES.items()
+                            if b < 16 and status & (1 << b)]
+    else:
+        out["raw"] = payload[:64].hex()
+    return out
+
+
 def decode_content(setup: Optional[dict], payload: Optional[bytes]) -> Optional[dict]:
     """Decode the data payload of a control transfer given its SETUP fields."""
-    if not setup or not payload:
+    if not setup:
+        return None
+    if not payload:
+        # Some control transfers carry all their meaning in the SETUP stage and
+        # have no data stage at all — hub SET_FEATURE/CLEAR_FEATURE (port power,
+        # port reset) are the common case worth naming.
+        req = setup.get("bRequest", 0)
+        if (setup.get("type") == "class"
+                and setup.get("recipient", "device") in ("device", "other")
+                and req in HUB_REQUESTS):
+            return _decode_hub(setup, b"")
         return None
 
     req  = setup.get("bRequest", 0)
@@ -569,8 +636,15 @@ def decode_content(setup: Optional[dict], payload: Optional[bytes]) -> Optional[
             sig = struct.unpack_from("<I", payload)[0] if len(payload) >= 4 else 0
             if sig in (CBW_SIG, CSW_SIG):
                 return _decode_msc(payload)
-        req_name = CDC_REQUESTS.get(req)
-        if req_name:
+        # Dispatch on the SETUP recipient, not bRequest alone: hub request
+        # codes overlap CDC-ACM ones (hub GET_STATUS 0x00 == CDC
+        # SEND_ENCAPSULATED_COMMAND 0x00), which otherwise mislabels every hub
+        # port request as CDC. CDC-ACM management requests are defined on a
+        # Communications-class interface, so they are interface-recipient.
+        recipient = setup.get("recipient", "device")
+        if recipient in ("device", "other") and req in HUB_REQUESTS:
+            return _decode_hub(setup, payload)
+        if recipient == "interface" and req in CDC_REQUESTS:
             return _decode_cdc_acm(setup, payload)
         if len(payload) % 4 == 0 and len(payload) >= 4:
             return _decode_midi(payload)
