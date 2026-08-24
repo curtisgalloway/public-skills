@@ -43,29 +43,40 @@ this skill once `cynthion info` reports `Found Apollo stub interface!`.
 
 ## Hardware wiring
 
-Cynthion has three USB ports on the board edge:
+The board-edge silkscreen labels are **CONTROL**, **AUX**, **TARGET C** and
+**TARGET A**. The analyzed connection passes through TARGET C and TARGET A:
 
 | Port label | Connector | Role in analyzer mode |
 |---|---|---|
-| **CONTROL** | USB-C | Connected to the analysis host (your machine). Always required. |
-| **HOST-A** | USB-A female | Connected to the USB host you want to observe (or left unconnected for device-only capture). |
-| **TARGET-C** | USB-C | Connected to the USB device under test. |
+| **CONTROL** | USB-C | Connected to the analysis host — the machine running Packetry. Always required. |
+| **TARGET C** | USB-C | Connected to the **target host** — the USB host whose traffic you want to observe. |
+| **TARGET A** | USB-A female | Connected to the **target device** — the USB device under test. |
 
-For a typical device capture (e.g., analyzing a USB gadget):
+Per the [Packetry quick start](https://packetry.readthedocs.io/en/latest/quick_start.html):
+
+> "Connect TARGET C to your target host computer."
+> "You can connect Cynthion's TARGET A port to your target device at this time,
+> but you may wish to delay this connection until after Packetry is capturing."
 
 ```
-[Your machine] ──CONTROL──▶ Cynthion ◀──HOST-A──  [USB host]
-                                      ◀──TARGET-C── [USB device under test]
+[Analysis host] ──CONTROL──▶ Cynthion ◀──TARGET C── [target host]
+                                       ◀──TARGET A── [target device under test]
 ```
 
-Cynthion sits transparently between HOST-A and TARGET-C, intercepting all packets.
-If you only want to observe a device plugged into your machine, connect your
-machine to both CONTROL and HOST-A, and the device under test to TARGET-C.
+Cynthion sits transparently between TARGET C and TARGET A, intercepting all
+packets. If you want to observe a device plugged into your own machine, connect
+that machine to both CONTROL and TARGET C, and the device under test to TARGET A.
 
-**Cable note:** HOST-A is a USB-A female port. If the host machine has a USB-A
-port (typical desktop/laptop), you need a **USB-A male-to-male cable** (sold as
-"PC-to-PC" or "USB transfer cables"). If the host has USB-C, a standard USB-C
-to USB-A cable works.
+**Do not swap these.** TARGET A is a USB-A *female* receptacle — the kind a host
+offers for a device to plug into — so the **device** goes there, not the host.
+Wiring them backwards produces a capture with zero packets and no error message.
+
+**Cable note:** the device under test plugs into TARGET A (USB-A female), so a
+USB-C device needs a **USB-A male → USB-C** cable. For TARGET C to the target
+host, use USB-C to USB-C, or USB-C to USB-A if that machine only has USB-A ports.
+
+**Plug the device in after starting the capture** if you want enumeration in the
+file — the vendor docs recommend exactly this.
 
 ## Procedure: GUI capture with Packetry
 
