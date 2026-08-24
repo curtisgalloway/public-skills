@@ -58,8 +58,12 @@ Check whether it is already installed and at what version:
 
 ```bash
 uv tool list
-cynthion --version 2>/dev/null || echo "not installed"
+cynthion info 2>/dev/null || echo "not installed"
 ```
+
+Note: the `cynthion` CLI has **no `--version` flag** — it exits with
+`error: unrecognized arguments: --version`. Use `cynthion info`, which prints
+the Cynthion and Apollo versions (and is the same command used in step 7).
 
 Install or upgrade:
 
@@ -71,7 +75,7 @@ uv tool upgrade cynthion          # if already installed
 Confirm:
 
 ```bash
-cynthion --version
+cynthion info
 ```
 
 ### 4. Install Packetry
