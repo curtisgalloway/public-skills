@@ -7,7 +7,8 @@ description: >-
   can check the spec against the code and drift is detectable when the code moves. Use when asked
   to document, spec, or port a driver whose source is yours; for encumbered (GPL, NDA, third-party)
   source use cleanroom-spec instead, whose wall this skill deliberately does not have. Ships
-  scripts/anchor_check.py (resolve anchors, render a review sheet, detect and rewrite drift).
+  scripts/anchor_check.py (resolve anchors, render a review sheet, detect and rewrite drift) and
+  scripts/inventory_check.py (omissions and value mismatches against the register headers).
 ---
 
 <!--
@@ -56,9 +57,23 @@ CTRL bit 0 (EN) enables the block; must be cleared before reprogramming the cloc
 ```
 
 A fact with only a `[doc:]` tag is fine (the spec author read the datasheet). A fact with only a
-`[src:]` tag is fine — it is what this skill is for — but say whether it is a hardware requirement
-or a driver choice when you can tell, and mark "reason not known" when you can't. A fact with
-**neither** is an error.
+`[src:]` tag is fine — it is what this skill is for — but it says what the *driver does*, not
+what the *silicon requires*. Your code being citable does not make it right about the hardware:
+a driver can rely on a reset default, work by accident, or carry a constant nobody re-derived.
+So every sequence step and every hardware-behavior claim carries one of these labels:
+
+```
+[hw-required]        a document says the hardware needs it — must also carry a [doc:] tag
+[comment-explained]  the code's own comment or commit message gives the reason (anchor it)
+[driver-choice]      a policy the driver picked; the hardware permits alternatives
+[as-implemented]     the driver does it and nothing found says why — treat as unverified
+                     against the hardware; goes on the verify-on-hardware list (§12)
+```
+
+`[hw-required]` without `[doc:]` is a checker warning: if no document backs it, it is
+`[as-implemented]`. Registers the driver never touches may appear with `[doc:]` only (from the
+databook or a public proxy) so the map covers the block, not just the driver's footprint. A fact
+with **neither** a `[src:]`/`[tgt:]` nor a `[doc:]` tag is an error.
 
 ## The anchor grammar
 
@@ -74,12 +89,18 @@ or a driver choice when you can tell, and mark "reason not known" when you can't
   numbers drift; symbols survive. The checker accepts a symbol that appears within the range or up
   to 200 lines before it (the enclosing definition), so `foo_hw.c:215 (foo_reset)` is the normal
   way to cite one statement inside a function.
-- **Anchor the definition, not a use**: a register offset points at its `#define`; a bit field at
-  the mask; a descriptor layout at the `struct`; a sequence step at the statement(s) that perform
-  it; a DT-derived fact at the node in the `.dts`/`.dtsi`.
+- **Anchor the load-bearing lines, as tight as the claim**: a register offset points at its
+  `#define`; a bit field at the mask; a descriptor layout at the `struct`; a sequence step at the
+  statement(s) that perform it — not the guard above them, not the helper's body, not the
+  enclosing function; a DT-derived fact at the node in the `.dts`/`.dtsi`. A claim about *how*
+  something is accessed (`readw`, `readb`) cites an accessor call, not the offset table. A claim
+  that rests on a call site cites the call site, not (only) the callee. A negative claim ("never
+  written", "no handler anywhere") cannot be anchored to presence — cite the file's extent and
+  say it was established by search, so the verifier knows to repeat the search.
 - **Block anchors**: a line containing *only* tags anchors the whole table or list that follows
-  it (blank lines between are fine). Use it for a register table whose rows all come from one
-  header region; rows that come from elsewhere carry their own tag in addition.
+  it (blank lines between are fine; a sentence between is not — it becomes the tag's claim and the
+  table goes unanchored). Use it for a register table whose rows all come from one header region;
+  rows that come from elsewhere carry their own tag in addition.
 - **Pins** are stated once, near the top, on their own lines — the checker reads them:
   ```
   Source pin: <repo-name-or-url>@<commit>
@@ -123,20 +144,40 @@ or a driver choice when you can tell, and mark "reason not known" when you can't
     anchored with `[tgt:]`. When source and target are the same tree (a rewrite in place, a
     documentation pass), say so and use `[src:]` throughout.
 11. **Milestones** — minimal first observable result, then full integration; prerequisite drivers.
-12. **Gotchas (consolidated)** — anchored to the code that works around each one — plus
-    **per-area confidence** (which areas rest on datasheet + code, which on code alone, which are
-    inferred) and the **verification record**: pins, date, verdict, checker report path, spec
-    sha256 at PASS — filled by the verifier/orchestrator, not the spec author.
+12. **Gotchas, confidence, gaps, record** — consolidated gotchas anchored to the code that
+    works around each one; **per-area confidence** (datasheet + code / code alone / inferred);
+    the **verify-on-hardware list** — every `[as-implemented]` claim and every register whose
+    width, reset value, or bit position rests on code alone, so bring-up knows what to probe
+    first; **open questions** — what neither code nor documents settle (the anchored analogue of
+    the clean-room spec-gap list; "the code answers everything" is a claim, not a default); and
+    the **verification record**: pins, date, verdict, checker report path, spec sha256 at PASS —
+    filled by the verifier/orchestrator, not the spec author.
 
 ## How to run it
 
-Delegation is a context-hygiene choice here, not a requirement: the orchestrator may read the
-source itself. For anything bigger than a UART, still **prefer one subagent per spec** so several
-peripherals progress in parallel and the reading of a 5,000-line driver does not crowd the main
-context. The subagent template is `templates/spec-subagent-prompt.md`; fill in every
-`<angle-bracket>` placeholder and pass the result as the prompt. The subagent writes the spec to a
-scratch path and returns the path, a one-paragraph summary, and the pins. It may return spec text
-too — there is no wall — but the path is what the verifier needs.
+There is no wall here, so delegation is about **reading capacity**, not hygiene — and it
+matters more than it looks. A drafter that also holds the raw driver in its context writes a
+thinner spec: the source crowds out the output, and every fact competes with the code it came
+from. Measured on a 2,400-line PHY driver, a single-context writer produced half the spec of a
+fanned-out one at the same token budget.
+
+So the default shape for anything beyond a single-file driver is **fan-out, then draft**:
+
+1. The orchestrator spawns one **spec subagent** per peripheral (`templates/spec-subagent-prompt.md`,
+   every `<angle-bracket>` placeholder filled in). It writes the spec to a scratch path and returns
+   the path, a one-paragraph summary, and the pins.
+2. That subagent does not read the whole tree itself. It spawns **investigators**, each owning one
+   slice and returning *anchored facts* (tables and steps already carrying `[src:]` tags with
+   symbols): typically a register-map investigator (headers, DT), a sequences investigator (probe,
+   init, power, teardown), a firmware/tuning investigator if there is a blob or table path, and a
+   **target-tree surveyor** for HALF 2. The drafter synthesizes; it opens the source only to
+   settle a conflict between investigators or to tighten an anchor.
+3. **Anchors are never invented at the drafting layer.** A drafter that writes `[src: …:1234]` for
+   a line it did not read, or that an investigator did not return, is fabricating provenance — the
+   one failure the checker cannot catch, because a plausible wrong line number resolves fine.
+
+Single-context is the exception for a small peripheral (a UART, a GPIO bank) where the whole
+driver fits comfortably beside the spec.
 
 ### Check, verify, land
 
@@ -147,9 +188,23 @@ too — there is no wall — but the path is what the verifier needs.
    ```
    The revision defaults to the spec's pin lines; `PATH@REV` overrides. It fails on: dangling
    paths, out-of-range lines, a symbol absent from the file, malformed tags, `[stale:]` markers.
-   It warns on fact-bearing lines (hex literals, bit numbers, IRQs, delays, timeouts) that carry
-   no tag; `--strict` makes *every* table row and list item require one. Fix all errors and
-   every warning you cannot justify before step 2.
+   It warns on: fact-bearing lines (hex literals, bit numbers, IRQs, delays, timeouts) that carry
+   no tag; a hex literal in a claim that does not appear in the lines it cites (an offset typo,
+   or an anchor aimed at the wrong definition); `[hw-required]` without a `[doc:]`; a `[doc:]`
+   with no section number. `--strict` makes *every* table row and list item require a tag. Fix
+   all errors and every warning you cannot justify before step 2.
+
+   Then run the inventory check against the driver's headers — it is the omission and fabrication
+   detector the anchors alone cannot be:
+   ```
+   python3 <this-skill>/scripts/inventory_check.py <spec> --repo <source checkout> \
+       --headers <register header(s), repo-relative>
+   ```
+   It extracts every `#define NAME <hex>` and every bit-field member from the headers at the pin
+   and reports (a) names the spec never mentions — candidate omissions, to cover or to list
+   explicitly as out of scope; (b) names the spec pairs with a *different* hex value than the
+   header — a wrong claim or a stale anchor; (c) names the spec itself pairs with two different
+   values — an internal contradiction.
 2. **Independent verification** (a fresh subagent, `templates/verifier-prompt.md`): it runs the
    checker itself, then reads the review sheet —
    ```
@@ -158,9 +213,14 @@ too — there is no wall — but the path is what the verifier needs.
    — which prints each claim followed by the cited source lines, and judges **whether the cited
    lines actually support the claim**: the offset matches the `#define`, the step is what the
    statement does, the bit is the bit. Unlike the clean-room verifier, this one *is* an accuracy
-   check and may quote both sides freely. It also checks coverage (facts without tags, sections
-   missing), datasheet-vs-driver labelling, and the notice. Verdict: `PASS + report path` or
-   `FAIL + report path + {section, spec line, anchor, one-line reason}` list.
+   check and may quote both sides freely. Two classes need more than the sheet, and the verifier
+   is told to treat them as its quota: **counts and cardinalities** ("eight entry points", "a
+   9-word hole") are recomputed, never accepted; **negative and global claims** ("never written",
+   "no handler in the file") are re-established by search. It also checks coverage (facts without
+   tags, sections missing), the labels (`[hw-required]` backed by a document; `[as-implemented]`
+   items on the verify-on-hardware list), cross-references (§ and gotcha numbers resolve to what
+   they describe), and the notice. Verdict: `PASS + report path` or `FAIL + report path +
+   {section, spec line, anchor, one-line reason}` list.
 3. **PASS** → move the spec to `docs/<device>-spec.md`, fill the verification record (pins, date,
    report path, `sha256sum` of the file at PASS), add a one-line `AGENTS.md` index entry from the
    returned summary.
@@ -196,7 +256,11 @@ The spec is a **derived artifact**; the source is the truth. Three consequences:
   with a symbol; every datasheet fact a `[doc:]` citation; nothing carries neither.
 - Anchors point at definitions and performing statements, not at the nearest comment or the
   function's first line; ranges are as tight as the claim (one `#define`, one statement, one
-  `struct`), not "the whole function".
+  `struct`), not "the whole function". No anchor was written for a line the writer did not read.
+- Every step and hardware-behavior claim carries `[hw-required]`/`[comment-explained]`/
+  `[driver-choice]`/`[as-implemented]`; the verify-on-hardware list and open questions exist even
+  when short — an empty one is a claim the verifier will test.
+- The inventory check reports no unexplained omissions and no value conflicts.
 - Register tables follow the databook's organization, and the spec says which orderings are
   hardware requirements versus driver habits.
 - The reference table names obtainable documents and the pinned source.

@@ -24,7 +24,9 @@ Modes (all stdlib; needs ``git`` on PATH):
 
   default   resolve every anchor at the pin: path exists, line range in bounds,
             symbol (if given) present in or near the range; flag fact-bearing
-            lines that carry no tag at all.
+            lines that carry no tag at all, claims whose hex literals do not
+            appear in the lines they cite, ``[hw-required]`` labels with no
+            ``[doc:]`` backing, and ``[doc:]`` tags with no section number.
   --show    render a review sheet: each spec claim followed by the cited source
             lines, so a human can check the spec against the code by reading.
   --drift R compare each anchor's cited lines at the pin with revision R and
@@ -60,6 +62,18 @@ FACT_HINT_RE = re.compile(
 )
 TABLE_SEP_RE = re.compile(r"^\s*\|?\s*:?-{2,}")
 LIST_RE = re.compile(r"^\s*(?:[-*+]|\d+[.)])\s+")
+HW_REQUIRED_RE = re.compile(r"\[?\bhw[-_ ]required\b\]?", re.IGNORECASE)
+DOC_SECTION_RE = re.compile(r"§|\bsec(tion|t)?\.?\s*\d|\bch(apter)?\.?\s*\d|\btable\s*\d|\bfig(ure)?\.?\s*\d|\bp(age|p)?\.\s*\d",
+                            re.IGNORECASE)
+
+
+def hex_set(text: str) -> set[str]:
+    """Hex literals in text, normalized: lowercase, underscores dropped, leading zeros stripped."""
+    out = set()
+    for m in re.finditer(r"0[xX][0-9A-Fa-f_]+", text):
+        v = m.group(0)[2:].replace("_", "").lower().lstrip("0") or "0"
+        out.add(v)
+    return out
 SYMBOL_BEFORE = 200  # a symbol naming the enclosing definition may precede the range by this much
 
 
@@ -209,9 +223,15 @@ def parse_spec(text: str, report: Report, strict: bool) -> list[Anchor]:
                 report.doc_tags += 1
                 if not body.strip():
                     report.add("error", i, "empty [doc:] tag")
+                elif not DOC_SECTION_RE.search(body):
+                    report.add("warn", i, f"[doc:] cites no section/chapter/table number: "
+                                          f"{body.strip()[:60]!r}")
                 continue
             new_anchors.extend(parse_tag_body(kind, body, i, claim, report))
         anchors.extend(new_anchors)
+        if HW_REQUIRED_RE.search(line) and not any(k == "doc" for k, _ in tags):
+            report.add("warn", i, "[hw-required] with no [doc:] on the line — if no document "
+                                  "backs it, label it [as-implemented]")
         if not stripped:
             if block_state == "covering":
                 block_state = None
@@ -290,6 +310,28 @@ def resolve(anchor: Anchor, repo: Repo, report: Report) -> list[str] | None:
         report.add("warn", anchor.spec_line,
                    f"cited range {anchor.path}:{anchor.l1}-{anchor.l2} is blank", anchor.raw)
     return cited
+
+
+def check_hex_consistency(anchors: list[Anchor], cited_by_anchor: dict[int, list[str]], report: Report):
+    """Per spec line: at least one hex literal in the claim must appear in the union of
+    all lines cited by that spec line's anchors (a line may carry several anchors)."""
+    by_line: dict[int, list[int]] = {}
+    for idx, a in enumerate(anchors):
+        if idx in cited_by_anchor:
+            by_line.setdefault(a.spec_line, []).append(idx)
+    for spec_line, idxs in by_line.items():
+        claim_hex = hex_set(anchors[idxs[0]].claim)
+        if not claim_hex:
+            continue
+        cited_hex = set()
+        for idx in idxs:
+            cited_hex |= hex_set("\n".join(cited_by_anchor[idx]))
+        if not (claim_hex & cited_hex):
+            shown = ", ".join("0x" + h for h in sorted(claim_hex)[:4])
+            where = "; ".join(anchors[idx].raw for idx in idxs)
+            report.add("warn", spec_line,
+                       f"none of the claim's hex literals ({shown}) appear in the lines cited by "
+                       f"this line ({where}) — wrong value, or cite the offset definition too?")
 
 
 def check_drift(anchor: Anchor, pinned: Repo, new: Repo, report: Report):
@@ -471,13 +513,17 @@ def main(argv=None) -> int:
             n = sum(1 for a in anchors if a.kind == kind)
             report.add("warn", 0, f"{n} [{kind}:] anchors not resolved (no repository given)")
 
-    for a in anchors:
+    cited_by_anchor: dict[int, list[str]] = {}
+    for idx, a in enumerate(anchors):
         repo = repos.get(a.kind)
         if repo is None:
             continue
         cited = resolve(a, repo, report)
-        if cited is not None and drift_repo is not None and a.kind == "src":
-            check_drift(a, repo, drift_repo, report)
+        if cited is not None:
+            cited_by_anchor[idx] = cited
+            if drift_repo is not None and a.kind == "src":
+                check_drift(a, repo, drift_repo, report)
+    check_hex_consistency(anchors, cited_by_anchor, report)
 
     if args.rewrite:
         n = rewrite_spec(args.spec, text, report, args.drift)
