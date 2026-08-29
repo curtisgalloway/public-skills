@@ -51,6 +51,14 @@ Board-expert skills (e.g. `rpi-expert`, `indiedroid-nova-expert`) supply the per
   Bot and AI-agent commits are excluded from bus factor. Ships `scripts/depscore.py`
   (stdlib-only; wants a read-only `GITHUB_TOKEN`).
 
+### Version control
+
+- **`jj`** — drive Jujutsu instead of git in any repo that has a `.jj/` directory: the
+  working-copy-is-a-commit mental model, a git→jj command table, bookmarks and pushing, fetch/rebase,
+  conflict resolution without the interactive tools, and recovery via the operation log. Written
+  for an agent, so it pins the non-negotiables (`-m` always, never `-i`, verify after every
+  mutation) and the colocated-repo rule (never a git write).
+
 ## Guides
 
 - [How To Claude](docs/how-to-claude.md) — session hygiene for working with Claude: one topic per
