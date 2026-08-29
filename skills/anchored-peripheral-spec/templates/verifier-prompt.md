@@ -18,7 +18,8 @@ suspicious — say what you did to earn it.
      python3 <this-skill>/scripts/anchor_check.py <path-to-spec> --repo <source checkout> \
          [--target-repo <target checkout>] -o docs/spec-reports/<device>-check-<date>.txt
      python3 <this-skill>/scripts/inventory_check.py <path-to-spec> --repo <source checkout> \
-         --headers <register header(s)> --all > docs/spec-reports/<device>-inventory-<date>.txt
+         --headers <register header(s)> --dt <board .dtsi> --dt-node <node label> --all \
+         > docs/spec-reports/<device>-inventory-<date>.txt
    Any anchor error, inventory MISMATCH, or CONFLICT is a FAIL. Every warning must be justified in
    the spec or is a finding. Every inventory omission is a finding unless the spec names it as
    out of scope with a reason.
@@ -33,6 +34,10 @@ suspicious — say what you did to earn it.
    an anchor at the guard/helper instead of the load-bearing statement or call site, is a finding.
    A claim that is simply wrong about the code is a finding of the highest importance — list
    those first.
+   BLIND RE-DERIVATION SAMPLE: pick ~10% of anchors at random (seed on the spec's sha256 and say
+   which). For each, read ONLY the cited lines and write down the fact they establish BEFORE
+   re-reading the claim; then compare. Any claim that says more than, or other than, what you
+   derived is a finding (paraphrase drift), even if the lines "support" it loosely.
 3. THE CLASSES THE SHEET CANNOT SETTLE — do these deliberately, they are where errors hide:
    - COUNTS and cardinalities ("eight entry points", "a 9-word hole", "three registers"):
      recompute every one from the code or the DT cell values; never accept.

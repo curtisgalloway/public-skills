@@ -172,6 +172,13 @@ So the default shape for anything beyond a single-file driver is **fan-out, then
    init, power, teardown), a firmware/tuning investigator if there is a blob or table path, and a
    **target-tree surveyor** for HALF 2. The drafter synthesizes; it opens the source only to
    settle a conflict between investigators or to tighten an anchor.
+   **Run the register-map slice twice, independently** — two investigators, same brief, no shared
+   context — and diff their tables before drafting. Agreement is cheap confidence; every
+   disagreement (an offset, a width, a bit position, a register one found and the other did not)
+   is a place an error was about to be written down, and gets a third look against the header.
+   Comparing two independently-written specs was the single most productive check in the first
+   eval of this skill; one extra investigator buys most of that for the part of the spec where
+   values are densest.
 3. **Anchors are never invented at the drafting layer.** A drafter that writes `[src: …:1234]` for
    a line it did not read, or that an investigator did not return, is fabricating provenance — the
    one failure the checker cannot catch, because a plausible wrong line number resolves fine.
@@ -204,7 +211,11 @@ driver fits comfortably beside the spec.
    and reports (a) names the spec never mentions — candidate omissions, to cover or to list
    explicitly as out of scope; (b) names the spec pairs with a *different* hex value than the
    header — a wrong claim or a stale anchor; (c) names the spec itself pairs with two different
-   values — an internal contradiction.
+   values — an internal contradiction. Add `--dt <file> --dt-node <label>` and it does the same
+   for the device-tree node: every `compatible` and `*-names` string, every GIC SPI, every `reg`
+   base, every phandle, cell constant, and boolean property the node carries is reported if the
+   spec never mentions it. The clock the spec forgot, the window it never named, and the
+   interrupt that is wired but undocumented all surface here.
 2. **Independent verification** (a fresh subagent, `templates/verifier-prompt.md`): it runs the
    checker itself, then reads the review sheet —
    ```
@@ -213,7 +224,13 @@ driver fits comfortably beside the spec.
    — which prints each claim followed by the cited source lines, and judges **whether the cited
    lines actually support the claim**: the offset matches the `#define`, the step is what the
    statement does, the bit is the bit. Unlike the clean-room verifier, this one *is* an accuracy
-   check and may quote both sides freely. Two classes need more than the sheet, and the verifier
+   check and may quote both sides freely. Its method is **dump first**: read the main source
+   files in full once, then check every anchor against them — cheaper than hundreds of lookups
+   and more reliable, because a wrong claim about one function is visible when the whole
+   function is in view. It finishes with a **blind re-derivation sample**: for ~10% of anchors,
+   chosen at random, it states the fact from the cited lines *before* re-reading the claim, then
+   compares. That catches paraphrase drift — a claim the lines "support" but which says more
+   than they do — which claim-first reading waves through. Two classes need more than the sheet, and the verifier
    is told to treat them as its quota: **counts and cardinalities** ("eight entry points", "a
    9-word hole") are recomputed, never accepted; **negative and global claims** ("never written",
    "no handler in the file") are re-established by search. It also checks coverage (facts without

@@ -63,8 +63,11 @@ FACT_HINT_RE = re.compile(
 TABLE_SEP_RE = re.compile(r"^\s*\|?\s*:?-{2,}")
 LIST_RE = re.compile(r"^\s*(?:[-*+]|\d+[.)])\s+")
 HW_REQUIRED_RE = re.compile(r"\[?\bhw[-_ ]required\b\]?", re.IGNORECASE)
-DOC_SECTION_RE = re.compile(r"§|\bsec(tion|t)?\.?\s*\d|\bch(apter)?\.?\s*\d|\btable\s*\d|\bfig(ure)?\.?\s*\d|\bp(age|p)?\.\s*\d",
-                            re.IGNORECASE)
+# A section NUMBER, not a quoted title: "§4.3", "section 6", "ch. 12", "Table 3-1", "p. 88",
+# "Appendix B". A bare "§" followed by a title is how citations go unverifiable.
+DOC_SECTION_RE = re.compile(r"§\s*[A-Z]?\d|\bsec(tion|t)?\.?\s*[A-Z]?\d|\bch(apter)?\.?\s*\d|"
+                            r"\btable\s*[A-Z]?\d|\bfig(ure)?\.?\s*\d|\bp(age|p)?\.\s*\d|"
+                            r"\bappendix\s*[A-Z0-9]", re.IGNORECASE)
 
 
 def hex_set(text: str) -> set[str]:

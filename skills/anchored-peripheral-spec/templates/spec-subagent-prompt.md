@@ -19,8 +19,11 @@ owning one slice and returning ANCHORED facts — tables and steps that already 
 `[src: path:L1-L2 (symbol)]` tags: a register-map investigator (headers, register typedefs,
 device tree), a sequences investigator (probe, init, power on/off, teardown, error paths), a
 firmware/tuning investigator if there is a blob or a table path, and a target-tree surveyor for
-HALF 2 (returns `[tgt:]` anchors). You synthesize; open the source only to settle a conflict
-between investigators or to tighten an anchor. NEVER write an anchor for lines you did not read or
+HALF 2 (returns `[tgt:]` anchors). Run the REGISTER-MAP slice TWICE with two independent
+investigators (same brief, no shared context) and diff their tables before drafting: every
+disagreement — an offset, a width, a bit, a register only one of them found — gets a third look
+against the header before it is written down. You synthesize; open the source only to settle a
+conflict between investigators or to tighten an anchor. NEVER write an anchor for lines you did not read or
 that an investigator did not return — a plausible wrong line number resolves fine and is the one
 fabrication the checker cannot catch. (For a small single-file peripheral you may read it all
 yourself.)
@@ -56,9 +59,11 @@ SELF-CHECK before returning (fix every error and every warning you cannot justif
     python3 <this-skill>/scripts/anchor_check.py <scratch path> --repo <source checkout> \
         [--target-repo <target checkout>]
     python3 <this-skill>/scripts/inventory_check.py <scratch path> --repo <source checkout> \
-        --headers <the register header(s), repo-relative>
-The inventory check lists header names the spec never mentions: cover each, or list it explicitly
-as out of scope with a reason. Then read a sample of `anchor_check.py … --show` and confirm the
+        --headers <the register header(s), repo-relative> \
+        --dt <the board .dtsi, repo-relative> --dt-node <the node label>
+The inventory check lists header names and device-tree items (names, SPIs, reg bases, phandles,
+constants, boolean properties) the spec never mentions: cover each, or list it explicitly as out
+of scope with a reason. Then read a sample of `anchor_check.py … --show` and confirm the
 cited lines say what the claims say. Recount every count you state ("eight entry points", "a
 3-word hole") against the code before you return it.
 
