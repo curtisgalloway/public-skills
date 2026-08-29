@@ -55,7 +55,7 @@ the encumbered code lands in the same context that produces the new implementati
 provenance leak this skill exists to prevent. When in doubt, delegate.
 
 **How the report crosses back depends on what it is.** For a full peripheral spec, the
-`peripheral-spec` transfer protocol governs: write the document to the scratch path you were given
+`cleanroom-spec` transfer protocol governs: write the document to the scratch path you were given
 and return **only the path, a one-paragraph summary, and the pinned provenance** — the orchestrator
 must never hold spec text that hasn't passed independent verification. For a narrow factual Q&A, the
 report returns inline after the self-check below (self-scan it when the source tree is local).
@@ -80,7 +80,7 @@ into a clean-room answer. This skill owns the *how*; the board-expert owns the *
 
 **Caching rule:** content cached *into* a board-expert skill is itself a wall-crossing that replays
 into every future context that loads the skill. Cache only what is datasheet-cited or has PASSed the
-`peripheral-spec` verifier — never unverified extracts from encumbered source.
+`cleanroom-spec` verifier — never unverified extracts from encumbered source.
 
 ---
 
@@ -190,7 +190,7 @@ python3 scripts/leak_scan.py DRAFT.md --against ~/src/linux/drivers/usb/dwc3/ \
     --whitelist dwc3-nomenclature.txt
 ```
 
-It runs in three places: your self-check above; the `peripheral-spec` verifier (mandatory); and the
+It runs in three places: your self-check above; the `cleanroom-spec` verifier (mandatory); and the
 pre-merge **output scan** of the eventually written driver against the same provenance map. It
 supplements judgment — a clean scan is necessary, not sufficient.
 
