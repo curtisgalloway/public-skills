@@ -159,6 +159,21 @@ def parse_tag_body(kind: str, body: str, spec_line: int, claim: str, report: Rep
     return anchors
 
 
+def paragraph_before(lines: list[str], idx: int, tail: str) -> str:
+    """Join the paragraph ending at lines[idx] (0-based) with `tail`, newest last."""
+    parts = []
+    j = idx - 1
+    while j >= 0:
+        prev = lines[j].strip()
+        if not prev or prev.startswith("#") or prev.startswith("|") or LIST_RE.match(lines[j]):
+            break
+        parts.append(TAG_RE.sub("", prev).strip())
+        j -= 1
+    parts.reverse()
+    joined = " ".join(parts + [tail]).strip(" .,;")
+    return joined[-300:]
+
+
 def parse_spec(text: str, report: Report, strict: bool) -> list[Anchor]:
     anchors: list[Anchor] = []
     lines = text.split("\n")
@@ -180,6 +195,10 @@ def parse_spec(text: str, report: Report, strict: bool) -> list[Anchor]:
             continue
         tags = TAG_RE.findall(line)
         claim = TAG_RE.sub("", line).strip(" |-*")
+        if tags and len(claim) < 40 and not stripped.startswith(("|", "-", "*")) \
+                and not LIST_RE.match(line):
+            # The tag closes a multi-line paragraph: the claim is the paragraph.
+            claim = paragraph_before(lines, i - 1, claim)
         new_anchors: list[Anchor] = []
         for kind, body in tags:
             if kind == "stale":
