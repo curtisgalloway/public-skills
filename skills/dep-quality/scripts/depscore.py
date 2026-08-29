@@ -171,10 +171,20 @@ def depsdev_dependents(eco, name, ddev, use_cache):
 def gh(path, token, use_cache):
     return http_json(f"https://api.github.com{path}", token=token, use_cache=use_cache)
 
+def is_bot_user(u):
+    """True if this GitHub user is a bot/agent identity.
+
+    Takes a GitHub user dict, so it serves issue/PR filers as well as
+    commit authors.
+    """
+    u = u or {}
+    if u.get("type") == "Bot" or (u.get("login") or "").endswith("[bot]"):
+        return True
+    return bool(BOT_NAME_PAT.search(u.get("login") or ""))
+
 def is_bot_commit(c):
     """True if this commit's author is a bot/agent identity."""
-    a = c.get("author") or {}
-    if a.get("type") == "Bot" or (a.get("login") or "").endswith("[bot]"):
+    if is_bot_user(c.get("author")):
         return True
     ca = (c.get("commit") or {}).get("author") or {}
     ident = f"{ca.get('name','')} {ca.get('email','')}"
@@ -276,6 +286,10 @@ def score_package(spec, args, token):
     # Items filed by people who committed in the trailing year are excluded:
     # a maintainer opening and same-day-closing their own PRs is routine
     # development, not evidence anyone answers outside contributors.
+    # Bot-filed items are excluded too. `maintainer_logins` deliberately omits
+    # bots so they cannot be credited as stewards by bus-factor; reusing that
+    # set here would invert the intent and promote dependabot to "outside
+    # contributor", scoring the project on how fast it merges its own robots.
     maintainer_logins = set()
     if commits:
         for c in commits:
@@ -283,7 +297,8 @@ def score_package(spec, args, token):
                 maintainer_logins.add(c["author"]["login"])
     if issues is not None:
         recent = [i for i in issues if (days_ago(i["created_at"]) or 999) <= 365
-                  and (i.get("user") or {}).get("login") not in maintainer_logins]
+                  and (i.get("user") or {}).get("login") not in maintainer_logins
+                  and not is_bot_user(i.get("user"))]
         inflow = len(recent)
         if inflow >= 5:
             responded = [i for i in recent if i.get("comments", 0) > 0
