@@ -62,8 +62,8 @@ Board-expert skills (e.g. `rpi-expert`, `indiedroid-nova-expert`) supply the per
 ## Guides
 
 - [How To Claude](docs/how-to-claude.md) — session hygiene for working with Claude: one topic per
-  session, keeping context short, and handing off between sessions (the reasoning behind the
-  `handoff` skill).
+  session, keeping context short, thinking before the first message, knowing when to start over,
+  and handing off between sessions (the reasoning behind the `handoff` skill).
 
 ## Using these skills
 
