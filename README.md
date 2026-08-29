@@ -51,6 +51,12 @@ Board-expert skills (e.g. `rpi-expert`, `indiedroid-nova-expert`) supply the per
   Bot and AI-agent commits are excluded from bus factor. Ships `scripts/depscore.py`
   (stdlib-only; wants a read-only `GITHUB_TOKEN`).
 
+## Guides
+
+- [How To Claude](docs/how-to-claude.md) — session hygiene for working with Claude: one topic per
+  session, keeping context short, and handing off between sessions (the reasoning behind the
+  `handoff` skill).
+
 ## Using these skills
 
 Skills are designed to be dropped into an agent's skills directory and invoked via slash command or natural language trigger. See each skill's `SKILL.md` for trigger phrases, required tools, and usage notes.
