@@ -5,7 +5,7 @@ description: >-
   for agents that write target-OS driver code from a verified spec. Use when implementing or
   reviewing ported-driver code, installing enforcement (hooks, restricted agents, settings),
   filing a spec-gap, or auditing a session for contamination. Companion to os-investigator and
-  peripheral-spec, which produce the spec this skill consumes.
+  cleanroom-spec, which produce the spec this skill consumes.
 ---
 
 <!--
@@ -15,7 +15,7 @@ SPDX-License-Identifier: Apache-2.0
 
 # Clean-room implementer (consumer side)
 
-`os-investigator` and `peripheral-spec` guard the *production* of a spec. This skill guards its
+`os-investigator` and `cleanroom-spec` guard the *production* of a spec. This skill guards its
 *consumption* — the implementing agent that, hitting a gap under goal pressure, does the
 highest-prior move in its training data for driver work: goes and reads the reference
 implementation. That one tool call is the contamination event the whole pipeline exists to prevent,
