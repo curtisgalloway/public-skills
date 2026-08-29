@@ -27,7 +27,7 @@ bench / boot-test CI pair. Install it alongside this plugin:
 /plugin install fuchsia-skills@fuchsia-skills
 ```
 
-`os-investigator`, `peripheral-spec`, and the board experts stayed here — they are not
+`os-investigator`, `cleanroom-spec`, and the board experts stayed here — they are not
 Fuchsia-specific, and the Fuchsia skills hand off to them by name.
 
 ### Clean-room driver porting
@@ -35,12 +35,24 @@ Fuchsia-specific, and the Fuchsia skills hand off to them by name.
 Three skills compose into one pipeline for reimplementing a driver in a differently-licensed OS, splitting the work across contexts so encumbered source never reaches the one that writes the new code:
 
 - **`os-investigator`** — the dirty-side method: read the original source and return hardware facts and mechanism prose, never code, every fact tagged by provenance class. Ships `scripts/leak_scan.py`, the mechanical leak scanner.
-- **`peripheral-spec`** — orchestration and the wall: the transfer protocol, the independent five-check verifier, mandatory scanning, and the evidentiary provenance ledger.
+- **`cleanroom-spec`** — orchestration and the wall: the transfer protocol, the independent five-check verifier, mandatory scanning, and the evidentiary provenance ledger.
 - **`cleanroom-implementer`** — the consumer side: standing rules for the implementing agent, enforcement (a `PreToolUse` hook, permission deny rules, a restricted subagent definition, policy fragments), and the session/artifact audit.
 
 Enforcement install material targets **Antigravity**: a `PreToolUse` hook in `<workspace>/.agents/hooks.json`, permission deny rules, a sandboxed `driver-implementer` subagent in `.agents/agents/`, the `AGENTS.md` standing block, and audits over session transcripts and task artifacts (`~/.gemini/antigravity/brain/<GUID>/`). The two shipped Python scripts are harness-neutral — they key off argument names and event fields rather than tool-name tables — so they also run unchanged under Claude Code with `.claude/` paths.
 
 Board-expert skills (e.g. `rpi-expert`, `indiedroid-nova-expert`) supply the per-SoC map and are dirty-side roles that `os-investigator` calls into. The `assets/` under `cleanroom-implementer` are install material for *consuming* projects — they are not this repo's own configuration.
+
+### Source-anchored driver specs
+
+- **`anchored-peripheral-spec`** — the same per-peripheral spec shape as `cleanroom-spec`, for
+  driver source you (or your organization) authored or may otherwise copy from — where the wall is
+  not just unnecessary but in the way. Every source-derived fact carries a
+  `[src: path:L1-L2 (symbol)]` anchor at a pinned commit, so a reviewer can check the spec against
+  the code and the checker can tell which claims need re-reading when the tree moves. Ships
+  `scripts/anchor_check.py` (stdlib-only): resolves anchors, renders a claim-vs-source review
+  sheet (`--show`), and detects and rewrites drift when re-pinning (`--drift REV --rewrite`).
+  Not a substitute for `cleanroom-spec` on encumbered source — an anchored spec is a derivative
+  of its source by design.
 
 ### Dependency evaluation
 
@@ -82,7 +94,7 @@ for one project, or inside a plugin's `skills/` directory:
 
 ```bash
 git clone https://github.com/curtisgalloway/public-skills ~/src/public-skills
-ln -s ~/src/public-skills/skills/peripheral-spec ~/.gemini/antigravity/skills/peripheral-spec
+ln -s ~/src/public-skills/skills/cleanroom-spec ~/.gemini/antigravity/skills/cleanroom-spec
 ```
 
 Check with `/skills` that they loaded. Skills that are subagent roles (`os-investigator`, and the

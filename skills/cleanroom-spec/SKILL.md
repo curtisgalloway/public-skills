@@ -1,5 +1,5 @@
 ---
-name: peripheral-spec
+name: cleanroom-spec
 description: >-
   Produce a clean-room implementation spec for a single peripheral (Ethernet MAC, UART, GPIO,
   SD/MMC, USB, display/mailbox, I2C/SPI, …) so an engineer can write a from-scratch driver in a
@@ -25,6 +25,11 @@ indexed in `AGENTS.md`, and recorded in the provenance ledger.
 The clean room's value is **evidentiary**: a process you can't show is a process you don't have.
 This skill therefore produces not just the spec but the record that it was produced cleanly — the
 pinned provenance, the verifier's verdict, the scan reports, and the ledger.
+
+**Not the skill for source you own.** If the driver source is yours, your organization's, or
+compatibly licensed, the wall below is not just unnecessary but counterproductive — use
+`anchored-peripheral-spec`, which produces the same spec shape with every fact anchored to the
+file:line it came from so a reviewer can verify it against the code.
 
 ## Compose, don't duplicate
 
