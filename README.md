@@ -54,6 +54,16 @@ Board-expert skills (e.g. `rpi-expert`, `indiedroid-nova-expert`) supply the per
   Not a substitute for `cleanroom-spec` on encumbered source — an anchored spec is a derivative
   of its source by design.
 
+- **`reference-driver-review`** — review a driver implementation against a reference
+  implementation of the same hardware (the upstream kernel driver, the vendor BSP, the original a
+  port was made from) and produce an anchored findings report: missing init steps, wrong
+  constants, absent errata workarounds, ordering/timing divergences, each cited to the file:line
+  on *both* sides at pinned commits (`[impl:]`/`[ref:]`). Defaults to the driver in the current
+  directory; locates the reference via a matching board-expert skill or by asking the user. The
+  reference is treated as evidence, not truth — the databook breaks ties. Reuses
+  `anchored-peripheral-spec`'s checkers, so implementation-side anchors get drift tracking as
+  fixes land.
+
 ### Dependency evaluation
 
 - **`dep-quality`** — score the health of open-source packages (0–10 "Dependency Fitness
