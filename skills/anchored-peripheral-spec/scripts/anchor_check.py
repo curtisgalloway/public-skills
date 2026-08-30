@@ -153,7 +153,15 @@ class Repo:
     def lines(self, rel: str) -> list[str] | None:
         if rel not in self._files:
             text = self._git("show", f"{self.full_rev}:{rel}")
-            self._files[rel] = None if text is None else text.split("\n")
+            if text is None:
+                self._files[rel] = None
+            else:
+                # split("\n") leaves one phantom "" after the final newline,
+                # which would let an anchor cite one line past EOF.
+                split = text.split("\n")
+                if split and split[-1] == "":
+                    split.pop()
+                self._files[rel] = split
         return self._files[rel]
 
     def blob(self, rel: str) -> str | None:
