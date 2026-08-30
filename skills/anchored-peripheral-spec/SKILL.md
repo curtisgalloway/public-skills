@@ -39,6 +39,10 @@ same organization, or a license compatible with the target's. **If you are not s
 the source, and its anchors are an attractant that leads every reader straight into the tree. That
 is exactly right for owned source and exactly wrong for encumbered source.
 
+To **review an existing implementation against a reference implementation** of the same hardware —
+findings, not a spec — use `reference-driver-review`, which reuses this skill's anchor grammar and
+checkers under `[impl:]`/`[ref:]` tags.
+
 Do **not** load `os-investigator` here — its clean-room rule (never reproduce code, never name the
 file) forbids the thing this skill requires. The board-expert skills (e.g. `rpi-expert`) remain
 useful as the *map* of SoC addresses, IP identity, and quirks. `cleanroom-implementer` does not

@@ -30,7 +30,7 @@ Usage:
   inventory_check.py SPEC --repo PATH[@REV] [--headers a.h b.h]
                           [--dt board.dtsi --dt-node usb_phy] [--all] [--strict]
 
-REV defaults to the spec's ``Source pin:`` line.  Exit 0 clean, 1 mismatches or
+REV defaults to the spec's ``Source pin:`` (or ``Impl pin:``) line.  Exit 0 clean, 1 mismatches or
 conflicts (or omissions under --strict), 2 usage/git error.
 """
 
@@ -43,7 +43,7 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
-PIN_RE = re.compile(r"^Source pin:\s*(?P<name>\S+?)@(?P<rev>[0-9A-Za-z._/-]+)\s*$")
+PIN_RE = re.compile(r"^(?:Source|Impl) pin:\s*(?P<name>\S+?)@(?P<rev>[0-9A-Za-z._/-]+)\s*$")
 DEFINE_RE = re.compile(r"^\s*#\s*define\s+([A-Za-z_]\w*)\s+(.+?)\s*(?:/[*/].*)?$")
 BITFIELD_RE = re.compile(r"^\s*(?:unsigned\s+)?(?:int|long|char|short|u(?:int)?\d+(?:_t)?)\s+([A-Za-z_]\w*)\s*:\s*\d+\s*;")
 ENUM_HEX_RE = re.compile(r"^\s*([A-Z_][A-Z0-9_]*)\s*=\s*(0[xX][0-9A-Fa-f_]+)")
@@ -175,7 +175,7 @@ def main(argv=None) -> int:
         pins = [PIN_RE.match(l.strip()) for l in spec.split("\n")]
         pins = [m for m in pins if m]
         if not pins:
-            print("error: --repo has no @rev and the spec has no 'Source pin:' line", file=sys.stderr)
+            print("error: --repo has no @rev and the spec has no 'Source pin:'/'Impl pin:' line", file=sys.stderr)
             return 2
         rev = pins[0]["rev"]
 

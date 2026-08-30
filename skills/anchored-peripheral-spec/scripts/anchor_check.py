@@ -20,6 +20,11 @@ The spec states its pins on lines of the form::
     Source pin: <name-or-url>@<commit>
     Target pin: <name-or-url>@<commit>
 
+The ``reference-driver-review`` skill uses the same machinery under different
+names: ``[impl:]`` is an alias of ``[src:]`` (with ``Impl pin:`` and
+``--impl-repo``) and ``[ref:]`` an alias of ``[tgt:]`` (with ``Ref pin:`` and
+``--ref-repo``), so a review's implementation-side anchors get drift tracking.
+
 Modes (all stdlib; needs ``git`` on PATH):
 
   default   resolve every anchor at the pin: path exists, line range in bounds,
@@ -50,11 +55,13 @@ import sys
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
 
-TAG_RE = re.compile(r"\[(src|tgt|doc|stale):\s*([^\]]*)\]")
+TAG_RE = re.compile(r"\[(src|tgt|impl|ref|doc|stale):\s*([^\]]*)\]")
+KIND_ALIAS = {"impl": "src", "ref": "tgt"}
+PIN_ALIAS = {"impl": "source", "ref": "target"}
 ANCHOR_RE = re.compile(
     r"^(?P<path>[^\s:()]+):(?P<l1>\d+)(?:-(?P<l2>\d+))?(?:\s*\((?P<sym>[^)]+)\))?$"
 )
-PIN_RE = re.compile(r"^(Source|Target) pin:\s*(?P<name>\S+?)@(?P<rev>[0-9A-Za-z._/-]+)\s*$")
+PIN_RE = re.compile(r"^(Source|Target|Impl|Ref) pin:\s*(?P<name>\S+?)@(?P<rev>[0-9A-Za-z._/-]+)\s*$")
 HEX_RE = re.compile(r"0x[0-9A-Fa-f]+")
 FACT_HINT_RE = re.compile(
     r"0x[0-9A-Fa-f]+|\bbits?\s*\[?\d|\bIRQ\s*#?\d|\boffset\b|\bdelay\b|\btimeout\b|\bretr(y|ies)\b",
@@ -146,7 +153,15 @@ class Repo:
     def lines(self, rel: str) -> list[str] | None:
         if rel not in self._files:
             text = self._git("show", f"{self.full_rev}:{rel}")
-            self._files[rel] = None if text is None else text.split("\n")
+            if text is None:
+                self._files[rel] = None
+            else:
+                # split("\n") leaves one phantom "" after the final newline,
+                # which would let an anchor cite one line past EOF.
+                split = text.split("\n")
+                if split and split[-1] == "":
+                    split.pop()
+                self._files[rel] = split
         return self._files[rel]
 
     def blob(self, rel: str) -> str | None:
@@ -208,7 +223,8 @@ def parse_spec(text: str, report: Report, strict: bool) -> list[Anchor]:
             continue
         pin = PIN_RE.match(stripped)
         if pin:
-            report.pins[pin.group(1).lower()] = {"name": pin["name"], "rev": pin["rev"]}
+            key = pin.group(1).lower()
+            report.pins[PIN_ALIAS.get(key, key)] = {"name": pin["name"], "rev": pin["rev"]}
             continue
         tags = TAG_RE.findall(line)
         claim = TAG_RE.sub("", line).strip(" |-*")
@@ -218,6 +234,7 @@ def parse_spec(text: str, report: Report, strict: bool) -> list[Anchor]:
             claim = paragraph_before(lines, i - 1, claim)
         new_anchors: list[Anchor] = []
         for kind, body in tags:
+            kind = KIND_ALIAS.get(kind, kind)
             if kind == "stale":
                 report.add("error", i, f"anchor marked stale ({body.strip()}): re-verify the "
                                        "claim against the pin and remove the marker")
@@ -414,15 +431,15 @@ def rewrite_spec(spec_path: str, text: str, report: Report, new_rev: str) -> int
     old_rev = report.pins.get("source", {}).get("rev", "?")
     for spec_line, raw in report.stale:
         idx = spec_line - 1
-        tag_re = re.compile(r"(\[src:[^\]]*" + re.escape(raw) + r"[^\]]*\])")
+        tag_re = re.compile(r"(\[(?:src|impl):[^\]]*" + re.escape(raw) + r"[^\]]*\])")
         new_line, n = tag_re.subn(r"\1 [stale: was " + old_rev + "]", lines[idx], count=1)
         if n:
             lines[idx] = new_line
             edits += 1
     for idx, line in enumerate(lines):
         m = PIN_RE.match(line.strip())
-        if m and m.group(1) == "Source":
-            lines[idx] = f"Source pin: {m['name']}@{new_rev}"
+        if m and m.group(1) in ("Source", "Impl"):
+            lines[idx] = f"{m.group(1)} pin: {m['name']}@{new_rev}"
             edits += 1
     Path(spec_path).write_text("\n".join(lines), encoding="utf-8")
     return edits
@@ -461,10 +478,12 @@ def repo_arg(value: str | None, pin: dict | None, label: str) -> Repo | None:
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("spec", help="path to the spec markdown file")
-    ap.add_argument("--repo", metavar="PATH[@REV]",
-                    help="source repository for [src:] anchors (REV defaults to the spec's Source pin)")
-    ap.add_argument("--target-repo", metavar="PATH[@REV]",
-                    help="target-OS repository for [tgt:] anchors (REV defaults to the Target pin)")
+    ap.add_argument("--repo", "--impl-repo", metavar="PATH[@REV]",
+                    help="source repository for [src:]/[impl:] anchors (REV defaults to the "
+                         "spec's Source/Impl pin)")
+    ap.add_argument("--target-repo", "--ref-repo", metavar="PATH[@REV]",
+                    help="target-OS repository for [tgt:]/[ref:] anchors (REV defaults to the "
+                         "Target/Ref pin)")
     ap.add_argument("--show", action="store_true",
                     help="print each claim with its cited source lines (review sheet)")
     ap.add_argument("--drift", metavar="REV",
