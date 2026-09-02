@@ -8,9 +8,14 @@ normalising both past the noise the Markdown -> Doc -> text round trip adds
 (escaped underscores, dropped code spans, synthesised table header and
 alignment rows with bolded cells, curly quotes, hard wraps, and the inline
 <comment_start/end id=...> anchors). What survives is the reviewer's work:
-the anchors in document order, every paragraph carrying a `~~strikethrough~~`
-deletion, and a unified diff of paragraphs. Stdlib only, Python 3.9+.
-Exit 0 when the two agree, 1 when they differ.
+the comment threads in document order, every paragraph carrying a
+`~~strikethrough~~` deletion, and a unified diff of paragraphs. Stdlib only,
+Python 3.9+. Exit 0 when the two agree, 1 when they differ.
+
+The repo side is hard-wrapped Markdown, so its paragraphs are blank-line
+blocks. The read-back is never hard-wrapped (Docs joins wrapped lines) and
+separates paragraphs with a single newline or a blank line depending on the
+call that produced it, so every line of it is a paragraph.
 
 Usage:
   doc_diff.py REPO.md READBACK.txt
@@ -29,6 +34,9 @@ from round_text import strip_repo_only  # noqa: E402
 ANCHOR = re.compile(r"<comment_(?:start|end) id=([^>\s]+)>")
 ESCAPES = re.compile(r"\\([_*\[\]<>#|])")
 BLOCK_START = re.compile(r"^(#{1,6}\s|\||[-*+]\s|\d+[.)]\s|>|---\s*$)")
+# A heading or a rule is a whole block by itself: it ends at its own line
+# even when the next line follows without a blank line between.
+BLOCK_WHOLE = re.compile(r"^(#{1,6}\s|---\s*$)")
 CHARS = str.maketrans({"\u2018": "'", "\u2019": "'", "\u201c": '"',
                        "\u201d": '"', "\u00a0": " "})
 
@@ -38,17 +46,28 @@ def normalise(text):
     return ESCAPES.sub(r"\1", text).replace("`", "")
 
 
-def paragraphs(text):
-    """Blank-line blocks, split further at headings, rows, items and rules.
+def paragraphs(text, hard_wrapped=True):
+    """Split normalised text into paragraphs.
 
-    Returns (paragraphs, [(anchor_id, paragraph_index)] in document order);
-    the anchors themselves are stripped from the text."""
-    paras, anchors, cur = [], [], []
+    With hard_wrapped=True (the repo Markdown) a paragraph is a blank-line
+    block with its wrapped lines joined, split further at headings, table
+    rows, list items and rules; a heading or rule never absorbs the line
+    after it. With hard_wrapped=False (a Doc read-back) every non-blank line
+    is its own paragraph, whichever separator the read-back used.
+
+    Returns (paragraphs, threads). `threads` is one (anchor_id, first_index,
+    last_index) per comment thread in document order, covering the
+    paragraphs between its start and end anchors; the anchors themselves
+    are stripped from the text."""
+    paras, cur = [], []
+    threads = {}
 
     def flush():
         if cur:
-            paras.append(re.sub(r"\s+", " ", " ".join(cur)).strip())
+            joined = re.sub(r"\s+", " ", " ".join(cur)).strip()
             cur.clear()
+            if joined:
+                paras.append(joined)
 
     for raw in normalise(text).splitlines():
         s = raw.strip()
@@ -62,10 +81,16 @@ def paragraphs(text):
             bare = bare.replace("**", "")      # Docs bolds header cells
         if BLOCK_START.match(bare):
             flush()
-        anchors.extend((cid, len(paras)) for cid in ANCHOR.findall(s))
+        for cid in ANCHOR.findall(s):
+            if cid in threads:
+                threads[cid][1] = len(paras)
+            else:
+                threads[cid] = [len(paras), len(paras)]
         cur.append(bare)
+        if not hard_wrapped or BLOCK_WHOLE.match(bare):
+            flush()
     flush()
-    return paras, anchors
+    return paras, [(cid, a, b) for cid, (a, b) in threads.items()]
 
 
 def preamble_len(doc, repo):
@@ -80,16 +105,18 @@ def preamble_len(doc, repo):
 
 def report(repo_text, doc_text, out=sys.stdout):
     repo, _ = paragraphs(repo_text)
-    doc, anchors = paragraphs(doc_text)
+    doc, threads = paragraphs(doc_text, hard_wrapped=False)
     skip = preamble_len(doc, repo)
     doc = doc[skip:]
 
-    if anchors:
-        print("== comment anchors, document order ==", file=out)
-        for cid, idx in anchors:
-            idx -= skip
-            where = doc[idx][:100] if 0 <= idx < len(doc) else "(preamble)"
-            print(f"  {cid}: {where}", file=out)
+    if threads:
+        print("== comment threads, document order ==", file=out)
+        for cid, first, last in threads:
+            first -= skip
+            last -= skip
+            where = doc[first][:100] if 0 <= first < len(doc) else "(preamble)"
+            span = f"  (through paragraph {last + 1})" if last != first else ""
+            print(f"  {cid}: {where}{span}", file=out)
     deletions = [p for p in doc if "~~" in p]
     if deletions:
         print("== deletions (~~) ==", file=out)
@@ -101,7 +128,7 @@ def report(repo_text, doc_text, out=sys.stdout):
         print("\n".join(diff), file=out)
     changed = sum(1 for l in diff[2:] if l[:1] in "+-")
     print(f"{changed} paragraph line(s) differ; {len(deletions)} deletion(s); "
-          f"{len(anchors)} anchor(s)", file=out)
+          f"{len(threads)} comment thread(s)", file=out)
     return 1 if diff else 0
 
 
@@ -122,6 +149,8 @@ across two lines with `response_format` and "quotes".
 - A bullet the reviewer leaves alone.
 """
 
+# Read-back with blank lines between paragraphs (includeComments: false
+# has produced this shape), a Doc-only preamble, one edit, one thread.
 DOC_FIXTURE = """## What changed since r1
 
 - "Trim the intro" - trimmed.
@@ -141,6 +170,19 @@ Issue 1 - a paragraph that wraps across two lines with response\\_format and \u2
 - A bullet the reviewer leaves alone.
 """
 
+# Read-back with a single newline between paragraphs (includeComments: true
+# has produced this shape) and no edits at all: must diff clean. One thread
+# spans two paragraphs.
+DOC_FIXTURE_SINGLE_NEWLINE = """# Title
+Issue 1 - a paragraph that wraps across two lines with response\\_format and \u201cquotes\u201d.
+| | |
+| :- | :- |
+| **Model** | **Limits** |
+| [a/b:free](https://example.com/a) | no response\\_format |
+<comment_start id=kix.2>- A bullet the reviewer will edit.
+- A bullet the reviewer leaves alone.<comment_end id=kix.2>
+"""
+
 
 def self_test():
     buf = io.StringIO()
@@ -150,8 +192,21 @@ def self_test():
     assert rc == 1, text
     assert len(body) == 2 and "~~will~~" in body[1] and "Inserted." in body[1], text
     assert "kix.1: - A bullet the reviewer ~~will~~" in text, text
-    assert "1 deletion(s); 2 anchor(s)" in text, text
+    assert "1 deletion(s); 1 comment thread(s)" in text, text
     assert "response_format" not in "\n".join(body), text   # artifacts normalised away
+
+    buf = io.StringIO()
+    rc = report(REPO_FIXTURE, DOC_FIXTURE_SINGLE_NEWLINE, out=buf)
+    text = buf.getvalue()
+    assert rc == 0, text
+    assert "0 paragraph line(s) differ; 0 deletion(s); 1 comment thread(s)" in text, text
+    assert "kix.2: - A bullet the reviewer will edit.  (through paragraph 6)" in text, text
+
+    repo = "# Title\n\nFirst paragraph.\n\nSecond paragraph.\n"
+    doc = "# Title\nFirst paragraph.\nSecond paragraph.\n"
+    assert paragraphs(repo)[0] == paragraphs(doc, hard_wrapped=False)[0]
+    assert paragraphs("# T\nBody line one\nline two\n")[0] == ["# T", "Body line one line two"]
+    assert paragraphs("---\nAfter the rule\n")[0] == ["---", "After the rule"]
     print("doc_diff: self-test passed")
 
 
