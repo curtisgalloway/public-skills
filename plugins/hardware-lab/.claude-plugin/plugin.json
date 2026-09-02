@@ -1,0 +1,20 @@
+{
+  "name": "hardware-lab",
+  "version": "1.0.0",
+  "description": "Bench and USB-analysis skills: Cynthion setup, capture, pcap decode and protocol reverse-engineering, USB device profiles, the MCCI 3411 test device, Bus Pirate, and Siglent oscilloscope control.",
+  "author": {
+    "name": "curtisgalloway",
+    "url": "https://github.com/curtisgalloway"
+  },
+  "repository": "https://github.com/curtisgalloway/public-skills",
+  "license": "Apache-2.0",
+  "keywords": [
+    "usb",
+    "cynthion",
+    "pcap",
+    "reverse-engineering",
+    "bus-pirate",
+    "oscilloscope",
+    "hardware"
+  ]
+}

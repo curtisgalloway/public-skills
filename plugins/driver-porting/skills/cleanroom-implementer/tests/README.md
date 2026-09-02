@@ -8,7 +8,7 @@ SPDX-License-Identifier: Apache-2.0
 Python 3 stdlib only, no dependencies. From the repo root:
 
 ```bash
-python3 -m unittest discover -s skills/cleanroom-implementer/tests -v
+python3 -m unittest discover -s plugins/driver-porting/skills/cleanroom-implementer/tests -v
 ```
 
 Every test points `CLEANROOM_PROJECT_DIR` at a fresh temp directory, so running

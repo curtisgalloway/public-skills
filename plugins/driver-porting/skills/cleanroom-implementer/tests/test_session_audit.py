@@ -4,7 +4,7 @@
 """
 Tests for scripts/session_audit.py.
 
-Run:  python3 -m unittest discover -s skills/cleanroom-implementer/tests -v
+Run:  python3 -m unittest discover -s plugins/driver-porting/skills/cleanroom-implementer/tests -v
 
 test_shares_policy_with_the_hook is the one that matters most: the auditor
 imports the hook's policy loader and matcher so enforcement and detection
