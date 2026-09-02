@@ -1,0 +1,17 @@
+{
+  "name": "dev-tools",
+  "version": "1.0.0",
+  "description": "Engineering utilities: Jujutsu (jj) in place of git, and evidence-based dependency scoring (dep-quality).",
+  "author": {
+    "name": "curtisgalloway",
+    "url": "https://github.com/curtisgalloway"
+  },
+  "repository": "https://github.com/curtisgalloway/public-skills",
+  "license": "Apache-2.0",
+  "keywords": [
+    "jujutsu",
+    "jj",
+    "version-control",
+    "dependencies"
+  ]
+}

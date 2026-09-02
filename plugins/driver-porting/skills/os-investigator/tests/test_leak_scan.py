@@ -4,8 +4,8 @@
 """
 Tests for scripts/leak_scan.py, run against wholly synthetic fixtures.
 
-Run:  python3 -m unittest discover -s skills/os-investigator/tests -v
-  or: python3 skills/os-investigator/tests/test_leak_scan.py
+Run:  python3 -m unittest discover -s plugins/driver-porting/skills/os-investigator/tests -v
+  or: python3 plugins/driver-porting/skills/os-investigator/tests/test_leak_scan.py
 
 The load-bearing case is test_report_never_reproduces_source_text: the
 scanner's whole premise is that its report can be filed as evidence and

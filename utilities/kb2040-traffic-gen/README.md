@@ -8,7 +8,7 @@ capture sees correlated dev↔host traffic.
 The point is to produce a recognisable, repeatable mix in `.pcap` captures:
 keyboard reports, mouse moves, large/small bulk transfers, host-driven
 probes, and a hardware-reset re-enumeration. Useful for testing
-[`cynthion-capture`](../../skills/cynthion-capture/), validating decoders, or
+[`cynthion-capture`](../../plugins/hardware-lab/skills/cynthion-capture/), validating decoders, or
 exercising downstream pcap tooling.
 
 ## Hardware
