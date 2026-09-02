@@ -81,6 +81,17 @@ Board-expert skills (e.g. `rpi-expert`, `indiedroid-nova-expert`) supply the per
   for an agent, so it pins the non-negotiables (`-m` always, never `-i`, verify after every
   mutation) and the colocated-repo rule (never a git write).
 
+### Document review
+
+- **`gdoc-review-loop`** — review a repo-owned Markdown document with a stakeholder through Google
+  Docs, in numbered rounds: the file in git stays the source of truth, each round is a new Doc built
+  from it, the reviewer's direct edits (decisions) and margin comments (instructions) are read back
+  and applied, and the reply to their comments opens the next round. Round state lives in Doc
+  titles because the Drive tooling can neither update a Doc's content in place nor write comments.
+  Needs a Google Drive MCP server. Ships `scripts/round_text.py` (builds the round text) and
+  `scripts/doc_diff.py` (finds direct edits under the Markdown→Doc→text conversion noise), both
+  stdlib-only.
+
 ## Guides
 
 - [How To Claude](docs/how-to-claude.md) — session hygiene for working with Claude: one topic per
