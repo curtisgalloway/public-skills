@@ -128,9 +128,12 @@ noise the round trip introduces, so what survives is the reviewer's work:
 python3 <skill-dir>/scripts/doc_diff.py <path/to/doc.md> readback.txt
 ```
 
-It prints the comment anchors in document order with the paragraph each lands in, every paragraph
+It prints the comment threads in document order, one line per thread with the paragraph it
+starts in (and the paragraph it runs through when a thread spans several), every paragraph
 carrying a `~~` deletion, and a unified diff of the remaining paragraphs. Exit 0 means no
-differences.
+differences. The read-back separates paragraphs with a single newline on some calls and a blank
+line on others; the script treats every read-back line as a paragraph, so both shapes diff clean
+against the hard-wrapped repo file.
 
 **Conversion artifacts — never mistake these for edits**, and add any new one you find to the
 script's normaliser rather than to your head:
