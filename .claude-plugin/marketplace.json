@@ -1,18 +1,43 @@
 {
   "name": "public-skills",
   "owner": {
-    "name": "curtisgalloway"
+    "name": "curtisgalloway",
+    "url": "https://github.com/curtisgalloway"
   },
   "metadata": {
-    "description": "General-purpose agent skills for USB traffic analysis (Cynthion), loop-safety posture (intern-mode), design partnership, session learning, and more."
+    "description": "General-purpose agent skills, packaged by theme: hardware-lab (USB analysis and bench instruments), driver-porting (clean-room and source-anchored driver specs, board experts), agent-workflow (session learning, handoffs, loop safety, design partnership), dev-tools (Jujutsu, dependency scoring). public-skills is all four in one."
   },
   "plugins": [
     {
+      "name": "hardware-lab",
+      "source": "./plugins/hardware-lab",
+      "description": "Bench and USB-analysis skills: Cynthion setup, capture, pcap decode and protocol reverse-engineering, USB device profiles, the MCCI 3411 test device, Bus Pirate, and Siglent oscilloscope control."
+    },
+    {
+      "name": "driver-porting",
+      "source": "./plugins/driver-porting",
+      "description": "Driver porting and review: the clean-room pipeline (os-investigator, cleanroom-spec, cleanroom-implementer), source-anchored specs and reference reviews for code you own, and the Raspberry Pi 5 and Rockchip RK3588 board experts."
+    },
+    {
+      "name": "agent-workflow",
+      "source": "./plugins/agent-workflow",
+      "description": "Working with a coding agent over time: session learning and teaching summaries, wrap-ups and handoffs, transcript access, loop safety (intern-mode), design partnership, harness-agnostic skill authoring, and Google Docs review rounds."
+    },
+    {
+      "name": "dev-tools",
+      "source": "./plugins/dev-tools",
+      "description": "Engineering utilities: Jujutsu (jj) in place of git, and evidence-based dependency scoring (dep-quality)."
+    },
+    {
       "name": "public-skills",
       "source": "./",
-      "description": "General-purpose agent skills: USB analysis with Cynthion, intern-mode loop safety, design partnership, session learning, and more.",
-      "version": "1.0.0",
-      "author": { "name": "curtisgalloway" }
+      "description": "Every skill in this repo in one plugin: hardware-lab, driver-porting, agent-workflow and dev-tools combined. Install either this or the themed plugins, not both.",
+      "skills": [
+        "./plugins/hardware-lab/skills",
+        "./plugins/driver-porting/skills",
+        "./plugins/agent-workflow/skills",
+        "./plugins/dev-tools/skills"
+      ]
     }
   ]
 }

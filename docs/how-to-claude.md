@@ -104,7 +104,7 @@ short!
 The solution is to have Claude write a "handoff prompt" for its next incarnation. The basic idea is
 to tell Claude to write a prompt for an agent on how to continue from the current state of the
 conversation. If it has important information that isn't saved somewhere, it should either save it
-or include it directly in the handoff. The [`handoff`](../skills/handoff/SKILL.md) skill in this
+or include it directly in the handoff. The [`handoff`](../plugins/agent-workflow/skills/handoff/SKILL.md) skill in this
 repo does exactly this: `/handoff` writes a `HANDOFF.md` the next session can cold-start from, and
 reads it back on resume.
 

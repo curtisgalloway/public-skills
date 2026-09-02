@@ -1,0 +1,19 @@
+{
+  "name": "driver-porting",
+  "version": "1.0.0",
+  "description": "Driver porting and review: the clean-room pipeline (os-investigator, cleanroom-spec, cleanroom-implementer), source-anchored specs and reference reviews for code you own, and the Raspberry Pi 5 and Rockchip RK3588 board experts.",
+  "author": {
+    "name": "curtisgalloway",
+    "url": "https://github.com/curtisgalloway"
+  },
+  "repository": "https://github.com/curtisgalloway/public-skills",
+  "license": "Apache-2.0",
+  "keywords": [
+    "clean-room",
+    "drivers",
+    "bring-up",
+    "raspberry-pi",
+    "rockchip",
+    "hardware"
+  ]
+}

@@ -20,7 +20,7 @@ If a skill was originally written for a private environment and you're porting i
 
 ## Skill structure
 
-Each skill lives in `skills/<skill-name>/` and must contain:
+Each skill lives in `plugins/<theme>/skills/<skill-name>/` (one theme directory per marketplace plugin, each with its own README) and must contain:
 
 - `SKILL.md` — purpose, trigger phrases, required tools, inputs/outputs, and any caveats
 - Any supporting scripts or templates the skill needs

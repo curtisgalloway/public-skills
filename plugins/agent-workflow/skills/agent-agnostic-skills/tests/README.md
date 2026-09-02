@@ -8,7 +8,7 @@ SPDX-License-Identifier: Apache-2.0
 Python 3 stdlib only, no dependencies. From the repo root:
 
 ```bash
-python3 -m unittest discover -s skills/agent-agnostic-skills/tests -v
+python3 -m unittest discover -s plugins/agent-workflow/skills/agent-agnostic-skills/tests -v
 ```
 
 ## What is being pinned

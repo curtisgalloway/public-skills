@@ -1,12 +1,25 @@
 {
   "name": "public-skills",
-  "version": "1.0.0",
-  "description": "General-purpose agent skills: USB analysis with Cynthion, intern-mode loop safety, design partnership, session learning, and more.",
+  "version": "2.0.0",
+  "description": "Every skill in this repo in one plugin: hardware-lab, driver-porting, agent-workflow and dev-tools combined.",
   "author": {
     "name": "curtisgalloway",
     "url": "https://github.com/curtisgalloway"
   },
   "repository": "https://github.com/curtisgalloway/public-skills",
   "license": "Apache-2.0",
-  "keywords": ["usb", "cynthion", "pcap", "reverse-engineering", "productivity", "safety", "learning", "clean-room", "hardware", "bring-up", "raspberry-pi", "rockchip"]
+  "keywords": [
+    "usb",
+    "cynthion",
+    "pcap",
+    "reverse-engineering",
+    "productivity",
+    "safety",
+    "learning",
+    "clean-room",
+    "hardware",
+    "bring-up",
+    "raspberry-pi",
+    "rockchip"
+  ]
 }

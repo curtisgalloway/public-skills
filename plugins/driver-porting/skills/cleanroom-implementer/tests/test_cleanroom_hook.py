@@ -4,7 +4,7 @@
 """
 Tests for scripts/cleanroom_hook.py.
 
-Run:  python3 -m unittest discover -s skills/cleanroom-implementer/tests -v
+Run:  python3 -m unittest discover -s plugins/driver-porting/skills/cleanroom-implementer/tests -v
 
 Each case drives the hook the way Antigravity does: a PreToolUse event on
 stdin with the call nested under `toolCall` and the workspace in

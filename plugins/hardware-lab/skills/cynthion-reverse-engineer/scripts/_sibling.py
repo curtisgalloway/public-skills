@@ -13,7 +13,8 @@ Skills roots differ per agent — and per release — so nothing here is
 hardcoded to one harness. Resolution order:
 
   1. $CYNTHION_PCAP_DECODE_SCRIPTS, if you want to point at it outright.
-  2. $PUBLIC_SKILLS_REPO/skills/ (point it at a clone of this repo).
+  2. $PUBLIC_SKILLS_REPO (a clone of this repo; every plugins/*/skills/
+     tree is searched, then a flat skills/).
   3. A sibling in the same skills tree — the repo layout, and what any
      harness that installs whole skill trees together produces. This is the
      case that works without configuration; prefer it.
@@ -60,7 +61,10 @@ def _candidates():
 
     repo = os.environ.get("PUBLIC_SKILLS_REPO")
     if repo:
-        yield Path(repo).expanduser() / "skills" / SKILL / "scripts"
+        root = Path(repo).expanduser()
+        for match in sorted(root.glob("plugins/*/skills")):
+            yield match / SKILL / "scripts"
+        yield root / "skills" / SKILL / "scripts"
 
     # Sibling in the same skills tree (repo / development layout, and any
     # harness that installs the tree wholesale).
@@ -92,7 +96,7 @@ def find_decode_scripts() -> Path:
         "To point at it directly, set one of:\n"
         f"  CYNTHION_PCAP_DECODE_SCRIPTS=<dir containing {MODULE}>\n"
         "  PUBLIC_SKILLS_REPO=<clone of the public-skills repo>\n"
-        f"Get it from: skills/{SKILL}/ in the public-skills repo."
+        f"Get it from: plugins/hardware-lab/skills/{SKILL}/ in the public-skills repo."
     )
 
 

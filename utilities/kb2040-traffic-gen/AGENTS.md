@@ -8,7 +8,7 @@ focuses on the gotchas an agent is likely to hit.
 
 You're driving an end-to-end USB capture test and need predictable,
 labelled traffic on the wire. Typical pairing: this tool on the source
-side, [`cynthion-capture`](../../skills/cynthion-capture/) on the
+side, [`cynthion-capture`](../../plugins/hardware-lab/skills/cynthion-capture/) on the
 analyzer side.
 
 Don't reach for this for *real* device emulation — it's an exerciser, not

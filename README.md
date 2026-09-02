@@ -1,153 +1,105 @@
 # public-skills
 
-A collection of reusable agent skills designed to be generally agent-neutral. Skills have been developed and tested primarily with Google Antigravity (the `agy` CLI and the IDE) and Claude Code, but are written to work with any agent that supports the skill/slash-command pattern.
+A collection of reusable agent skills designed to be generally agent-neutral. Skills have been
+developed and tested primarily with Google Antigravity (the `agy` CLI and the IDE) and Claude
+Code, but are written to work with any agent that supports the skill/slash-command pattern.
 
-## What's here
+The skills are packaged by theme. Each theme is a directory under `plugins/`, a plugin in this
+repo's Claude Code marketplace, and has its own README with the details.
 
-Each skill lives in its own directory under `skills/` and contains at minimum a `SKILL.md` describing its purpose, inputs, and behavior. Some skills include supporting scripts or templates.
+## Themes
 
-### Writing skills that outlive a harness
+| Plugin | What it covers | Skills |
+| --- | --- | --- |
+| [`hardware-lab`](plugins/hardware-lab/README.md) | USB traffic capture, decoding and protocol reverse-engineering with a Cynthion; bench instruments | `cynthion-setup`, `cynthion-capture`, `cynthion-pcap-decode`, `cynthion-reverse-engineer`, `usb-device-profile`, `mcci-3411`, `bus-pirate`, `siglent-scope` |
+| [`driver-porting`](plugins/driver-porting/README.md) | Clean-room driver specs from encumbered source, source-anchored specs and reviews for code you own, board experts | `os-investigator`, `cleanroom-spec`, `cleanroom-implementer`, `anchored-peripheral-spec`, `reference-driver-review`, `rpi-expert`, `indiedroid-nova-expert` |
+| [`agent-workflow`](plugins/agent-workflow/README.md) | Working with a coding agent over time: design partnership, loop safety, handoffs, summaries, session learning, document review, portable skill authoring | `design-partner`, `intern-mode`, `handoff`, `wrapup`, `learn`, `teach`, `claude-session-transcript`, `gdoc-review-loop`, `agent-agnostic-skills` |
+| [`dev-tools`](plugins/dev-tools/README.md) | Engineering utilities | `jj`, `dep-quality` |
 
-- **`agent-agnostic-skills`** — how to write skills, hooks, subagent definitions and agent-facing
-  scripts that survive a change of agent, and how to port one that didn't. Harness lock-in fails
-  silently — a tool-name table that matches nothing allows everything — so the skill is mostly about
-  turning invisible no-ops into checkable behaviour. Ships `scripts/portability_scan.py` and a dated
-  cross-harness reference matrix.
+`public-skills` is a fifth marketplace entry that bundles all four. Install either it or the
+themed plugins, not both, or every skill loads twice.
 
-### Fuchsia — moved to its own repo
+Each skill lives in `plugins/<theme>/skills/<name>/` and contains at minimum a `SKILL.md`
+describing its purpose, triggers, and behavior. Many ship supporting scripts, references, or
+templates alongside it.
 
-The Fuchsia skills now live in
-**[curtisgalloway/fuchsia-skills](https://github.com/curtisgalloway/fuchsia-skills)** — checking out
-the tree, bridging its Gemini-oriented in-tree agent config into Claude Code, running several
-workstreams on one machine, deep source questions, driver bind debugging, and the hardware
-bench / boot-test CI pair. Install it alongside this plugin:
+### Fuchsia — its own repo
+
+The Fuchsia skills live in
+**[curtisgalloway/fuchsia-skills](https://github.com/curtisgalloway/fuchsia-skills)**:
+checking out the tree, bridging its Gemini-oriented in-tree agent config into Claude Code,
+running several workstreams on one machine, deep source questions, driver bind debugging, and
+the hardware bench and boot-test CI pair. They hand off to `driver-porting`'s skills by name.
 
 ```
 /plugin marketplace add curtisgalloway/fuchsia-skills
 /plugin install fuchsia-skills@fuchsia-skills
 ```
 
-`os-investigator`, `cleanroom-spec`, and the board experts stayed here — they are not
-Fuchsia-specific, and the Fuchsia skills hand off to them by name.
+## Installing
 
-### Clean-room driver porting
+Most skills assume a Unix-like shell (macOS or Linux), standard CLI tools (`git`, `curl`, …)
+on `PATH`, and whatever skill-specific dependencies their own docs call out.
 
-Three skills compose into one pipeline for reimplementing a driver in a differently-licensed OS, splitting the work across contexts so encumbered source never reaches the one that writes the new code:
+### Claude Code
 
-- **`os-investigator`** — the dirty-side method: read the original source and return hardware facts and mechanism prose, never code, every fact tagged by provenance class. Ships `scripts/leak_scan.py`, the mechanical leak scanner.
-- **`cleanroom-spec`** — orchestration and the wall: the transfer protocol, the independent five-check verifier, mandatory scanning, and the evidentiary provenance ledger.
-- **`cleanroom-implementer`** — the consumer side: standing rules for the implementing agent, enforcement (a `PreToolUse` hook, permission deny rules, a restricted subagent definition, policy fragments), and the session/artifact audit.
+This repo is a Claude Code plugin marketplace (`.claude-plugin/marketplace.json`). In a
+session, or with the `claude plugin` CLI outside one:
 
-Enforcement install material targets **Antigravity**: a `PreToolUse` hook in `<workspace>/.agents/hooks.json`, permission deny rules, a sandboxed `driver-implementer` subagent in `.agents/agents/`, the `AGENTS.md` standing block, and audits over session transcripts and task artifacts (`~/.gemini/antigravity/brain/<GUID>/`). The two shipped Python scripts are harness-neutral — they key off argument names and event fields rather than tool-name tables — so they also run unchanged under Claude Code with `.claude/` paths.
+```
+/plugin marketplace add curtisgalloway/public-skills
+/plugin install hardware-lab@public-skills
+/plugin install driver-porting@public-skills
+/plugin install agent-workflow@public-skills
+/plugin install dev-tools@public-skills
+```
 
-Board-expert skills (e.g. `rpi-expert`, `indiedroid-nova-expert`) supply the per-SoC map and are dirty-side roles that `os-investigator` calls into. The `assets/` under `cleanroom-implementer` are install material for *consuming* projects — they are not this repo's own configuration.
+Install the themes you want; `/plugin install public-skills@public-skills` takes all of them
+as one plugin. For a local clone, add the clone directory as the marketplace instead:
 
-### Source-anchored driver specs
+```
+/plugin marketplace add /path/to/public-skills
+/plugin install hardware-lab@public-skills
+```
 
-- **`anchored-peripheral-spec`** — the same per-peripheral spec shape as `cleanroom-spec`, for
-  driver source you (or your organization) authored or may otherwise copy from — where the wall is
-  not just unnecessary but in the way. Every source-derived fact carries a
-  `[src: path:L1-L2 (symbol)]` anchor at a pinned commit, so a reviewer can check the spec against
-  the code and the checker can tell which claims need re-reading when the tree moves. Ships
-  `scripts/anchor_check.py` (stdlib-only): resolves anchors, renders a claim-vs-source review
-  sheet (`--show`), and detects and rewrites drift when re-pinning (`--drift REV --rewrite`).
-  Not a substitute for `cleanroom-spec` on encumbered source — an anchored spec is a derivative
-  of its source by design.
+### Any agent that reads `SKILL.md` directories
 
-- **`reference-driver-review`** — review a driver implementation against a reference
-  implementation of the same hardware (the upstream kernel driver, the vendor BSP, the original a
-  port was made from) and produce an anchored findings report: missing init steps, wrong
-  constants, absent errata workarounds, ordering/timing divergences, each cited to the file:line
-  on *both* sides at pinned commits (`[impl:]`/`[ref:]`). Defaults to the driver in the current
-  directory; locates the reference via a matching board-expert skill or by asking the user. The
-  reference is treated as evidence, not truth — the databook breaks ties. Reuses
-  `anchored-peripheral-spec`'s checkers, so implementation-side anchors get drift tracking as
-  fixes land.
+The layout follows the Agent Skills convention, so installers that scan a repo for
+`SKILL.md` directories, such as Vercel's skills CLI, pick every skill up:
 
-### Dependency evaluation
+```
+npx skills add curtisgalloway/public-skills
+```
 
-- **`dep-quality`** — score the health of open-source packages (0–10 "Dependency Fitness
-  Score") to choose between dependency alternatives on evidence instead of fame. Hard gates
-  (license allowlist, archived repo, unpatched critical advisory), then a weighted geometric
-  mean of responsiveness, adoption, bus factor, security hygiene, and release cadence.
-  Bot and AI-agent commits are excluded from bus factor. Ships `scripts/depscore.py`
-  (stdlib-only; wants a read-only `GITHUB_TOKEN`).
-
-### Version control
-
-- **`jj`** — drive Jujutsu instead of git in any repo that has a `.jj/` directory: the
-  working-copy-is-a-commit mental model, a git→jj command table, bookmarks and pushing, fetch/rebase,
-  conflict resolution without the interactive tools, and recovery via the operation log. Written
-  for an agent, so it pins the non-negotiables (`-m` always, never `-i`, verify after every
-  mutation) and the colocated-repo rule (never a git write).
-
-### Document review
-
-- **`gdoc-review-loop`** — review a repo-owned Markdown document with a stakeholder through Google
-  Docs, in numbered rounds: the file in git stays the source of truth, each round is a new Doc built
-  from it, the reviewer's direct edits (decisions) and margin comments (instructions) are read back
-  and applied, and the reply to their comments opens the next round. Round state lives in Doc
-  titles because the Drive tooling can neither update a Doc's content in place nor write comments.
-  Needs a Google Drive MCP server. Ships `scripts/round_text.py` (builds the round text) and
-  `scripts/doc_diff.py` (finds direct edits under the Markdown→Doc→text conversion noise), both
-  stdlib-only.
-
-## Guides
-
-- [How To Claude](docs/how-to-claude.md) — session hygiene for working with Claude: one topic per
-  session, keeping context short, thinking before the first message, knowing when to start over,
-  and handing off between sessions (the reasoning behind the `handoff` skill).
-
-## Using these skills
-
-Skills are designed to be dropped into an agent's skills directory and invoked via slash command or natural language trigger. See each skill's `SKILL.md` for trigger phrases, required tools, and usage notes.
-
-Most skills assume:
-- A Unix-like shell (macOS or Linux)
-- Standard CLI tools (`git`, `curl`, etc.) available on `PATH`
-- Any skill-specific dependencies called out in the skill's own docs
-
-### Installing in Antigravity
+### Antigravity
 
 Skills are plain directories. Clone the repo and put the skills you want where your build
-discovers them — `~/.gemini/antigravity/skills/` for user-level, `<workspace>/.agents/skills/`
+discovers them: `~/.gemini/antigravity/skills/` for user-level, `<workspace>/.agents/skills/`
 for one project, or inside a plugin's `skills/` directory:
 
 ```bash
 git clone https://github.com/curtisgalloway/public-skills ~/src/public-skills
-ln -s ~/src/public-skills/skills/cleanroom-spec ~/.gemini/antigravity/skills/cleanroom-spec
+ln -s ~/src/public-skills/plugins/driver-porting/skills/cleanroom-spec ~/.gemini/antigravity/skills/cleanroom-spec
 ```
 
-Check with `/skills` that they loaded. Skills that are subagent roles (`os-investigator`, and the
-shipped `cleanroom-implementer/assets/driver-implementer.md`) install instead as
-`<workspace>/.agents/agents/<name>.md` with `subagent: true` in the frontmatter, and show up under
-`/agents`. Workspace-wide instructions go in `AGENTS.md` at the workspace root, or as rules under
-`.agent/rules/`.
+Check with `/skills` that they loaded. Skills that are subagent roles (`os-investigator`, and
+the shipped `cleanroom-implementer/assets/driver-implementer.md`) install instead as
+`<workspace>/.agents/agents/<name>.md` with `subagent: true` in the frontmatter, and show up
+under `/agents`. Workspace-wide instructions go in `AGENTS.md` at the workspace root, or as
+rules under `.agent/rules/`.
 
-Antigravity has relocated skills, hooks and settings between releases, so confirm the paths your
-build actually reads before assuming an install took — the slash commands above are the quickest
-check.
+Antigravity has relocated skills, hooks and settings between releases, so confirm the paths
+your build actually reads before assuming an install took; the slash commands above are the
+quickest check.
 
-> Skills that read agent transcripts (`learn`, `teach`, `wrapup`, `claude-session-transcript`) are
-> still written against Claude Code's session layout and have not been ported.
+> Skills that read agent transcripts (`learn`, `teach`, `wrapup`, `claude-session-transcript`)
+> are still written against Claude Code's session layout and have not been ported.
 
-### Installing in Claude Code
+## Guides
 
-This repo is a Claude Code plugin and hosts its own single-plugin marketplace
-(`.claude-plugin/marketplace.json`; skills are auto-discovered from `skills/`). In a session, or
-with the `claude plugin` CLI outside one:
-
-```
-/plugin marketplace add curtisgalloway/public-skills
-/plugin install public-skills@public-skills
-```
-
-For a local clone, add the clone directory as the marketplace instead:
-
-```
-/plugin marketplace add /path/to/public-skills
-/plugin install public-skills@public-skills
-```
+- [How To Claude](docs/how-to-claude.md) — session hygiene for working with Claude: one topic
+  per session, keeping context short, thinking before the first message, knowing when to start
+  over, and handing off between sessions (the reasoning behind the `handoff` skill).
 
 ## License
 

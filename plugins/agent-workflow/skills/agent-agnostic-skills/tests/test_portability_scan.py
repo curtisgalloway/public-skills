@@ -4,7 +4,7 @@
 """
 Tests for scripts/portability_scan.py.
 
-Run:  python3 -m unittest discover -s skills/agent-agnostic-skills/tests -v
+Run:  python3 -m unittest discover -s plugins/agent-workflow/skills/agent-agnostic-skills/tests -v
 
 The two fixtures are the same small skill written twice — once welded to one
 harness, once bound to stable layers — so the suite checks a difference in
@@ -26,7 +26,13 @@ import unittest
 HERE = pathlib.Path(__file__).resolve().parent
 SCAN = HERE.parent / "scripts" / "portability_scan.py"
 FIX = HERE / "fixtures"
-REPO = HERE.parents[2]
+REPO = next(p for p in HERE.parents if (p / ".claude-plugin" / "marketplace.json").is_file())
+
+
+def sibling_skill(name: str) -> pathlib.Path:
+    """A skill elsewhere in this repo, whichever theme directory holds it."""
+    hits = sorted(REPO.glob(f"plugins/*/skills/{name}")) or [REPO / "skills" / name]
+    return hits[0]
 
 
 def run_scan(*args):
@@ -83,7 +89,7 @@ class TestPortableSkill(unittest.TestCase):
         tool-name table or a single-harness path, this goes red — the skill
         should not be able to recommend code that fails its own check.
         """
-        rc, out = run_scan(REPO / "skills" / "cleanroom-implementer" / "scripts")
+        rc, out = run_scan(sibling_skill("cleanroom-implementer") / "scripts")
         self.assertEqual(rc, 0, out)
 
 
