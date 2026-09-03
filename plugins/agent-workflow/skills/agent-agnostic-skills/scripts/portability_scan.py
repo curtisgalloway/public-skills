@@ -73,7 +73,7 @@ FAMILY_MARKERS = {
 
 # Prose counts as naming a harness: a doc that says "Claude Code" while
 # showing an Antigravity path is translating for the reader, which is the
-# behaviour this check is looking for.
+# behavior this check is looking for.
 FAMILY_MARKERS["claude-code"].append(re.compile(r"\bClaude Code\b"))
 FAMILY_MARKERS["gemini-cli"].append(re.compile(r"\bGemini CLI\b"))
 

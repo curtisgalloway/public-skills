@@ -75,7 +75,7 @@ the end says when the claims were last checked.
 Cover (HALF 1 hardware): IP identity & provenance (incl. the driver's own identity checks,
 anchored); canonical references TABLE (datasheets + public proxies + the pinned source); register
 map (grouped per databook, offsets+bits, anchored; untouched registers from documents); ordered
-init sequences (prerequisites, steps anchored to the performing statements, every step labelled);
+init sequences (prerequisites, steps anchored to the performing statements, every step labeled);
 data/descriptor formats; interrupts (routing, status bits, ack/clear, handler anchored — or the
 evidence of absence); DMA/addressing; sub-protocols.
 Cover (HALF 2, target tree at <target path>, if any): which existing driver to model on, the OS

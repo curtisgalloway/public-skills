@@ -5,7 +5,7 @@ running CircuitPython emits a known sequence of HID + CDC patterns, and a
 host Python script drives the other end of the CDC bulk endpoints so the
 capture sees correlated dev↔host traffic.
 
-The point is to produce a recognisable, repeatable mix in `.pcap` captures:
+The point is to produce a recognizable, repeatable mix in `.pcap` captures:
 keyboard reports, mouse moves, large/small bulk transfers, host-driven
 probes, and a hardware-reset re-enumeration. Useful for testing
 [`cynthion-capture`](../../plugins/hardware-lab/skills/cynthion-capture/), validating decoders, or

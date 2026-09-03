@@ -45,7 +45,7 @@ def load_transfers(path: str) -> List[dict]:
 # ---------------------------------------------------------------------------
 
 MAX_OPCODE_VALUES = 16   # a byte with > this many distinct values is not an opcode
-MIN_SAMPLES = 2           # need at least this many transactions to characterise
+MIN_SAMPLES = 2           # need at least this many transactions to characterize
 
 
 def _extract_non_ep0(transfers: List[dict]) -> List[dict]:
@@ -245,7 +245,7 @@ def format_markdown(hyp: dict) -> str:
         f"- **VID/PID:** {dev.get('idVendor', '?')} / {dev.get('idProduct', '?')}",
         f"- **USB spec:** {dev.get('bcdUSB', '?')}",
         "",
-        f"**Captures analysed:** {', '.join(hyp.get('labels', []))}",
+        f"**Captures analyzed:** {', '.join(hyp.get('labels', []))}",
         "",
     ]
 
@@ -300,7 +300,7 @@ FORMATTERS = {"json": format_json, "markdown": format_markdown}
 
 def main():
     p = argparse.ArgumentParser(
-        description="Infer USB command structure from multiple labelled captures."
+        description="Infer USB command structure from multiple labeled captures."
     )
     p.add_argument("captures", nargs="+",
                    help="Capture files (.pcap or .json), one per action")

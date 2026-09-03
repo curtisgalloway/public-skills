@@ -91,7 +91,7 @@ the hardware uses, then cite the datasheet. Every fact retagged from `[source-ob
 2. **IP identity & provenance** — vendor + IP family + specific instance/revision; what a vendor
    wrapper adds over the stock IP; the public-citable lineage.
 3. **Canonical references (a headline deliverable)** — a TABLE: each authoritative datasheet /
-   programmer's guide / standard, *what it authoritatively covers*, and *how to find it* (doc number,
+   programr's guide / standard, *what it authoritatively covers*, and *how to find it* (doc number,
    URL, chapter/section). Prefer hardware specs + public proxies + relevant IEEE/standards over the
    source-OS driver.
 4. **Register map** — grouped by the **databook's** functional organization (never driver-touch

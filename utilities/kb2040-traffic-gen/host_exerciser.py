@@ -53,7 +53,7 @@ import serial.tools.list_ports
 BAUD = 115200
 ADAFRUIT_VID = 0x239A
 PROBE_INTERVAL = 0.5  # seconds between probe bursts
-PROBE_PAYLOAD = bytes([0xCA, 0xFE, 0xBA, 0xBE] * 4)  # 16-byte recognisable marker
+PROBE_PAYLOAD = bytes([0xCA, 0xFE, 0xBA, 0xBE] * 4)  # 16-byte recognizable marker
 
 
 class ProbeGate:

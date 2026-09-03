@@ -210,7 +210,7 @@ class TestAllowing(HookCase):
         self.assertEqual(rc, 0, err)
         self.assertEqual(log[0]["action"], "allowed-role")
 
-    def test_unrecognised_role_still_blocks(self):
+    def test_unrecognized_role_still_blocks(self):
         rc, err, _ = self.fire("view_file", {"TargetFile": BLOCKED_PATH},
                                role="implementer")
         self.assertEqual(rc, 2, err)
@@ -233,7 +233,7 @@ class TestAllowing(HookCase):
     def test_code_edit_content_is_not_scanned(self):
         """Same exemption, and it matters more here.
 
-        Unrecognised argument keys are scanned for URLs, so Antigravity's
+        Unrecognized argument keys are scanned for URLs, so Antigravity's
         CodeEdit has to be exempt by name or every citation in a doc comment
         would block the write that adds it.
         """
@@ -316,7 +316,7 @@ class TestEventPlumbing(HookCase):
 
 class TestPolicyPlumbing(HookCase):
 
-    def test_custom_policy_file_is_honoured(self):
+    def test_custom_policy_file_is_honored(self):
         path = "/home/dev/src/acme-vendor-blob-sdk/hal/widgetron.c"
         rc, _, _ = self.fire("view_file", {"TargetFile": path})
         self.assertEqual(rc, 0, "not blocked by the built-in defaults")

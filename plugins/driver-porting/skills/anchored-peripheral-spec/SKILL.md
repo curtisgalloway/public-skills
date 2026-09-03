@@ -126,7 +126,7 @@ with **neither** a `[src:]`/`[tgt:]` nor a `[doc:]` tag is an error.
 2. **IP identity & provenance** — vendor + IP family + specific instance/revision; what a vendor
    wrapper adds; the driver's own view of the identity (version register reads, quirk flags),
    anchored.
-3. **Canonical references** — a TABLE of datasheets / programmer's guides / standards, what each
+3. **Canonical references** — a TABLE of datasheets / programr's guides / standards, what each
    authoritatively covers, and how to find it (doc number, URL, chapter). Add a row for the driver
    source itself with its pin.
 4. **Register map** — grouped by the **databook's** functional organization (never driver-touch
@@ -152,7 +152,7 @@ with **neither** a `[src:]`/`[tgt:]` nor a `[doc:]` tag is an error.
     works around each one; **per-area confidence** (datasheet + code / code alone / inferred);
     the **verify-on-hardware list** — every `[as-implemented]` claim and every register whose
     width, reset value, or bit position rests on code alone, so bring-up knows what to probe
-    first; **open questions** — what neither code nor documents settle (the anchored analogue of
+    first; **open questions** — what neither code nor documents settle (the anchored analog of
     the clean-room spec-gap list; "the code answers everything" is a claim, not a default); and
     the **verification record**: pins, date, verdict, checker report path, spec sha256 at PASS —
     filled by the verifier/orchestrator, not the spec author.

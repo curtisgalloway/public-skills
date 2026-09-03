@@ -267,7 +267,7 @@ def stream_packets_native(pcap_path: str) -> Iterator[Packet]:
         magic = struct.unpack("<I", f.read(4))[0]
         if magic not in (PCAP_MAGIC_LE, PCAP_MAGIC_NS):
             raise ValueError(
-                f"Unrecognised pcap magic: {magic:#010x} "
+                f"Unrecognized pcap magic: {magic:#010x} "
                 f"(expected a libpcap file; gzip is handled transparently)"
             )
         ns = (magic == PCAP_MAGIC_NS)

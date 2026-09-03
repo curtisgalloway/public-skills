@@ -110,8 +110,8 @@ Serial settings do not matter — it is USB CDC, the baud rate is ignored.
 
 Terminal emulators the docs bless: Tera Term (Windows), `tio` (best on Linux —
 defaults to 115200 8N1 and reconnects across replugs), `screen`, `minicom`,
-`cu`. On macOS only iTerm2 + `cu` renders full colour; `screen`/Terminal come up
-monochrome (switch to ANSI-256 under `c` → 2 if you want colour).
+`cu`. On macOS only iTerm2 + `cu` renders full color; `screen`/Terminal come up
+monochrome (switch to ANSI-256 under `c` → 2 if you want color).
 
 Exit incantations: `screen` → `ctrl-a k y` (or `ctrl-a ctrl-\`); `cu` → newline
 then `~.`; `minicom` → `Esc q`; `tio` → `ctrl-t q`.
@@ -122,7 +122,7 @@ then `~.`; `minicom` → `Esc q`; `tio` → `ctrl-t q`.
   `INFRARED-(RAW)>`. It always boots into **HiZ** — every output disabled, a
   deliberately safe state. Nothing happens on the wires until you `m` into a mode.
 - **VT100 vs ASCII**: on reset it asks `VT100 compatible color mode? (Y/n)>`.
-  Yes gives colour plus a live status bar (voltage/current/pin state) redrawn
+  Yes gives color plus a live status bar (voltage/current/pin state) redrawn
   with ANSI escapes. Say **n** for dumb terminals and for scripted use — the
   status bar is exactly the "garbage characters" people report. Changeable later
   under `c`.
@@ -143,7 +143,7 @@ then `~.`; `minicom` → `Esc q`; `tio` → `ctrl-t q`.
 | Command | Does |
 |---|---|
 | `i` | version/hardware info; in a mode, also mode info, bit order, display format |
-| `c` | config menu: language, ANSI colour, ANSI toolbar, LCD screensaver, LED effect/colour/brightness → saved to `bpconfig.bp` |
+| `c` | config menu: language, ANSI color, ANSI toolbar, LCD screensaver, LED effect/color/brightness → saved to `bpconfig.bp` |
 | `m` / `m <mode>` | mode menu / jump straight to a mode (`m i2c`, `m hiz`) |
 | `l` / `L` | bit order MSB-first (default) / LSB-first |
 | `o` | number display format: Auto (mirrors your input), HEX, DEC, BIN, ASCII |
@@ -292,7 +292,7 @@ w                 # off
   the Vgs of the reverse-protection MOSFET); 0–500 mA current sense and digital
   fuse; default limit 300 mA (which is also the rated maximum — the extra
   headroom is for spikes); adjustable undervoltage trip, default 10%.
-- A tripped limit disables the supply, inverts the terminal colours, rings the
+- A tripped limit disables the supply, inverts the terminal colors, rings the
   bell, prints an error, and **halts command execution**. Re-arm with `W`.
 - The VOUT/VREF pin is a one-way valve: you can instead feed the target's own
   supply *into* it and the Bus Pirate buffers and pull-ups will run at that

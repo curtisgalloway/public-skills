@@ -34,7 +34,7 @@ with the slash commands in the last section, which report what your build actual
 | Gemini CLI | `gemini` | **Retired 2026-06-18** for free/Pro/Ultra and individual Code Assist. Enterprise Code Assist Standard/Enterprise retain access. Succeeded by Antigravity CLI. |
 | Claude Code | `claude` | Current. |
 
-Announced 2026-05-19, roughly a 30-day migration window. Keep Gemini CLI paths as labelled legacy
+Announced 2026-05-19, roughly a 30-day migration window. Keep Gemini CLI paths as labeled legacy
 rungs in search ladders; drop them from install instructions.
 
 ## Config locations
@@ -209,7 +209,7 @@ settings — not by a variable the permission layer never reads.
 | conversation store | SQLite `.db` | — |
 | artifact types | task, implementation plan, walkthrough, other | — |
 
-Record shapes to recognise in one pass: nested `toolCall` objects with the result *beside* the call,
+Record shapes to recognize in one pass: nested `toolCall` objects with the result *beside* the call,
 `toolCalls[]` arrays with the result *inside*, `functionCall`/`functionResponse` parts,
 `tool_use`/`tool_result` blocks. Sniff the container format (SQLite magic bytes, JSONL, JSON, text)
 rather than trusting the extension.
@@ -225,5 +225,5 @@ When a path here is wrong, these report what the build actually reads:
 - Antigravity: `/hooks`, `/permissions`, `/permissions list`, `/agents`, `/skills`, `/config`
 - Claude Code: `/hooks`, `/permissions`, `/agents`, `/config`
 
-And the check no command replaces: deliberately trigger the behaviour your tool exists to catch, and
+And the check no command replaces: deliberately trigger the behavior your tool exists to catch, and
 confirm it appears in your log.

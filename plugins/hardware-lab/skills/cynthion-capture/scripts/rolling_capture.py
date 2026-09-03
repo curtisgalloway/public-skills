@@ -147,7 +147,7 @@ def _parse_frames(buf: bytes, out, stats: dict) -> bytes:
 # ---------------------------------------------------------------------------
 
 class _IndexWorker:
-    """Schedules background indexer threads and serialises manifest writes."""
+    """Schedules background indexer threads and serializes manifest writes."""
 
     def __init__(self, decode, manifest_path: str):
         self._decode        = decode

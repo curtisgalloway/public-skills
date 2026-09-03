@@ -4,8 +4,8 @@
 """doc_diff.py - find a reviewer's direct edits in a Google Doc read-back.
 
 Compares the repo Markdown against the text read back from the Doc after
-normalising both past the noise the Markdown -> Doc -> text round trip adds
-(escaped underscores, dropped code spans, synthesised table header and
+normalizing both past the noise the Markdown -> Doc -> text round trip adds
+(escaped underscores, dropped code spans, synthesized table header and
 alignment rows with bolded cells, curly quotes, hard wraps, and the inline
 <comment_start/end id=...> anchors). What survives is the reviewer's work:
 the comment threads in document order, every paragraph carrying a
@@ -41,13 +41,13 @@ CHARS = str.maketrans({"\u2018": "'", "\u2019": "'", "\u201c": '"',
                        "\u201d": '"', "\u00a0": " "})
 
 
-def normalise(text):
+def normalize(text):
     text = strip_repo_only(text).translate(CHARS)
     return ESCAPES.sub(r"\1", text).replace("`", "")
 
 
 def paragraphs(text, hard_wrapped=True):
-    """Split normalised text into paragraphs.
+    """Split normalized text into paragraphs.
 
     With hard_wrapped=True (the repo Markdown) a paragraph is a blank-line
     block with its wrapped lines joined, split further at headings, table
@@ -69,7 +69,7 @@ def paragraphs(text, hard_wrapped=True):
             if joined:
                 paras.append(joined)
 
-    for raw in normalise(text).splitlines():
+    for raw in normalize(text).splitlines():
         s = raw.strip()
         if not s:
             flush()
@@ -193,7 +193,7 @@ def self_test():
     assert len(body) == 2 and "~~will~~" in body[1] and "Inserted." in body[1], text
     assert "kix.1: - A bullet the reviewer ~~will~~" in text, text
     assert "1 deletion(s); 1 comment thread(s)" in text, text
-    assert "response_format" not in "\n".join(body), text   # artifacts normalised away
+    assert "response_format" not in "\n".join(body), text   # artifacts normalized away
 
     buf = io.StringIO()
     rc = report(REPO_FIXTURE, DOC_FIXTURE_SINGLE_NEWLINE, out=buf)

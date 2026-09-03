@@ -95,7 +95,7 @@ surface.
 | SPI | `select()` `deselect()` `write()` `read(n)` `transfer(write_data, read_bytes)` `transfer_duplex(write_data)` |
 | 1-Wire | `reset()` `write()` `read(n)` `transfer(write_data, read_bytes)` |
 | UART | `write()` `transfer(write_data, read_bytes)` (1 s read timeout) `read_async(clear_buffer)`, or an `async_callback=` for push delivery |
-| LED | colour/raw writes for onboard, WS2812 and APA102 strips |
+| LED | color/raw writes for onboard, WS2812 and APA102 strips |
 
 For I2C `transfer()`, the **first byte of `write_data` is the 8-bit device
 address** and it is reused for the read half of the transaction.
@@ -169,7 +169,7 @@ probe" in the middle of an automated sequence.
 
 ## Screen-scraping the terminal
 
-The terminal is a full-screen VT100 UI: colour, a live status bar redrawn at the
+The terminal is a full-screen VT100 UI: color, a live status bar redrawn at the
 bottom, and cursor positioning interleaved with command output. Naive
 `readline()` gets escape sequences and partial redraws. Tame it before you parse
 it — in this order:
@@ -193,11 +193,11 @@ verify against your firmware):
   is the response.
 - **Send a bare `\r` first** and wait for a prompt to prove you have the terminal
   port and not the binary one.
-- **`cls`** clears and re-initialises the terminal — useful right after
+- **`cls`** clears and re-initializes the terminal — useful right after
   attaching, since you may have joined mid-screen.
 - **Keep lines under 255 characters.**
 - **Watch for the halt condition.** A PSU over-current or undervoltage trip
-  disables the supply, inverts the colours, rings the bell (`\a`), prints an
+  disables the supply, inverts the colors, rings the bell (`\a`), prints an
   error, and **stops executing queued commands**. If you are streaming a batch,
   detect the error and re-arm with `W` rather than plowing on.
 - Long operations (`flash read`, `eeprom test`, `bluetag`) print progress and
