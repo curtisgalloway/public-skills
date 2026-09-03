@@ -5,7 +5,7 @@
     "url": "https://github.com/curtisgalloway"
   },
   "metadata": {
-    "description": "General-purpose agent skills, packaged by theme: hardware-lab (USB analysis and bench instruments), driver-porting (clean-room and source-anchored driver specs, board experts), agent-workflow (session learning, handoffs, loop safety, design partnership), dev-tools (Jujutsu, dependency scoring). public-skills is all four in one."
+    "description": "General-purpose agent skills, packaged by theme: hardware-lab (USB analysis and bench instruments), driver-porting (clean-room and source-anchored driver specs, board experts), agent-workflow (session learning, handoffs, loop safety, design partnership), dev-tools (Jujutsu, dependency scoring, CLI conventions). public-skills is all four in one."
   },
   "plugins": [
     {
@@ -26,7 +26,7 @@
     {
       "name": "dev-tools",
       "source": "./plugins/dev-tools",
-      "description": "Engineering utilities: Jujutsu (jj) in place of git, and evidence-based dependency scoring (dep-quality)."
+      "description": "Engineering utilities: Jujutsu (jj) in place of git, evidence-based dependency scoring (dep-quality), and conventions for CLIs that agents drive (cli-conventions)."
     },
     {
       "name": "public-skills",

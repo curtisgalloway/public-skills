@@ -27,6 +27,12 @@ Each skill lives in `plugins/<theme>/skills/<skill-name>/` (one theme directory 
 
 Skills should be self-contained. If a skill needs a third-party tool, call that dependency out clearly in `SKILL.md`.
 
+A new skill also has to be *registered* outside its own directory — the Themes table in the root `README.md`, and the plugin's `README.md`. Check both before committing:
+
+```bash
+python3 utilities/check-skill-registration.py
+```
+
 ## Writing portable skills
 
 - Use generic placeholder names (`example.com`, `<your-host>`, `<path/to/file>`) instead of real values
