@@ -1,7 +1,8 @@
 # dev-tools
 
-Engineering utilities that stand on their own: a version-control skill for Jujutsu, and an
-evidence-based scorer for choosing dependencies.
+Engineering utilities that stand on their own: a version-control skill for Jujutsu, an
+evidence-based scorer for choosing dependencies, and the conventions that make a command-line
+tool drivable by a program.
 
 ```
 /plugin install dev-tools@public-skills
@@ -25,3 +26,11 @@ Antigravity and other harnesses that read skill directories: link the skill you 
   cadence. Bot and AI-agent commits are excluded from bus factor. Triggers before any new
   package is pinned in a manifest, even when the popular choice seems obvious. Ships
   `scripts/depscore.py` (stdlib-only; wants a read-only `GITHUB_TOKEN`).
+- **`cli-conventions`** — how to build a command-line tool whose callers include programs, not
+  just people. A portable exit-code contract organised in bands, so a caller that has never seen
+  the tool can branch on `code / 10` and still behave sensibly; a `--skill` flag that prints the
+  tool's own agent-facing doc, embedded at build time so it cannot drift from the binary; and the
+  rules that only bite once the caller is not a human — strict `--json`, the stdout/stderr split,
+  no prompting without a TTY, `--dry-run`, secrets never in argv, and a four-line CI harness that
+  catches most of it. Triggers when writing or reviewing a CLI, or deciding what a command should
+  return when it fails.
