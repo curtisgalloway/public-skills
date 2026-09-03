@@ -1,6 +1,6 @@
 ---
 name: cli-conventions
-description: Conventions for command-line tools that both people and agents will drive — a portable exit-code contract, a `--skill` flag that emits the tool's own usage doc, strict `--json`, and non-interactive-by-default behavior. Use when writing a new CLI, reviewing an existing one, or deciding what a command should return when it fails.
+description: Conventions for command-line tools that both people and agents will drive — a portable exit-code contract, a `--skill` flag that emits the tool's own usage doc, strict `--json`, non-interactive-by-default behavior, and where a tool that runs as a service keeps its secrets. Use when writing a new CLI, reviewing an existing one, adding service/daemon management to one, or deciding what a command should return when it fails.
 ---
 
 <!--
@@ -216,6 +216,46 @@ without stranding the automated one.
   wherever the ecosystem has one, so callers never have to materialize the secret
   to pass it.
 
+### Storing secrets for unattended runs
+
+A tool that runs as a service (launchd, systemd, a scheduled task) starts without
+the operator's shell: no exported variables, no secret-manager session, nobody to
+answer a prompt. It needs secrets it can reach on its own, and where those live is
+a design decision the tool should make once, in code, rather than leave to
+whoever writes the unit file.
+
+- **Use the OS credential store.** macOS: the login keychain via `security`
+  (`add-generic-password` / `find-generic-password`). Linux: the Secret Service
+  API via `secret-tool`, or a systemd credential (`LoadCredential=`). Windows:
+  the Credential Manager. These are encrypted at rest, unlocked with the user's
+  session, and scoped to that user — every property a mode-600 file only
+  approximates. One item per secret, under a service name that is the tool's
+  own, so `uninstall` can find and remove exactly what `install` stored.
+- **Resolve at install time, from a reference.** The install step runs in the
+  operator's shell, where the secret manager is available: run it under the
+  manager's wrapper (`op run --env-file .env -- tool service install`), let it
+  read the resolved values from the environment, and write them to the
+  credential store. The daemon never talks to the secret manager and never needs
+  its token. Rotation is "run install again".
+- **Split configuration from secrets by name, in code.** Keep an explicit list of
+  which variables are secret. Plain configuration (URLs, model names, ports) goes
+  in the unit file or plist, where it is readable and diffable; anything on the
+  secret list goes to the credential store and is loaded back into the
+  environment at startup. A reviewer can then check the split without reading
+  values.
+- **Nothing secret in the unit file.** A plist or systemd unit is a config file:
+  it gets copied, pasted into bug reports, and committed by accident.
+  `EnvironmentVariables` and `Environment=` are for the non-secret half only.
+- **`--dry-run` prints secret names, never values** — "would store:
+  ANTHROPIC_API_KEY, HASS_TOKEN" tells the operator what the install found
+  without echoing anything. `status` reports which names are present the same
+  way, and `doctor` checks that each one resolves.
+- **The store's own CLI may force a secret into argv.** `security
+  add-generic-password -w VALUE` is the only non-interactive path macOS offers.
+  Accept it as the known exception: it runs once, in the operator's own shell,
+  at install time — never in the daemon, never in a loop — and say so in a
+  comment where it happens.
+
 ## `doctor`
 
 Provide a `doctor` subcommand (or `--self-test`) that checks the tool's own
@@ -265,6 +305,7 @@ them.
 - [ ] No prompt when stdin is not a TTY; `--yes` available
 - [ ] `--dry-run` on every mutating path; mutations report what changed
 - [ ] No secret accepted via argv or echoed in output
+- [ ] Service mode stores secrets in the OS credential store, resolved at install; none in the unit file
 - [ ] `doctor` checks preconditions and exits with the matching class
 - [ ] `--help` documents the exit statuses actually emitted
 - [ ] CI runs the tool piped, with stdin closed and `NO_COLOR=1`
