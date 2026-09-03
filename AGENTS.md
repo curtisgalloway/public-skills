@@ -33,6 +33,9 @@ A new skill also has to be *registered* outside its own directory — the Themes
 python3 utilities/check-skill-registration.py
 ```
 
+CI runs this on every push and pull request, along with the skill test suites,
+so a miss fails the build rather than going unnoticed.
+
 ## Writing portable skills
 
 - Use generic placeholder names (`example.com`, `<your-host>`, `<path/to/file>`) instead of real values

@@ -1,0 +1,31 @@
+# SPDX-FileCopyrightText: 2026 contributors
+# SPDX-License-Identifier: Apache-2.0
+name: checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Read-only token: nothing here writes to the repo.
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      # actions/checkout v7.0.1, pinned by SHA.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Skill registration
+        run: python3 utilities/check-skill-registration.py
+
+      - name: agent-agnostic-skills tests
+        run: python3 -m unittest discover -s plugins/agent-workflow/skills/agent-agnostic-skills/tests -v
+
+      - name: os-investigator tests
+        run: python3 -m unittest discover -s plugins/driver-porting/skills/os-investigator/tests -v
+
+      - name: cleanroom-implementer tests
+        run: python3 -m unittest discover -s plugins/driver-porting/skills/cleanroom-implementer/tests -v
