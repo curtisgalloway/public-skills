@@ -74,7 +74,7 @@ isn't a good idea. Instead, think about how you would write a memo to a smart co
 - **Point to prior art.** Are there other examples of the kind of thing you're working on? Be
   specific if you can; links are great resources.
 - **Make the goal clear.** Don't just describe the next task; talk about the goal you're trying to
-  achieve. Adding a goal helps guide Claude's judgement about how to structure the tasks along the
+  achieve. Adding a goal helps guide Claude's judgment about how to structure the tasks along the
   way.
 - **When are you done?** What is the end state you want to achieve: what tests should pass? What
   specifically can you check to know when to stop? Otherwise Claude might just guess when it

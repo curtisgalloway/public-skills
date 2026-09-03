@@ -38,7 +38,7 @@ repeat; allow does not, because granting it is not. Keep that asymmetry if
 you edit this.
 
 DENY is emitted three ways at once - {"decision": "deny", "reason": ...} on
-stdout, the reason on stderr, and exit code 2 - because Antigravity honours
+stdout, the reason on stderr, and exit code 2 - because Antigravity honors
 the decision object and treats a non-zero exit as a block, while other
 harnesses read only one of the two. Exit 2 is the default because it fails
 closed; set CLEANROOM_BLOCK_EXIT_CODE=0 if a build objects to it.
@@ -48,7 +48,7 @@ names arguments in PascalCase (run_command takes CommandLine, Cwd). Tool
 vocabularies differ between builds and harnesses, so nothing here is keyed on
 a tool-name table: targets are found by ARGUMENT KEY, case-folded. Path-ish
 and command-ish keys are matched against the full policy, every other key
-against URLs and checkout roots only. An unrecognised tool is still checked.
+against URLs and checkout roots only. An unrecognized tool is still checked.
 
 Project dir: $CLEANROOM_PROJECT_DIR, then the event's `workspacePaths[0]` /
 `cwd`, then legacy $GEMINI_PROJECT_DIR / $CLAUDE_PROJECT_DIR, then the

@@ -37,7 +37,7 @@ know why they are there. Five in particular:
   mentioning `trusted-firmware-a`, or a pre-fetch list naming `kernel.org`, must
   not block the edit that adds it. Content-level leaks are `session_audit.py`'s
   job and the pre-merge output scan's, not the hook's. The second case is the
-  load-bearing one: unrecognised argument keys *are* scanned for URLs, so
+  load-bearing one: unrecognized argument keys *are* scanned for URLs, so
   `CodeEdit` has to stay exempt by name.
 - **`test_malformed_input_allows_explicitly`** — bad input exits 0 *and* prints
   the allow object. A hook that blocks on its own parse failure would wedge

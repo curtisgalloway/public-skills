@@ -89,7 +89,7 @@ skill) stay in Python. This is intentional: different consumers have very differ
 use cases (payload-centric reverse engineering vs. status-centric fault analysis)
 and keeping the decode layer neutral serves both.
 
-**The pure-Python decoder stays as a labelled fallback** but must not be the
+**The pure-Python decoder stays as a labeled fallback** but must not be the
 analysis path.
 
 ### Requirements for the new decoder

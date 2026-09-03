@@ -26,7 +26,7 @@ security-shaped skill can ship with its enforcement quietly disconnected.
 
 So the discipline here isn't about elegance or hypothetical future agents. It's that a hardcoded
 harness assumption is an *unobservable* failure, and the fixes below are mostly about converting
-silent no-ops into loud, checkable behaviour.
+silent no-ops into loud, checkable behavior.
 
 ## Bind to the most stable layer available
 
@@ -81,13 +81,13 @@ correct-by-the-rule and wrong-in-fact — a nested checkout, a sandbox inside a 
 worktree. Then your tool writes its log or reads its policy somewhere nobody expected, silently,
 because every rung reported success. (This is not hypothetical: while this skill was being written,
 a hook under test walked past its own working directory into the enclosing repository and left its
-audit log there.) Two cheap defences: stop the walk at a boundary you name rather than at the
+audit log there.) Two cheap defenses: stop the walk at a boundary you name rather than at the
 filesystem root, and record the resolved root in your first log line, so "where did it think it
 was?" is answerable after the fact instead of by re-deriving it.
 
 Same pattern for skills directories, config files, and policy files. See
 `skills/cynthion-capture/scripts/_sibling.py` in this repo for a worked example that prefers the
-zero-configuration sibling case and keeps dead harnesses only as labelled legacy rungs.
+zero-configuration sibling case and keeps dead harnesses only as labeled legacy rungs.
 
 ## Match on argument names, not tool names
 
@@ -119,7 +119,7 @@ in the same set, and it is why the same matcher survives a vendor switching conv
 
 The payoff: a tool from a harness you have never heard of, with a name nobody anticipated, is still
 checked correctly as long as it takes an argument that means "file path". That is the property to
-optimise for.
+optimize for.
 
 ## Emit every dialect at once
 
@@ -131,7 +131,7 @@ Protocol contracts differ, and they differ in ways that fail *open*:
 | allow a call | `{"decision":"allow"}` — **required**, empty stdout is rejected | exit 0; silence is "no objection". `permissionDecision: "allow"` is **not** silence — it auto-approves |
 | payload shape | `toolCall.{name,args}`, camelCase envelope, PascalCase args | `tool_name`/`tool_input`, flat, snake_case |
 
-For a **deny**, these formats are additive: harnesses ignore the fields they don't recognise. So
+For a **deny**, these formats are additive: harnesses ignore the fields they don't recognize. So
 don't detect the harness and branch — **emit every deny dialect in one response** and let each
 reader take what it knows. One code path, no detection logic, no "which agent am I" heuristic to
 get wrong.
@@ -208,7 +208,7 @@ confidence without the enforcement. Ship this instruction *with* the tool, not a
 
 Session records are JSONL here, single-document JSON there, SQLite somewhere else, plus markdown
 artifacts a harness writes alongside the conversation. Sniff by magic bytes, then by parse attempt,
-then fall back to text. Walk directories rather than demanding a file. Recognise several record
+then fall back to text. Walk directories rather than demanding a file. Recognize several record
 shapes in one pass — nested `toolCall` objects, `toolCalls[]` arrays, `functionCall` parts,
 `tool_use` blocks — because a build can change how it records a session without telling you.
 
@@ -239,7 +239,7 @@ shapes in one pass — nested `toolCall` objects, `toolCalls[]` arrays, `functio
 They do. Gemini CLI stopped serving on 2026-06-18, about a month after its replacement was
 announced. The migration rule that keeps things honest:
 
-- **Keep it in search ladders**, as a rung labelled legacy. Users mid-migration still have those
+- **Keep it in search ladders**, as a rung labeled legacy. Users mid-migration still have those
   directories, and a silent removal breaks them for no reason.
 - **Delete it from the prose.** A new reader following your install instructions must not be told to
   configure a product that no longer exists.

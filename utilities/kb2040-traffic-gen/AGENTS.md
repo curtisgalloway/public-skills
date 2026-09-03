@@ -7,7 +7,7 @@ focuses on the gotchas an agent is likely to hit.
 ## When to use this
 
 You're driving an end-to-end USB capture test and need predictable,
-labelled traffic on the wire. Typical pairing: this tool on the source
+labeled traffic on the wire. Typical pairing: this tool on the source
 side, [`cynthion-capture`](../../plugins/hardware-lab/skills/cynthion-capture/) on the
 analyzer side.
 

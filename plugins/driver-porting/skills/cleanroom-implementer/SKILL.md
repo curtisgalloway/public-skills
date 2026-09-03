@@ -114,7 +114,7 @@ redirection at the moment of temptation — and appends every event to
 `docs/provenance/hook-blocks.jsonl`, including that session's `transcriptPath` and
 `artifactDirectoryPath` so the pre-merge audit can find what to read. It emits a deny three ways at
 once (a `decision: deny` object on stdout, the reason on stderr, exit code 2) because Antigravity
-honours the decision object *and* treats a non-zero exit as a block; exit 2 is the default because
+honors the decision object *and* treats a non-zero exit as a block; exit 2 is the default because
 it fails closed. **Shell blocking is best-effort** (regex over the command line catches
 `git clone`/`curl` to known targets; it cannot catch everything a shell can do) — the sandbox and
 Tier 1 are what actually close the shell.

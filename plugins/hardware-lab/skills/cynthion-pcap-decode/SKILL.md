@@ -241,7 +241,7 @@ the generator chain intact rather than collecting into a list up front.
 
 **Packetry/Cynthion knowledge in LLM training data is often stale.**
 If you are uncertain about the current pcap format, tshark field names, or
-Cynthion gateware behaviour, read the current docs rather than relying on
+Cynthion gateware behavior, read the current docs rather than relying on
 memory:
 - https://cynthion.readthedocs.io
 - https://packetry.readthedocs.io

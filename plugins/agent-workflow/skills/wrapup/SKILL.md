@@ -38,7 +38,7 @@ Apply the full real-prompt filter from `claude-session-transcript`. Then **summa
 - Identify the major phases of work across all in-scope sessions (e.g. "initial setup", "implementation", "hardware testing", "course correction").
 - Write one bullet per phase. Lead with an italicized phase label, then quote the most intent-revealing user prompt for that phase in quotes, followed by a dash and a brief description of what the agent did. Example: `- *Hardware testing:* "Let's try it on the real device" — agent ran the capture script; hit a USB permission error and fixed it.`
 - If a phase involved a notable course correction or redirect, include the correcting prompt as a quote too: `User corrected tool installation mid-session ("I prefer uv now over pipx").`
-- Drop noise prompts entirely: single-word continuations ("ok", "continue", "run"), bare acknowledgements, and anything fully captured by the phase description.
+- Drop noise prompts entirely: single-word continuations ("ok", "continue", "run"), bare acknowledgments, and anything fully captured by the phase description.
 - Do not include the `/wrapup` invocation prompt itself.
 
 ### 2. Skill invocations

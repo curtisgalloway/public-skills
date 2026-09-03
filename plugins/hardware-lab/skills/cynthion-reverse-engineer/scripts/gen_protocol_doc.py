@@ -6,7 +6,7 @@
 gen_protocol_doc.py — generate a Markdown protocol-reverse-engineering report.
 
 Takes the protocol hypothesis JSON (from infer_commands.py) and one or more
-labelled capture JSONs, and emits a structured Markdown document suitable for
+labeled capture JSONs, and emits a structured Markdown document suitable for
 saving as a protocol reference.
 
 Usage:

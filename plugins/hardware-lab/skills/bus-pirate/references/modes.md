@@ -157,7 +157,7 @@ Mode commands:
   CRC check/patch SPD data on RAM modules.
 - `usbpd` — USB Power Delivery via an AP33772S sink adapter: list profiles,
   request fixed or programmable profiles, reset.
-- Sensor one-liners: `tcs3472` (colour), `sht4x`, `sht3x`, `si7021`
+- Sensor one-liners: `tcs3472` (color), `sht4x`, `sht3x`, `si7021`
   (temp/humidity), `ms5611` (temp/pressure), `tsl2561` (lux).
 
 ---

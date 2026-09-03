@@ -59,7 +59,7 @@ user-invocable skill.
 - **`agent-agnostic-skills`** — how to write skills, hooks, subagent definitions, and
   agent-facing scripts that survive a change of agent, and how to port one that didn't.
   Harness lock-in fails silently: a tool-name table that matches nothing allows everything, so
-  the skill is mostly about turning invisible no-ops into checkable behaviour. Ships
+  the skill is mostly about turning invisible no-ops into checkable behavior. Ships
   `scripts/portability_scan.py`, a mechanical check for these assumptions, a dated
   cross-harness reference matrix under `references/`, and tests under `tests/`.
 

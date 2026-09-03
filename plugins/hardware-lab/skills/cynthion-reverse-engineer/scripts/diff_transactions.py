@@ -143,7 +143,7 @@ def diff_all(
 
         txn_diffs = diff_endpoint(a_seqs, b_seqs)
 
-        # Summarise classification across all transactions for this endpoint
+        # Summarize classification across all transactions for this endpoint
         offset_classes: Dict[int, Dict[str, int]] = defaultdict(lambda: defaultdict(int))
         for td in txn_diffs:
             for bd in td["bytes"]:

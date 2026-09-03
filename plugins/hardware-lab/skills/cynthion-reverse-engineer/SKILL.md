@@ -120,7 +120,7 @@ Output classifies each byte offset per endpoint:
 | `?` | missing | Packet absent in one capture |
 
 **Known limitation:** with exactly two captures, a byte that differs by
-exactly 1 between them is labelled "monotonic" even if it is an opcode.
+exactly 1 between them is labeled "monotonic" even if it is an opcode.
 Use `infer_commands.py` (step 4) for the authoritative classification — it
 compares values across labels rather than pairwise.
 
@@ -176,7 +176,7 @@ python3 replay.py
 ```
 
 On Linux/macOS without root, udev/system permissions may need adjusting.
-Ask the user to confirm the replay produces expected device behaviour before
+Ask the user to confirm the replay produces expected device behavior before
 continuing.
 
 ### Step 6 (optional) — Generate Facedancer device clone
@@ -235,7 +235,7 @@ All scripts are in `scripts/` relative to this skill directory. They accept
 | Script | Input | Output |
 |--------|-------|--------|
 | `diff_transactions.py A B` | two captures | byte classification table |
-| `infer_commands.py A B …` | N labelled captures | hypothesis JSON / Markdown |
+| `infer_commands.py A B …` | N labeled captures | hypothesis JSON / Markdown |
 | `gen_replay.py hyp.json cap.json` | hypothesis + capture | runnable libusb1 script |
 | `gen_facedancer_clone.py cap.json` | decoded capture | Facedancer 3.x Python script |
 | `gen_protocol_doc.py hyp.json` | hypothesis + captures | Markdown protocol doc |
@@ -279,7 +279,7 @@ correct pattern. Hardcoding it inside the script doesn't work.
 
 **Two captures is the minimum, not the ideal.**
 With only two captures the diff cannot distinguish "opcode that changes"
-from "counter that happens to increment by 1". Capture 3–5 labelled
+from "counter that happens to increment by 1". Capture 3–5 labeled
 sessions for reliable opcode inference, especially for multi-byte commands.
 
 **Fixed-length frame assumption.**
@@ -288,6 +288,6 @@ that use variable-length framing (length prefix, TLV, etc.) need manual
 analysis — the inferred command table will be sparse or misleading.
 
 **The replay script replays observations, not a protocol understanding.**
-It is a starting point. The user will need to parameterise commands, handle
+It is a starting point. The user will need to parameterize commands, handle
 responses, and add error handling before the script is useful for anything
 beyond a simple smoke test.

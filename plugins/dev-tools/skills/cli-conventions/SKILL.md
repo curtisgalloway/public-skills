@@ -1,6 +1,6 @@
 ---
 name: cli-conventions
-description: Conventions for command-line tools that both people and agents will drive — a portable exit-code contract, a `--skill` flag that emits the tool's own usage doc, strict `--json`, and non-interactive-by-default behaviour. Use when writing a new CLI, reviewing an existing one, or deciding what a command should return when it fails.
+description: Conventions for command-line tools that both people and agents will drive — a portable exit-code contract, a `--skill` flag that emits the tool's own usage doc, strict `--json`, and non-interactive-by-default behavior. Use when writing a new CLI, reviewing an existing one, or deciding what a command should return when it fails.
 ---
 
 <!--
@@ -107,8 +107,8 @@ discriminator is **what would have to change**:
 a resource permanently gone, a feature unsupported on this platform, an account
 terminated, an artifact that failed verification because it is genuinely wrong.
 
-**`30` should be rare, and the cost is asymmetric.** Mislabelling a transient
-failure as permanent makes a caller abandon recoverable work; mislabelling
+**`30` should be rare, and the cost is asymmetric.** Mislabeling a transient
+failure as permanent makes a caller abandon recoverable work; mislabeling
 permanent as transient only burns a few retries. When in doubt, do not use `30`.
 
 A quota or usage limit is **not** `30` — it resets, so it is `23`.
@@ -129,7 +129,7 @@ empty set, condition false. It is genuinely useful, and it is also a trap: under
 So both of these are required, not either/or:
 
 1. **`--help` documents it**, in an exit-status section, and says plainly that
-   callers wanting the soft behaviour need `|| true`.
+   callers wanting the soft behavior need `|| true`.
 2. **`--json` never depends on the exit status.** Type the empty case in the
    payload so structured callers branch on the document instead:
 
@@ -176,7 +176,7 @@ you would tell someone automating the tool for the first time.
   document on stdout and nothing else. Prefer a single object over a stream
   unless the output is unbounded, in which case use newline-delimited JSON and
   say so.
-- **Colour only when stdout is a terminal**, and honour `NO_COLOR`. Escape codes
+- **Color only when stdout is a terminal**, and honor `NO_COLOR`. Escape codes
   corrupt parsing and never show up in interactive testing.
 - **Deterministic ordering.** Sort anything list-shaped by a stable key. It makes
   output diffable and lets callers write assertions that do not flake.
@@ -213,7 +213,7 @@ without stranding the automated one.
 - **Never echo one**, including in verbose or debug output and in the message of
   an error that quotes the failing request.
 - Accept a **reference** (a secret-manager URI or a path) rather than a value
-  wherever the ecosystem has one, so callers never have to materialise the secret
+  wherever the ecosystem has one, so callers never have to materialize the secret
   to pass it.
 
 ## `doctor`
@@ -245,7 +245,7 @@ Most of the defects above are invisible in interactive testing. Make CI run the
 tool the way a program does:
 
 ```
-stdout piped (not a terminal)   → catches colour leakage and TTY assumptions
+stdout piped (not a terminal)   → catches color leakage and TTY assumptions
 stdin closed                    → catches prompts that would hang
 NO_COLOR=1                      → catches unconditional escape codes
 assert on exit codes            → catches "exits 0 having found nothing"
@@ -261,7 +261,7 @@ them.
 - [ ] `--skill` embedded at build time, frontmatter-complete, version-stamped
 - [ ] Data on stdout, diagnostics on stderr
 - [ ] `--json` is strictly JSON and does not depend on the exit status
-- [ ] Colour suppressed when not a TTY; `NO_COLOR` honoured
+- [ ] Color suppressed when not a TTY; `NO_COLOR` honored
 - [ ] No prompt when stdin is not a TTY; `--yes` available
 - [ ] `--dry-run` on every mutating path; mutations report what changed
 - [ ] No secret accepted via argv or echoed in output

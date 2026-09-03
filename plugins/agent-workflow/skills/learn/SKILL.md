@@ -135,7 +135,7 @@ proposing; a near-miss is an edit to an existing skill, not a new one.
 
 Look for:
 
-- `friction_detail` entries that mention a skill by name or describe behaviour a skill should
+- `friction_detail` entries that mention a skill by name or describe behavior a skill should
   have prevented.
 - Failed tool calls that a skill's "verify first" guidance would have caught.
 - Sessions where the user corrected the agent on something a skill explicitly covers, which

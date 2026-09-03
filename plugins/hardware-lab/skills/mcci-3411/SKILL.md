@@ -193,7 +193,7 @@ Codes: `0` no change, `1` full speed, `2` high speed, `3` SuperSpeed Gen1,
 `4` SuperSpeed Gen2.
 
 `controlssc 0|1` disables or enables spread-spectrum clocking on the USB PHY —
-useful when chasing signal-integrity or EMC behaviour.
+useful when chasing signal-integrity or EMC behavior.
 
 ### Buffer sizes
 
@@ -212,7 +212,7 @@ report nonsense throughput.
 ## Helper script
 
 `scripts/mcci3411.py` wraps all of the above: channel-B autodetection, pager
-handling, prompt-synchronised reads, and command echo stripping.
+handling, prompt-synchronized reads, and command echo stripping.
 
 ```bash
 uv run --with pyserial python3 scripts/mcci3411.py ports

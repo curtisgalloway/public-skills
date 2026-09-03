@@ -44,7 +44,7 @@ byte[ 3] . constant    ...   ← seq counter (same values at each position in bo
 ```
 
 > **Note:** `diff_transactions.py` does pairwise comparison — a byte that
-> differs by exactly 1 between the two captures is labelled "monotonic" even
+> differs by exactly 1 between the two captures is labeled "monotonic" even
 > if it is actually an opcode. `infer_commands.py` resolves this correctly.
 
 ## Step 2 — Infer command structure

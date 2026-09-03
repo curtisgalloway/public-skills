@@ -121,7 +121,7 @@ Use the read-file-content capability with `includeComments: true`. The result ca
 - Deleted text shows as `~~strikethrough~~`; inserted text appears inline with no marker.
 
 Direct edits do not announce themselves, so diff the Doc body against the repo copy paragraph by
-paragraph, normalising whitespace. `scripts/doc_diff.py` does that and also strips the conversion
+paragraph, normalizing whitespace. `scripts/doc_diff.py` does that and also strips the conversion
 noise the round trip introduces, so what survives is the reviewer's work:
 
 ```bash
@@ -136,7 +136,7 @@ line on others; the script treats every read-back line as a paragraph, so both s
 against the hard-wrapped repo file.
 
 **Conversion artifacts — never mistake these for edits**, and add any new one you find to the
-script's normaliser rather than to your head:
+script's normalizer rather than to your head:
 
 | Seen in the read-back | What it is |
 |---|---|
