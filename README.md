@@ -14,7 +14,7 @@ repo's Claude Code marketplace, and has its own README with the details.
 | [`hardware-lab`](plugins/hardware-lab/README.md) | USB traffic capture, decoding and protocol reverse-engineering with a Cynthion; bench instruments | `cynthion-setup`, `cynthion-capture`, `cynthion-pcap-decode`, `cynthion-reverse-engineer`, `usb-device-profile`, `mcci-3411`, `bus-pirate`, `siglent-scope` |
 | [`driver-porting`](plugins/driver-porting/README.md) | Clean-room driver specs from encumbered source, source-anchored specs and reviews for code you own, board experts | `os-investigator`, `cleanroom-spec`, `cleanroom-implementer`, `anchored-peripheral-spec`, `reference-driver-review`, `rpi-expert`, `indiedroid-nova-expert` |
 | [`agent-workflow`](plugins/agent-workflow/README.md) | Working with a coding agent over time: design partnership, loop safety, handoffs, summaries, session learning, document review, portable skill authoring | `design-partner`, `intern-mode`, `handoff`, `wrapup`, `learn`, `teach`, `claude-session-transcript`, `gdoc-review-loop`, `agent-agnostic-skills` |
-| [`dev-tools`](plugins/dev-tools/README.md) | Engineering utilities | `jj`, `dep-quality` |
+| [`dev-tools`](plugins/dev-tools/README.md) | Engineering utilities | `jj`, `dep-quality`, `cli-conventions` |
 
 `public-skills` is a fifth marketplace entry that bundles all four. Install either it or the
 themed plugins, not both, or every skill loads twice.
