@@ -205,6 +205,36 @@ without stranding the automated one.
 - **Say what changed.** A mutation that succeeds silently is indistinguishable
   from one that no-opped. Report counts, or the identifiers touched.
 
+## Stopping a daemon found through a discovery file
+
+A tool that runs a daemon usually writes how to reach it — pid, port, token —
+to a discovery file, and its `stop` subcommand reads that file back. **Never
+stop the daemon by signaling the recorded pid.** The file outlives the process
+whenever it did not exit cleanly (a crash, a `SIGKILL`, and on Windows every
+`TerminateProcess`), and pids are recycled, so a liveness check only proves that
+*some* process has that number now. A `stop` that trusts it sends `SIGTERM` to
+whatever the kernel handed the number to next. This is reproducible by pointing
+a discovery file at a `sleep`; it was found in four daemons of one project in a
+single review round.
+
+- **Give the daemon an authenticated shutdown request** — `POST /stop` behind
+  the same bearer token every other request already needs. Only the daemon that
+  wrote the file knows the token, so an accepted request proves it reached the
+  right process. Route it into the same cleanup path the OS signal uses, so
+  nothing downstream can tell the two apart.
+- **Make `stop` refuse to fall back to a signal.** A record with no token, or a
+  request that fails, is an error that names the identity-checking path — a
+  supervisor that compares the process's command line or executable to the
+  expected daemon *immediately* before signaling. That comparison is the only
+  acceptable way to signal a recorded pid, and it is still a race, which is why
+  the request is the primary path and the signal is someone else's fallback.
+- **Test it with a live, unrelated pid.** Write a record naming the test
+  process itself, point it at a fake daemon that rejects the token, and run the
+  stop path: it must fail, and the test must still be running afterwards. Add a
+  lifecycle test that stops a real daemon and checks *how* it stopped (a log
+  line from the request handler, not from the signal handler), so the old
+  signal path cannot pass it.
+
 ## Secrets
 
 - **Never accept a secret as a command-line argument.** Argv is world-readable on
@@ -306,6 +336,7 @@ them.
 - [ ] `--dry-run` on every mutating path; mutations report what changed
 - [ ] No secret accepted via argv or echoed in output
 - [ ] Service mode stores secrets in the OS credential store, resolved at install; none in the unit file
+- [ ] `stop` reaches the daemon through its authenticated endpoint; no path signals a pid read from a file without an identity check
 - [ ] `doctor` checks preconditions and exits with the matching class
 - [ ] `--help` documents the exit statuses actually emitted
 - [ ] CI runs the tool piped, with stdin closed and `NO_COLOR=1`
