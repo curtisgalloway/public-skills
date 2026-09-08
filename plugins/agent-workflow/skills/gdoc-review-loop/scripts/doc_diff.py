@@ -34,7 +34,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from round_text import strip_repo_only  # noqa: E402
 
 ANCHOR = re.compile(r"<comment_(?:start|end) id=([^>\s]+)>")
-ESCAPES = re.compile(r"\\([_*\[\]<>#|.])")
+ESCAPES = re.compile(r"\\([_*\[\]<>#|.&~])")
 BLOCK_START = re.compile(r"^(#{1,6}\s|\||[-*+]\s|\d+[.)]\s|>|---\s*$)")
 # A heading or a rule is a whole block by itself: it ends at its own line
 # even when the next line follows without a blank line between.
@@ -257,6 +257,7 @@ def self_test():
     assert paragraphs("# T\nBody line one\nline two\n")[0] == ["# T", "Body line one line two"]
     assert paragraphs("---\nAfter the rule\n")[0] == ["---", "After the rule"]
     assert paragraphs("## 1\\. Title\n", hard_wrapped=False)[0] == ["## 1. Title"]
+    assert paragraphs("E\\&C in \\~/.claude\n", hard_wrapped=False)[0] == ["E&C in ~/.claude"]
     fenced_repo = "Intro.\n\n```\n  a -> b\n  | c\n```\n\nAfter.\n"
     fenced_doc = "Intro.\n``` Unset\n  a -\\> b\n  | c\n```\nAfter.\n"
     assert paragraphs(fenced_repo)[0] == ["Intro.", "a -> b", "| c", "After."]
