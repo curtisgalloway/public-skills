@@ -23,18 +23,25 @@ Each skill lives in `plugins/<theme>/skills/<name>/` and contains at minimum a `
 describing its purpose, triggers, and behavior. Many ship supporting scripts, references, or
 templates alongside it.
 
-### Fuchsia — its own repo
+### Other companion skills
 
-The Fuchsia skills live in
+There are a set of Fuchsia-specific skills in
 **[curtisgalloway/fuchsia-skills](https://github.com/curtisgalloway/fuchsia-skills)**:
-checking out the tree, bridging its Gemini-oriented in-tree agent config into Claude Code,
-running several workstreams on one machine, deep source questions, driver bind debugging, and
-the hardware bench and boot-test CI pair. They hand off to `driver-porting`'s skills by name.
+checking out the Fuchsia source tree, bridging its Gemini-oriented in-tree agent config into
+Claude Code, running several workstreams on one machine, deep source questions,
+driver bind debugging, and the hardware bench and boot-test CI pair.
+They hand off to `driver-porting`'s skills by name.
 
 ```
 /plugin marketplace add curtisgalloway/fuchsia-skills
 /plugin install fuchsia-skills@fuchsia-skills
 ```
+
+### A tool for managing agent configurations across machines
+
+I use the **[QBranch](https://github.com/curtisgalloway/qbranch)** tool
+for managing skills, plugins and configurations across my various machines; you might
+find it useful.
 
 ## Installing
 
