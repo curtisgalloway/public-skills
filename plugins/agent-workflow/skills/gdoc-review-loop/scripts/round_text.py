@@ -7,7 +7,9 @@ The repo file is the source of truth; the Google Doc is only the review
 surface. This strips what belongs to the repo and not to the reviewer (a
 leading license/SPDX HTML comment, any `**DRAFT.**` marker line) and, for
 rounds after r1, prepends the Doc-only "What changed since r<N-1>" section
-followed by a horizontal rule. Stdlib only, Python 3.9+.
+followed by a horizontal rule. Every round ends with a Doc-only "Review
+status" block (a two-row table: Review status / Comments) the reviewer fills
+in to sign off; --no-status omits it. Stdlib only, Python 3.9+.
 
 Usage:
   round_text.py DOC.md --out round.txt
@@ -23,6 +25,17 @@ import sys
 
 LEADING_COMMENT = re.compile(r"\A\s*<!--.*?-->[ \t]*\n?", re.S)
 DRAFT_LINE = re.compile(r"^[ \t]*\*\*DRAFT\.\*\*.*(?:\n|\Z)", re.M)
+
+# The reviewer's sign-off block. Doc-only: doc_diff.py strips it from the
+# read-back and reports its two cells. The empty header row is what Docs
+# renders as a headerless table; the bold labels match the reviewer's own.
+REVIEW_STATUS = (
+    "\n## Review status\n\n"
+    "| | |\n"
+    "|---|---|\n"
+    "| **Review status** | Needs review |\n"
+    "| **Comments** | |\n"
+)
 
 
 def strip_repo_only(text):
@@ -46,11 +59,15 @@ def what_changed(body, round_no):
     return body + "\n\n---\n\n"
 
 
-def build(source_text, changed_text=None, round_no=None):
+def build(source_text, changed_text=None, round_no=None, status=True):
     text = strip_repo_only(source_text)
     if changed_text is not None:
         text = what_changed(changed_text, round_no) + text
-    return text if text.endswith("\n") else text + "\n"
+    if not text.endswith("\n"):
+        text += "\n"
+    if status:
+        text += REVIEW_STATUS
+    return text
 
 
 def main():
@@ -64,6 +81,8 @@ def main():
                     help="round being published; names r<N-1> in the heading")
     ap.add_argument("--out", metavar="FILE",
                     help="write here (default: stdout)")
+    ap.add_argument("--no-status", action="store_true",
+                    help="omit the trailing Review status sign-off block")
     args = ap.parse_args()
 
     with open(args.source, encoding="utf-8") as f:
@@ -73,7 +92,7 @@ def main():
         with open(args.changed, encoding="utf-8") as f:
             changed = f.read()
 
-    text = build(source, changed, args.round)
+    text = build(source, changed, args.round, status=not args.no_status)
     if args.out:
         with open(args.out, "w", encoding="utf-8", newline="\n") as f:
             f.write(text)
