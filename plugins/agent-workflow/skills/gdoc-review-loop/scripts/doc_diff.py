@@ -5,9 +5,10 @@
 
 Compares the repo Markdown against the text read back from the Doc after
 normalizing both past the noise the Markdown -> Doc -> text round trip adds
-(escaped underscores, dropped code spans, synthesized table header and
-alignment rows with bolded cells, curly quotes, hard wraps, and the inline
-<comment_start/end id=...> anchors). What survives is the reviewer's work:
+(escaped underscores and heading numbers, dropped code spans, synthesized
+table header and alignment rows with bolded cells, curly quotes, hard wraps,
+fenced code blocks flattened to one paragraph per line with a stray language
+tag on the opening fence, and the inline <comment_start/end id=...> anchors). What survives is the reviewer's work:
 the comment threads in document order, every paragraph carrying a
 `~~strikethrough~~` deletion, and a unified diff of paragraphs. Stdlib only,
 Python 3.9+. Exit 0 when the two agree, 1 when they differ.
@@ -32,7 +33,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from round_text import strip_repo_only  # noqa: E402
 
 ANCHOR = re.compile(r"<comment_(?:start|end) id=([^>\s]+)>")
-ESCAPES = re.compile(r"\\([_*\[\]<>#|])")
+ESCAPES = re.compile(r"\\([_*\[\]<>#|.])")
 BLOCK_START = re.compile(r"^(#{1,6}\s|\||[-*+]\s|\d+[.)]\s|>|---\s*$)")
 # A heading or a rule is a whole block by itself: it ends at its own line
 # even when the next line follows without a blank line between.
@@ -42,8 +43,11 @@ CHARS = str.maketrans({"\u2018": "'", "\u2019": "'", "\u201c": '"',
 
 
 def normalize(text):
-    text = strip_repo_only(text).translate(CHARS)
-    return ESCAPES.sub(r"\1", text).replace("`", "")
+    return normalize_line(strip_repo_only(text))
+
+
+def normalize_line(text):
+    return ESCAPES.sub(r"\1", text.translate(CHARS)).replace("`", "")
 
 
 def paragraphs(text, hard_wrapped=True):
@@ -58,9 +62,15 @@ def paragraphs(text, hard_wrapped=True):
     Returns (paragraphs, threads). `threads` is one (anchor_id, first_index,
     last_index) per comment thread in document order, covering the
     paragraphs between its start and end anchors; the anchors themselves
-    are stripped from the text."""
+    are stripped from the text.
+
+    A fenced code block is one paragraph per line on both sides: the repo
+    keeps its lines, and Docs flattens the block that way (tagging the
+    opening fence with a language name such as "Unset"). The fences
+    themselves are dropped."""
     paras, cur = [], []
     threads = {}
+    fence = False
 
     def flush():
         if cur:
@@ -69,10 +79,17 @@ def paragraphs(text, hard_wrapped=True):
             if joined:
                 paras.append(joined)
 
-    for raw in normalize(text).splitlines():
-        s = raw.strip()
+    for raw in strip_repo_only(text).splitlines():
+        if raw.strip().startswith("```"):
+            fence = not fence
+            flush()
+            continue
+        s = normalize_line(raw).strip()
         if not s:
             flush()
+            continue
+        if fence:
+            paras.append(re.sub(r"\s+", " ", s))
             continue
         bare = ANCHOR.sub("", s).strip()
         if bare.startswith("|"):
@@ -207,6 +224,11 @@ def self_test():
     assert paragraphs(repo)[0] == paragraphs(doc, hard_wrapped=False)[0]
     assert paragraphs("# T\nBody line one\nline two\n")[0] == ["# T", "Body line one line two"]
     assert paragraphs("---\nAfter the rule\n")[0] == ["---", "After the rule"]
+    assert paragraphs("## 1\\. Title\n", hard_wrapped=False)[0] == ["## 1. Title"]
+    fenced_repo = "Intro.\n\n```\n  a -> b\n  | c\n```\n\nAfter.\n"
+    fenced_doc = "Intro.\n``` Unset\n  a -\\> b\n  | c\n```\nAfter.\n"
+    assert paragraphs(fenced_repo)[0] == ["Intro.", "a -> b", "| c", "After."]
+    assert paragraphs(fenced_doc, hard_wrapped=False)[0] == paragraphs(fenced_repo)[0]
     print("doc_diff: self-test passed")
 
 
