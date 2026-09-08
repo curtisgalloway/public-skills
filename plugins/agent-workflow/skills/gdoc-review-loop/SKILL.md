@@ -55,6 +55,11 @@ live co-editing by several people at once; the loop assumes one reviewer acting 
   and answered; if it is a question, answer it; if you decline it, say so and why.
 - **The "What changed since r<N-1>" section is Doc-only.** It is the reply to the reviewer. It
   never enters the committed Markdown.
+- **Every round ends with a Doc-only "Review status" block**: a two-row table, *Review status*
+  (published as "Needs review") and *Comments*. It is the reviewer's sign-off: they set the
+  status to "Approved" to close the document out, or write anything else and comment as usual.
+  `round_text.py` appends it and `doc_diff.py` splits it off the read-back and reports the two
+  cells. It never enters the committed Markdown either.
 - **Every comment thread gets an answer** in the next round's What-changed section and in chat.
   Never leave one unanswered in both places.
 
@@ -64,8 +69,8 @@ Round N, starting from a repo file that is ready for eyes.
 
 1. **Build the round text mechanically** from the repo file: drop the leading license/SPDX HTML
    comment, drop any `**DRAFT.**` marker line, and for N > 1 prepend the Doc-only section
-   `## What changed since r<N-1>` followed by a `---` rule. `scripts/round_text.py` does exactly
-   this:
+   `## What changed since r<N-1>` followed by a `---` rule, and append the Review status block.
+   `scripts/round_text.py` does exactly this:
 
    ```bash
    python3 <skill-dir>/scripts/round_text.py <path/to/doc.md> --out round.txt
@@ -101,7 +106,8 @@ Round N, starting from a repo file that is ready for eyes.
    `<Title> — <date> r<N> [processed <MM-DD> → r<N+1>]` and move it into `Archive/` in one
    update-file call (it takes `fileId`, `title`, `parentId`). `<MM-DD>` is the processing date.
 
-8. **Repeat until the reviewer says done.** Then commit the Markdown and retitle the last Doc
+8. **Repeat until the reviewer says done**, in chat or by setting the Review status block to
+   "Approved". Then commit the Markdown and retitle the last Doc
    `<Title> — <date> r<N> [CLOSED → <path/to/doc.md>]`, leaving it in the folder root.
 
 **Finding the current round:** search the folder with `parentId = '<folder-id>'`; the one Doc
@@ -128,7 +134,8 @@ noise the round trip introduces, so what survives is the reviewer's work:
 python3 <skill-dir>/scripts/doc_diff.py <path/to/doc.md> readback.txt
 ```
 
-It prints the comment threads in document order, one line per thread with the paragraph it
+It prints the Review status block's two cells first (look there before anything else: "Approved"
+means step 8), then the comment threads in document order, one line per thread with the paragraph it
 starts in (and the paragraph it runs through when a thread spans several), every paragraph
 carrying a `~~` deletion, and a unified diff of the remaining paragraphs. Exit 0 means no
 differences. The read-back separates paragraphs with a single newline on some calls and a blank

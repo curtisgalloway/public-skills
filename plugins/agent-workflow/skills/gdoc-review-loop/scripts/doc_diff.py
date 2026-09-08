@@ -8,7 +8,8 @@ normalizing both past the noise the Markdown -> Doc -> text round trip adds
 (escaped underscores and heading numbers, dropped code spans, synthesized
 table header and alignment rows with bolded cells, curly quotes, hard wraps,
 fenced code blocks flattened to one paragraph per line with a stray language
-tag on the opening fence, and the inline <comment_start/end id=...> anchors). What survives is the reviewer's work:
+tag on the opening fence, and the inline <comment_start/end id=...> anchors). The Doc-only "Review status" block at the end is split off and
+its two cells reported, not diffed. What survives is the reviewer's work:
 the comment threads in document order, every paragraph carrying a
 `~~strikethrough~~` deletion, and a unified diff of paragraphs. Stdlib only,
 Python 3.9+. Exit 0 when the two agree, 1 when they differ.
@@ -120,11 +121,34 @@ def preamble_len(doc, repo):
     return 0
 
 
+def review_status(doc):
+    """Split the trailing Doc-only Review status block off a read-back.
+
+    Returns (paragraphs without the block, {label: value}) with labels
+    lowercased; the dict is empty when there is no block."""
+    for i, p in enumerate(doc):
+        if p.lower().startswith("## review status"):
+            cells = {}
+            for row in doc[i + 1:]:
+                if not row.startswith("|"):
+                    continue
+                parts = [c.strip() for c in row.strip("|").split("|")]
+                if len(parts) >= 2 and parts[0]:
+                    cells[parts[0].lower()] = parts[1]
+            return doc[:i], cells
+    return doc, {}
+
+
 def report(repo_text, doc_text, out=sys.stdout):
     repo, _ = paragraphs(repo_text)
     doc, threads = paragraphs(doc_text, hard_wrapped=False)
     skip = preamble_len(doc, repo)
     doc = doc[skip:]
+    doc, status = review_status(doc)
+    if status:
+        print("== review status ==", file=out)
+        for label, value in status.items():
+            print(f"  {label}: {value or '(empty)'}", file=out)
 
     if threads:
         print("== comment threads, document order ==", file=out)
@@ -218,6 +242,14 @@ def self_test():
     assert rc == 0, text
     assert "0 paragraph line(s) differ; 0 deletion(s); 1 comment thread(s)" in text, text
     assert "kix.2: - A bullet the reviewer will edit.  (through paragraph 6)" in text, text
+
+    trailer = ("## Review Status\n|  |  |\n| :- | :- |\n"
+               "| **Review Status** | Approved |\n| **Comments** | ship it |\n")
+    buf = io.StringIO()
+    rc = report(REPO_FIXTURE, DOC_FIXTURE_SINGLE_NEWLINE + trailer, out=buf)
+    text = buf.getvalue()
+    assert rc == 0, text
+    assert "  review status: Approved" in text and "  comments: ship it" in text, text
 
     repo = "# Title\n\nFirst paragraph.\n\nSecond paragraph.\n"
     doc = "# Title\nFirst paragraph.\nSecond paragraph.\n"
