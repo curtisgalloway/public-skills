@@ -145,6 +145,8 @@ script's normalizer rather than to your head:
 | a table opening with an empty row, then `\| :- \| :- \|`, then a **bold** header row | Docs synthesises the header/alignment rows and bolds the header cells |
 | `“smart quotes”` and `’` | Docs autocorrect |
 | paragraphs on one long line where the repo wraps them | hard wraps do not survive; compare by paragraph |
+| `## 1\. Title` | Docs escapes the period after a heading number |
+| a fenced code block with `\`\`\` Unset` on the opening fence and every line a paragraph of its own | the block flattens line by line; the language tag is Docs' |
 
 Then classify each real finding: **direct edit** (decision — apply verbatim), **comment**
 (instruction or question — act, then answer in What-changed), or **artifact** (ignore). When a
