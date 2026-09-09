@@ -55,11 +55,13 @@ live co-editing by several people at once; the loop assumes one reviewer acting 
   and answered; if it is a question, answer it; if you decline it, say so and why.
 - **The "What changed since r<N-1>" section is Doc-only.** It is the reply to the reviewer. It
   never enters the committed Markdown.
-- **Every round ends with a Doc-only "Review status" block**: a two-row table, *Review status*
-  (published as "Needs review") and *Comments*. It is the reviewer's sign-off: they set the
-  status to "Approved" to close the document out, or write anything else and comment as usual.
-  `round_text.py` appends it and `doc_diff.py` splits it off the read-back and reports the two
-  cells. It never enters the committed Markdown either.
+- **Every round opens with a Doc-only "Review status" block**, above everything else in the Doc:
+  a three-state checklist the reviewer ticks — *In progress*, *Reviewed with comments*,
+  *Approved as-is* — over a *Comments* label for anything that does not belong in a margin
+  comment. Step 8 says what each box does. Docs imports `- [ ]` as a real clickable checklist
+  and exports the ticked state the same way (verified 2026-09-08), so the reviewer ticks a box
+  rather than editing text. `round_text.py` prepends the block and `doc_diff.py` splits it off
+  the read-back and reports the ticked box. It never enters the committed Markdown either.
 - **Every comment thread gets an answer** in the next round's What-changed section and in chat.
   Never leave one unanswered in both places.
 
@@ -68,9 +70,9 @@ live co-editing by several people at once; the loop assumes one reviewer acting 
 Round N, starting from a repo file that is ready for eyes.
 
 1. **Build the round text mechanically** from the repo file: drop the leading license/SPDX HTML
-   comment, drop any `**DRAFT.**` marker line, and for N > 1 prepend the Doc-only section
-   `## What changed since r<N-1>` followed by a `---` rule, and append the Review status block.
-   `scripts/round_text.py` does exactly this:
+   comment, drop any `**DRAFT.**` marker line, prepend the Review status block, and for N > 1
+   put the Doc-only section `## What changed since r<N-1>` and a `---` rule between that block
+   and the document. `scripts/round_text.py` does exactly this:
 
    ```bash
    python3 <skill-dir>/scripts/round_text.py <path/to/doc.md> --out round.txt
@@ -96,9 +98,9 @@ Round N, starting from a repo file that is ready for eyes.
 4. Tell the user it is the reviewer's turn, and stop. The reviewer edits the Doc directly and
    leaves margin comments.
 
-5. **Read the round back** and classify everything (next section). Apply direct edits verbatim and
-   comment instructions as instructed to the repo file, drafting the What-changed bullets as you
-   go.
+5. **Read the round back**, look at the ticked box first, and classify everything (next
+   section). Apply direct edits verbatim and comment instructions as instructed to the repo
+   file, drafting the What-changed bullets as you go.
 
 6. **Publish round N+1 as a new Doc** (steps 1–3). Content cannot be updated in place.
 
@@ -106,9 +108,13 @@ Round N, starting from a repo file that is ready for eyes.
    `<Title> — <date> r<N> [processed <MM-DD> → r<N+1>]` and move it into `Archive/` in one
    update-file call (it takes `fileId`, `title`, `parentId`). `<MM-DD>` is the processing date.
 
-8. **Repeat until the reviewer says done**, in chat or by setting the Review status block to
-   "Approved". Then commit the Markdown and retitle the last Doc
-   `<Title> — <date> r<N> [CLOSED → <path/to/doc.md>]`, leaving it in the folder root.
+8. **Let the ticked box decide.** *In progress* means the reviewer is not finished — leave the
+   round alone and come back to it. *Reviewed with comments* means process it and publish
+   r<N+1>. *Approved as-is* closes the document out: commit the Markdown and retitle the last
+   Doc `<Title> — <date> r<N> [CLOSED → <path/to/doc.md>]`, leaving it in the folder root. A
+   reviewer who says "done" in chat closes it just as well as a ticked box, and an untouched
+   block over a Doc full of comments is a *Reviewed with comments* round — ticking is a
+   convenience for them, not a gate on you.
 
 **Finding the current round:** search the folder with `parentId = '<folder-id>'`; the one Doc
 per document in the root is the current state, and its bracket says whose turn it is.
@@ -134,13 +140,21 @@ noise the round trip introduces, so what survives is the reviewer's work:
 python3 <skill-dir>/scripts/doc_diff.py <path/to/doc.md> readback.txt
 ```
 
-It prints the Review status block's two cells first (look there before anything else: "Approved"
-means step 8), then the comment threads in document order, one line per thread with the paragraph it
-starts in (and the paragraph it runs through when a thread spans several), every paragraph
+It prints the ticked box first, with what that box means for the loop (look there before
+anything else — that is step 8), then the comment threads in document order, one line per thread
+with the paragraph it starts in (and the paragraph it runs through when a thread spans several), every paragraph
 carrying a `~~` deletion, and a unified diff of the remaining paragraphs. Exit 0 means no
 differences. The read-back separates paragraphs with a single newline on some calls and a blank
 line on others; the script treats every read-back line as a paragraph, so both shapes diff clean
 against the hard-wrapped repo file.
+
+A box the reviewer ticked reads back as `- [x] <label>`. **On screen Docs strikes a ticked label
+through, but the read-back carries no `~~`** — the strikethrough is a rendering of the checked
+state, not character formatting, so only the `[x]` survives the export (checked 2026-09-08
+against a box ticked by hand in the Docs UI). Expect the mismatch and do not build on it either
+way: `doc_diff.py` reads the label past any `~~`, so a struck label and a clean one parse the
+same. The real protection is ordering — the block is split off *before* the deletion scan, so a
+tick can never surface as a reviewer deletion.
 
 **Conversion artifacts — never mistake these for edits**, and add any new one you find to the
 script's normalizer rather than to your head:
@@ -155,6 +169,7 @@ script's normalizer rather than to your head:
 | `## 1\. Title` | Docs escapes the period after a heading number |
 | `E\&C`, `\~/.claude` | Docs escapes ampersands and tildes too |
 | a fenced code block with `\`\`\` Unset` on the opening fence and every line a paragraph of its own | the block flattens line by line; the language tag is Docs' |
+| `-----` where the Markdown had `---` | Docs widens a horizontal rule; the script folds every width back to `---` |
 
 Then classify each real finding: **direct edit** (decision — apply verbatim), **comment**
 (instruction or question — act, then answer in What-changed), or **artifact** (ignore). When a
