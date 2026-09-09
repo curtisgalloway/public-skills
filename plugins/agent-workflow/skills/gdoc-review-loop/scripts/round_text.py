@@ -7,9 +7,10 @@ The repo file is the source of truth; the Google Doc is only the review
 surface. This strips what belongs to the repo and not to the reviewer (a
 leading license/SPDX HTML comment, any `**DRAFT.**` marker line) and, for
 rounds after r1, prepends the Doc-only "What changed since r<N-1>" section
-followed by a horizontal rule. Every round ends with a Doc-only "Review
-status" block (a two-row table: Review status / Comments) the reviewer fills
-in to sign off; --no-status omits it. Stdlib only, Python 3.9+.
+followed by a horizontal rule. Every round opens with a Doc-only "Review
+status" block -- a three-state checklist (In progress / Reviewed with
+comments / Approved as-is) plus a Comments label -- that the reviewer ticks
+to sign off; --no-status omits it. Stdlib only, Python 3.9+.
 
 Usage:
   round_text.py DOC.md --out round.txt
@@ -26,15 +27,20 @@ import sys
 LEADING_COMMENT = re.compile(r"\A\s*<!--.*?-->[ \t]*\n?", re.S)
 DRAFT_LINE = re.compile(r"^[ \t]*\*\*DRAFT\.\*\*.*(?:\n|\Z)", re.M)
 
-# The reviewer's sign-off block. Doc-only: doc_diff.py strips it from the
-# read-back and reports its two cells. The empty header row is what Docs
-# renders as a headerless table; the bold labels match the reviewer's own.
+# The reviewer's sign-off block, at the top of every round. Doc-only:
+# doc_diff.py splits it off the read-back and reports which box is ticked.
+# Docs' Markdown import turns "- [ ]" into a real clickable checklist and
+# exports it back the same way, so the reviewer ticks a box instead of
+# editing text (verified 2026-09-08). The rules above and below it are what
+# separate it from the round's own content.
 REVIEW_STATUS = (
-    "\n## Review status\n\n"
-    "| | |\n"
-    "|---|---|\n"
-    "| **Review status** | Needs review |\n"
-    "| **Comments** | |\n"
+    "---\n\n"
+    "**Review status:**\n\n"
+    "- [ ] In progress\n"
+    "- [ ] Reviewed with comments\n"
+    "- [ ] Approved as-is\n\n"
+    "**Comments:**\n\n"
+    "---\n\n"
 )
 
 
@@ -60,13 +66,14 @@ def what_changed(body, round_no):
 
 
 def build(source_text, changed_text=None, round_no=None, status=True):
+    """Status block first, then the Doc-only reply, then the document."""
     text = strip_repo_only(source_text)
     if changed_text is not None:
         text = what_changed(changed_text, round_no) + text
+    if status:
+        text = REVIEW_STATUS + text
     if not text.endswith("\n"):
         text += "\n"
-    if status:
-        text += REVIEW_STATUS
     return text
 
 
@@ -82,7 +89,7 @@ def main():
     ap.add_argument("--out", metavar="FILE",
                     help="write here (default: stdout)")
     ap.add_argument("--no-status", action="store_true",
-                    help="omit the trailing Review status sign-off block")
+                    help="omit the leading Review status sign-off block")
     args = ap.parse_args()
 
     with open(args.source, encoding="utf-8") as f:

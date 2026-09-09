@@ -8,8 +8,10 @@ normalizing both past the noise the Markdown -> Doc -> text round trip adds
 (escaped underscores and heading numbers, dropped code spans, synthesized
 table header and alignment rows with bolded cells, curly quotes, hard wraps,
 fenced code blocks flattened to one paragraph per line with a stray language
-tag on the opening fence, and the inline <comment_start/end id=...> anchors). The Doc-only "Review status" block at the end is split off and
-its two cells reported, not diffed. What survives is the reviewer's work:
+tag on the opening fence, horizontal rules that come back as ----- , and the
+inline <comment_start/end id=...> anchors). The Doc-only "Review status"
+block at the top is split off and its ticked box reported, not diffed. What
+survives is the reviewer's work:
 the comment threads in document order, every paragraph carrying a
 `~~strikethrough~~` deletion, and a unified diff of paragraphs. Stdlib only,
 Python 3.9+. Exit 0 when the two agree, 1 when they differ.
@@ -41,6 +43,24 @@ BLOCK_START = re.compile(r"^(#{1,6}\s|\||[-*+]\s|\d+[.)]\s|>|---\s*$)")
 BLOCK_WHOLE = re.compile(r"^(#{1,6}\s|---\s*$)")
 CHARS = str.maketrans({"\u2018": "'", "\u2019": "'", "\u201c": '"',
                        "\u201d": '"', "\u00a0": " "})
+# A Markdown `---` rule comes back from Docs as `-----`; fold every width to
+# one form so it stays a block boundary on both sides of the diff.
+RULE = re.compile(r"^-{3,}\s*$")
+# Docs imports "- [ ]" as a real checklist and exports the ticked state the
+# same way. It strikes a ticked label through on screen, but that renders the
+# checked state rather than formatting the run: the export carries [x] and no
+# ~~ (checked 2026-09-08 in the Docs UI). Read the label past ~~ regardless,
+# so a struck label and a clean one parse identically.
+BOX = re.compile(r"^[-*+]\s*\[([ xX])\]\s*(.*)$")
+STATUS_HEAD = re.compile(r"^\*{0,2}review status:?\*{0,2}$", re.I)
+COMMENTS_HEAD = re.compile(r"^\*{0,2}comments:?\*{0,2}$", re.I)
+BOXES = ("In progress", "Reviewed with comments", "Approved as-is")
+# What each ticked box means for the loop; SKILL.md step 8 is the authority.
+ACTIONS = {
+    "in progress": "reviewer is not finished - do not process this round yet",
+    "reviewed with comments": "apply the round, then publish the next one",
+    "approved as-is": "close the review: commit the Markdown, retitle [CLOSED]",
+}
 
 
 def normalize(text):
@@ -93,6 +113,8 @@ def paragraphs(text, hard_wrapped=True):
             paras.append(re.sub(r"\s+", " ", s))
             continue
         bare = ANCHOR.sub("", s).strip()
+        if RULE.match(bare):
+            bare = "---"
         if bare.startswith("|"):
             if not bare.strip("|:- \t"):       # alignment row or empty row
                 continue
@@ -122,41 +144,100 @@ def preamble_len(doc, repo):
 
 
 def review_status(doc):
-    """Split the trailing Doc-only Review status block off a read-back.
+    """Split the leading Doc-only Review status block off a read-back.
 
-    Returns (paragraphs without the block, {label: value}) with labels
-    lowercased; the dict is empty when there is no block."""
-    for i, p in enumerate(doc):
-        if p.lower().startswith("## review status"):
-            cells = {}
-            for row in doc[i + 1:]:
-                if not row.startswith("|"):
-                    continue
-                parts = [c.strip() for c in row.strip("|").split("|")]
-                if len(parts) >= 2 and parts[0]:
-                    cells[parts[0].lower()] = parts[1]
-            return doc[:i], cells
-    return doc, {}
+    Returns (paragraphs after the block, status, dropped). `status` is
+    {"boxes": [every label], "checked": [labels ticked], "comments": str,
+     "closed": bool} and is empty when there is no block; `dropped` is how
+    many leading paragraphs the block occupied, which the caller needs to
+    keep comment-thread indices pointing at the right paragraph.
+
+    The label is read past any ~~ markers, so a struck label and a clean one
+    parse the same: Docs strikes ticked labels on screen but exports them
+    without ~~, and nothing here depends on which shape arrives. Splitting
+    the block off here -- before the caller scans for deletions -- is what
+    keeps a struck label from being reported as a reviewer deletion: it is a
+    checkbox, not an edit.
+
+    The block runs to its closing rule. If the reviewer deleted that rule,
+    it ends at the last checkbox or the Comments label instead and "closed"
+    is False; anything they typed under Comments then falls through to the
+    body diff, where it shows up as an insertion rather than being silently
+    swallowed."""
+    head = next((i for i, p in enumerate(doc[:6])
+                 if STATUS_HEAD.match(p.strip())), None)
+    if head is None:
+        return doc, {}, 0
+
+    boxes, checked, comments = [], [], []
+    end, last_block, in_comments = None, head, False
+    for j in range(head + 1, min(len(doc), head + 40)):
+        para = doc[j].strip()
+        if para == "---":
+            end = j
+            break
+        box = BOX.match(para)
+        if box and not in_comments:
+            label = box.group(2).replace("~~", "").strip()
+            boxes.append(label)
+            if box.group(1).lower() == "x":
+                checked.append(label)
+            last_block = j
+        elif COMMENTS_HEAD.match(para):
+            in_comments = True
+            last_block = j
+        elif in_comments and para:
+            comments.append(para)
+    status = {"boxes": boxes, "checked": checked,
+              "comments": " ".join(comments).strip(),
+              "closed": end is not None}
+    if end is None:                       # no closing rule: keep the body whole
+        status["comments"] = ""
+        end = last_block
+    return doc[end + 1:], status, end + 1
 
 
 def report(repo_text, doc_text, out=sys.stdout):
     repo, _ = paragraphs(repo_text)
     doc, threads = paragraphs(doc_text, hard_wrapped=False)
-    skip = preamble_len(doc, repo)
-    doc = doc[skip:]
-    doc, status = review_status(doc)
+    doc, status, dropped = review_status(doc)
+    pre = preamble_len(doc, repo)
+    doc = doc[pre:]
+    skip = dropped + pre                  # Doc-only paragraphs ahead of the body
     if status:
         print("== review status ==", file=out)
-        for label, value in status.items():
-            print(f"  {label}: {value or '(empty)'}", file=out)
+        checked = status["checked"]
+        print(f"  checked: {', '.join(checked) if checked else '(none)'}",
+              file=out)
+        print(f"  comments: {status['comments'] or '(empty)'}", file=out)
+        for label in checked:
+            action = ACTIONS.get(label.lower())
+            if action:
+                print(f"  action: {action}", file=out)
+        if len(checked) > 1:
+            print("  ! more than one box ticked - ask the reviewer", file=out)
+        if tuple(status["boxes"]) != BOXES:
+            print(f"  ! boxes are not the standard three: "
+                  f"{status['boxes'] or '(none found)'}", file=out)
+        if not status["closed"]:
+            print("  ! block has no closing rule; anything typed under "
+                  "Comments will show in the diff below", file=out)
+    elif dropped == 0:
+        print("== review status ==\n  ! no Review status block in this "
+              "read-back", file=out)
 
     if threads:
         print("== comment threads, document order ==", file=out)
         for cid, first, last in threads:
-            first -= skip
-            last -= skip
-            where = doc[first][:100] if 0 <= first < len(doc) else "(preamble)"
-            span = f"  (through paragraph {last + 1})" if last != first else ""
+            if first < dropped:
+                where = "(review status block)"
+            elif first < skip:
+                where = "(preamble)"
+            else:
+                i = first - skip
+                where = doc[i][:100] if i < len(doc) else "(preamble)"
+            span = (f"  (through paragraph {last - skip + 1})"
+                    if last != first else "")
             print(f"  {cid}: {where}{span}", file=out)
     deletions = [p for p in doc if "~~" in p]
     if deletions:
@@ -190,9 +271,27 @@ across two lines with `response_format` and "quotes".
 - A bullet the reviewer leaves alone.
 """
 
+# The Doc-only sign-off block as Docs reads it back: the rules widen to
+# ----- and a box ticked in the UI comes back struck through.
+STATUS_HEADER = """-----
+
+**Review status:**
+
+- [ ] In progress
+- [ ] Reviewed with comments
+- [x] Approved as-is
+
+**Comments:**
+
+ship it
+
+-----
+
+"""
+
 # Read-back with blank lines between paragraphs (includeComments: false
 # has produced this shape), a Doc-only preamble, one edit, one thread.
-DOC_FIXTURE = """## What changed since r1
+DOC_FIXTURE = STATUS_HEADER + """## What changed since r1
 
 - "Trim the intro" - trimmed.
 
@@ -235,6 +334,11 @@ def self_test():
     assert "kix.1: - A bullet the reviewer ~~will~~" in text, text
     assert "1 deletion(s); 1 comment thread(s)" in text, text
     assert "response_format" not in "\n".join(body), text   # artifacts normalized away
+    # The block rides ahead of a What-changed preamble: both are dropped,
+    # and the comment-thread index survives being shifted twice.
+    assert "  checked: Approved as-is" in text, text
+    assert "  comments: ship it" in text, text
+    assert "close the review" in text, text
 
     buf = io.StringIO()
     rc = report(REPO_FIXTURE, DOC_FIXTURE_SINGLE_NEWLINE, out=buf)
@@ -243,19 +347,58 @@ def self_test():
     assert "0 paragraph line(s) differ; 0 deletion(s); 1 comment thread(s)" in text, text
     assert "kix.2: - A bullet the reviewer will edit.  (through paragraph 6)" in text, text
 
-    trailer = ("## Review Status\n|  |  |\n| :- | :- |\n"
-               "| **Review Status** | Approved |\n| **Comments** | ship it |\n")
+
+    # Docs strikes a ticked label on screen and exports it clean, so both
+    # shapes have to parse the same. Either way it is a checkbox, not a
+    # deletion: the label reads clean and the deletion scan never sees it.
+    struck = STATUS_HEADER.replace("- [x] Approved as-is",
+                                   "- [x] ~~Approved as-is~~")
     buf = io.StringIO()
-    rc = report(REPO_FIXTURE, DOC_FIXTURE_SINGLE_NEWLINE + trailer, out=buf)
+    rc = report(REPO_FIXTURE, struck + DOC_FIXTURE_SINGLE_NEWLINE, out=buf)
     text = buf.getvalue()
     assert rc == 0, text
-    assert "  review status: Approved" in text and "  comments: ship it" in text, text
+    assert "  checked: Approved as-is" in text, text
+    assert "0 deletion(s)" in text, text
+    assert "kix.2: - A bullet the reviewer will edit.  (through paragraph 6)" in text, text
+
+    # Reviewer left it mid-review, and renamed nothing.
+    buf = io.StringIO()
+    rc = report(REPO_FIXTURE,
+                STATUS_HEADER.replace("- [x] Approved as-is",
+                                      "- [ ] Approved as-is")
+                .replace("- [ ] In progress", "- [x] In progress")
+                + DOC_FIXTURE_SINGLE_NEWLINE, out=buf)
+    text = buf.getvalue()
+    assert rc == 0 and "do not process this round yet" in text, text
+    assert "! boxes are not the standard three" not in text, text
+
+    # No box ticked at all, and the closing rule deleted: the block still
+    # ends, and what they typed under Comments surfaces in the diff instead
+    # of being swallowed with the block.
+    buf = io.StringIO()
+    rc = report(REPO_FIXTURE,
+                STATUS_HEADER.replace("- [x] Approved as-is",
+                                      "- [ ] Approved as-is")
+                .rsplit("-----", 1)[0]          # opening rule kept, closing one gone
+                + DOC_FIXTURE_SINGLE_NEWLINE, out=buf)
+    text = buf.getvalue()
+    assert "  checked: (none)" in text, text
+    assert "no closing rule" in text, text
+    assert "+ship it" in text, text
+    assert rc == 1, text
+
+    # A read-back with no block at all is called out, not silently accepted.
+    buf = io.StringIO()
+    rc = report(REPO_FIXTURE, DOC_FIXTURE_SINGLE_NEWLINE, out=buf)
+    text = buf.getvalue()
+    assert rc == 0 and "no Review status block" in text, text
 
     repo = "# Title\n\nFirst paragraph.\n\nSecond paragraph.\n"
     doc = "# Title\nFirst paragraph.\nSecond paragraph.\n"
     assert paragraphs(repo)[0] == paragraphs(doc, hard_wrapped=False)[0]
     assert paragraphs("# T\nBody line one\nline two\n")[0] == ["# T", "Body line one line two"]
     assert paragraphs("---\nAfter the rule\n")[0] == ["---", "After the rule"]
+    assert paragraphs("-----\nAfter\n", hard_wrapped=False)[0] == ["---", "After"]
     assert paragraphs("## 1\\. Title\n", hard_wrapped=False)[0] == ["## 1. Title"]
     assert paragraphs("E\\&C in \\~/.claude\n", hard_wrapped=False)[0] == ["E&C in ~/.claude"]
     fenced_repo = "Intro.\n\n```\n  a -> b\n  | c\n```\n\nAfter.\n"
