@@ -56,12 +56,36 @@ live co-editing by several people at once; the loop assumes one reviewer acting 
 - **The "What changed since r<N-1>" section is Doc-only.** It is the reply to the reviewer. It
   never enters the committed Markdown.
 - **Every round opens with a Doc-only "Review status" block**, above everything else in the Doc:
-  a three-state checklist the reviewer ticks — *In progress*, *Reviewed with comments*,
-  *Approved as-is* — over a *Comments* label for anything that does not belong in a margin
-  comment. Step 8 says what each box does. Docs imports `- [ ]` as a real clickable checklist
-  and exports the ticked state the same way (verified 2026-09-08), so the reviewer ticks a box
-  rather than editing text. `round_text.py` prepends the block and `doc_diff.py` splits it off
-  the read-back and reports the ticked box. It never enters the committed Markdown either.
+  two boxes the reviewer ticks — *Reviewed with comments* and *Approved as-is* — over a
+  *Comments* label for anything that does not belong in a margin comment. **No box ticked is the
+  default and a state of its own**: the review is still in progress. There is no box for it —
+  an untouched block already says it, and a box for the default only invites a reviewer to tick
+  it and then forget to change it. Step 8 says what each box does. Docs imports `- [ ]` as a
+  real clickable checklist and exports the ticked state the same way (verified 2026-09-08), so
+  the reviewer ticks a box rather than editing text. `round_text.py` prepends the block and
+  `doc_diff.py` splits it off the read-back and reports the ticked box. It never enters the
+  committed Markdown either.
+- **A decision the reviewer has to make is a checkbox set, never a question in prose.** When a
+  round needs them to choose — a title, a number, whether a section stays — put it in the
+  Doc-only *Decisions needed* block, right under the Review status block: a question line, then
+  one `- [ ]` alternative per line, the one you recommend first and marked `Recommended: `, and
+  an `Other: ` line last for an answer you did not think of.
+
+  ```
+  **Decisions needed:**
+
+  Which flavor for the launch?
+
+  - [ ] Recommended: vanilla
+  - [ ] chocolate
+  - [ ] Other:
+  ```
+
+  One alternative per line is a constraint, not a style: Docs only renders a checkbox for a line
+  that opens a list item, so `[ ] vanilla [ ] chocolate` on one line arrives as plain text.
+  `round_text.py --decisions` builds the block (and refuses a box you pre-ticked — the tick is
+  the reviewer's answer); `doc_diff.py` reports each decision with what they chose and flags any
+  left unanswered. Doc-only, like the rest.
 - **Every comment thread gets an answer** in the next round's What-changed section and in chat.
   Never leave one unanswered in both places.
 
@@ -78,11 +102,20 @@ Round N, starting from a repo file that is ready for eyes.
    python3 <skill-dir>/scripts/round_text.py <path/to/doc.md> --out round.txt
    python3 <skill-dir>/scripts/round_text.py <path/to/doc.md> \
        --changed changed.md --round 2 --out round.txt
+   python3 <skill-dir>/scripts/round_text.py <path/to/doc.md> \
+       --changed changed.md --round 2 --decisions decisions.md --out round.txt
    ```
 
    Write `changed.md` yourself: one bullet per comment thread and per direct edit, in document
    order, each quoting the comment briefly and saying what was done with it — applied, applied
    differently and why, declined and why, or answered.
+
+   Write `decisions.md` when this round needs the reviewer to choose something — an open
+   question you cannot settle, two readings of a comment they left, a placeholder only they can
+   fill. One question line per decision, its alternatives as `- [ ]` lines under it,
+   recommendation first, `Other: ` last (format above). A question you ask in prose instead gets
+   read past; a checkbox gets answered. If nothing needs deciding, omit the flag — do not ship
+   an empty block.
 
 2. **Read the scratch file back into context before uploading**, and upload that text and nothing
    else. The uploaded text must be byte-identical to the file; if it drifts, every later diff will
@@ -108,13 +141,14 @@ Round N, starting from a repo file that is ready for eyes.
    `<Title> — <date> r<N> [processed <MM-DD> → r<N+1>]` and move it into `Archive/` in one
    update-file call (it takes `fileId`, `title`, `parentId`). `<MM-DD>` is the processing date.
 
-8. **Let the ticked box decide.** *In progress* means the reviewer is not finished — leave the
-   round alone and come back to it. *Reviewed with comments* means process it and publish
+8. **Let the ticked box decide.** *Reviewed with comments* means process the round and publish
    r<N+1>. *Approved as-is* closes the document out: commit the Markdown and retitle the last
-   Doc `<Title> — <date> r<N> [CLOSED → <path/to/doc.md>]`, leaving it in the folder root. A
-   reviewer who says "done" in chat closes it just as well as a ticked box, and an untouched
-   block over a Doc full of comments is a *Reviewed with comments* round — ticking is a
-   convenience for them, not a gate on you.
+   Doc `<Title> — <date> r<N> [CLOSED → <path/to/doc.md>]`, leaving it in the folder root.
+   **Neither box ticked means the reviewer has not signed off** — the default, still in
+   progress: leave the round alone and come back to it, *unless* they have left comments or
+   edits in the Doc or said "done" in chat, either of which decides it for them. Ticking is a
+   convenience for them, not a gate on you. An unanswered decision is its own reason to wait:
+   ask for it rather than publishing r<N+1> with the choice made for them.
 
 **Finding the current round:** search the folder with `parentId = '<folder-id>'`; the one Doc
 per document in the root is the current state, and its bracket says whose turn it is.
@@ -141,7 +175,8 @@ python3 <skill-dir>/scripts/doc_diff.py <path/to/doc.md> readback.txt
 ```
 
 It prints the ticked box first, with what that box means for the loop (look there before
-anything else — that is step 8), then the comment threads in document order, one line per thread
+anything else — that is step 8), then each decision with the alternative the reviewer ticked
+(`(UNDECIDED)` when they ticked none), then the comment threads in document order, one line per thread
 with the paragraph it starts in (and the paragraph it runs through when a thread spans several), every paragraph
 carrying a `~~` deletion, and a unified diff of the remaining paragraphs. Exit 0 means no
 differences. The read-back separates paragraphs with a single newline on some calls and a blank
@@ -153,8 +188,8 @@ through, but the read-back carries no `~~`** — the strikethrough is a renderin
 state, not character formatting, so only the `[x]` survives the export (checked 2026-09-08
 against a box ticked by hand in the Docs UI). Expect the mismatch and do not build on it either
 way: `doc_diff.py` reads the label past any `~~`, so a struck label and a clean one parse the
-same. The real protection is ordering — the block is split off *before* the deletion scan, so a
-tick can never surface as a reviewer deletion.
+same. The real protection is ordering — both Doc-only blocks are split off *before* the deletion
+scan, so a tick can never surface as a reviewer deletion, in the status block or in a decision.
 
 **Conversion artifacts — never mistake these for edits**, and add any new one you find to the
 script's normalizer rather than to your head:
