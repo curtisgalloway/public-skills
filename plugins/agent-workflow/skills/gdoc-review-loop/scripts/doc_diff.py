@@ -9,9 +9,10 @@ normalizing both past the noise the Markdown -> Doc -> text round trip adds
 table header and alignment rows with bolded cells, curly quotes, hard wraps,
 fenced code blocks flattened to one paragraph per line with a stray language
 tag on the opening fence, horizontal rules that come back as ----- , and the
-inline <comment_start/end id=...> anchors). The Doc-only "Review status" and
-"Decisions needed" blocks at the top are split off and their ticked boxes
-reported, not diffed. What survives is the reviewer's work:
+inline <comment_start/end id=...> anchors). The Doc-only header line
+(`# <Title> -- <date> r<N>`) and the "Review status" and "Decisions needed"
+blocks at the top are split off and reported -- the round named, the ticked
+boxes listed -- not diffed. What survives is the reviewer's work:
 the comment threads in document order, every paragraph carrying a
 `~~strikethrough~~` deletion, and a unified diff of paragraphs. Stdlib only,
 Python 3.9+. Exit 0 when the two agree, 1 when they differ.
@@ -53,6 +54,12 @@ RULE = re.compile(r"^-{3,}\s*$")
 # so a struck label and a clean one parse identically.
 BOX = re.compile(r"^[-*+]\s*\[([ xX])\]\s*(.*)$")
 STATUS_HEAD = re.compile(r"^\*{0,2}review status:?\*{0,2}$", re.I)
+# The Doc-only header round_text.py puts above everything: the Doc's title
+# without its bracketed status. Docs may hand the dash back as an em dash,
+# an en dash or a hyphen run, so accept any of them.
+ROUND_HEAD = re.compile(
+    r"^#{1,6}\s+(?P<title>.+?)\s+(?:\u2014|\u2013|-{1,3})\s+"
+    r"(?P<date>\d{4}-\d{2}-\d{2})\s+r(?P<round>\d+)\s*$")
 COMMENTS_HEAD = re.compile(r"^\*{0,2}comments:?\*{0,2}$", re.I)
 DECISIONS_HEAD = re.compile(r"^\*{0,2}decisions needed:?\*{0,2}$", re.I)
 BOXES = ("Reviewed with comments", "Approved as-is")
@@ -146,6 +153,22 @@ def preamble_len(doc, repo):
         if "---" in doc:
             return doc.index("---") + 1
     return 0
+
+
+def round_header(doc):
+    """Split the Doc-only `# <Title> -- <date> r<N>` line off a read-back.
+
+    Returns (paragraphs after it, header, dropped). `header` is
+    {"title", "date", "round"} or empty when the read-back has no such line;
+    `dropped` is 1 or 0. It is the first paragraph or nothing: a heading of
+    that shape further down is the document's own."""
+    if doc:
+        m = ROUND_HEAD.match(doc[0].strip())
+        if m:
+            head = {"title": m.group("title").strip(), "date": m.group("date"),
+                    "round": int(m.group("round"))}
+            return doc[1:], head, 1
+    return doc, {}, 0
 
 
 def review_status(doc):
@@ -246,12 +269,20 @@ def decisions(doc):
 def report(repo_text, doc_text, out=sys.stdout):
     repo, _ = paragraphs(repo_text)
     doc, threads = paragraphs(doc_text, hard_wrapped=False)
+    doc, head, dropped_head = round_header(doc)
     doc, status, dropped_status = review_status(doc)
     doc, chosen, dropped_dec = decisions(doc)
-    dropped = dropped_status + dropped_dec
+    after_status = dropped_head + dropped_status   # the header rides above the block
+    dropped = after_status + dropped_dec
     pre = preamble_len(doc, repo)
     doc = doc[pre:]
     skip = dropped + pre                  # Doc-only paragraphs ahead of the body
+    if head:
+        print(f"== round ==\n  {head['title']} \u2014 {head['date']} "
+              f"r{head['round']}", file=out)
+    else:
+        print("== round ==\n  ! no '# <Title> \u2014 <date> r<N>' header "
+              "line in this read-back", file=out)
     if status:
         print("== review status ==", file=out)
         checked = status["checked"]
@@ -298,7 +329,9 @@ def report(repo_text, doc_text, out=sys.stdout):
     if threads:
         print("== comment threads, document order ==", file=out)
         for cid, first, last in threads:
-            if first < dropped_status:
+            if first < dropped_head:
+                where = "(round header)"
+            elif first < after_status:
                 where = "(review status block)"
             elif first < dropped:
                 where = "(decisions block)"
@@ -344,6 +377,9 @@ across two lines with `response_format` and "quotes".
 - A bullet the reviewer leaves alone.
 """
 
+# The Doc-only header line as Docs reads it back.
+ROUND_HEADER = "# Title \u2014 2026-09-01 r2\n\n"
+
 # The Doc-only sign-off block as Docs reads it back: the rules widen to
 # ----- and a box ticked in the UI comes back struck through.
 STATUS_HEADER = """-----
@@ -383,7 +419,7 @@ Ship before or after the conference?
 
 # Read-back with blank lines between paragraphs (includeComments: false
 # has produced this shape), a Doc-only preamble, one edit, one thread.
-DOC_FIXTURE = STATUS_HEADER + """## What changed since r1
+DOC_FIXTURE = ROUND_HEADER + STATUS_HEADER + """## What changed since r1
 
 - "Trim the intro" - trimmed.
 
@@ -431,11 +467,26 @@ def self_test():
     assert "  checked: Approved as-is" in text, text
     assert "  comments: ship it" in text, text
     assert "close the review" in text, text
+    assert "== round ==\n  Title \u2014 2026-09-01 r2" in text, text
+
+    # The header alone, above a body with no status block (--no-status):
+    # it is named, not diffed as an insertion. An en dash or a hyphen run
+    # in place of the em dash parses the same.
+    for dash in ("\u2014", "\u2013", "-", "--"):
+        buf = io.StringIO()
+        rc = report(REPO_FIXTURE,
+                    f"# Title {dash} 2026-09-01 r3\n" + DOC_FIXTURE_SINGLE_NEWLINE,
+                    out=buf)
+        text = buf.getvalue()
+        assert rc == 0, (dash, text)
+        assert "  Title \u2014 2026-09-01 r3" in text, (dash, text)
+        assert "no Review status block" in text, text
 
     buf = io.StringIO()
     rc = report(REPO_FIXTURE, DOC_FIXTURE_SINGLE_NEWLINE, out=buf)
     text = buf.getvalue()
     assert rc == 0, text
+    assert "! no '# <Title>" in text, text
     assert "0 paragraph line(s) differ; 0 deletion(s); 1 comment thread(s)" in text, text
     assert "kix.2: - A bullet the reviewer will edit.  (through paragraph 6)" in text, text
 

@@ -7,11 +7,13 @@ The repo file is the source of truth; the Google Doc is only the review
 surface. This strips what belongs to the repo and not to the reviewer (a
 leading license/SPDX HTML comment, any `**DRAFT.**` marker line) and, for
 rounds after r1, prepends the Doc-only "What changed since r<N-1>" section
-followed by a horizontal rule. Every round opens with a Doc-only "Review
-status" block -- two boxes (Reviewed with comments / Approved as-is) plus a
-Comments label -- that the reviewer ticks to sign off; no box ticked is the
-default and means the review is still in progress. --no-status omits the
-block. A round that needs the reviewer to choose between alternatives also
+followed by a horizontal rule. Every round opens with a Doc-only header
+line, `# <Title> -- <date> r<N>`, the Doc's own title without its bracketed
+status, so the reviewer can tell which document and which round they have
+open (--no-header omits it). Under it sits a Doc-only "Review status" block
+-- two boxes (Reviewed with comments / Approved as-is) plus a Comments label
+-- that the reviewer ticks to sign off; no box ticked is the default and
+means the review is still in progress. --no-status omits the block. A round that needs the reviewer to choose between alternatives also
 carries a Doc-only "Decisions needed" block (--decisions). Stdlib only,
 Python 3.9+.
 
@@ -28,13 +30,19 @@ Usage:
 alternatives as `- [ ] ` checkboxes, one per line -- Docs only renders a
 checkbox for a line that starts a list item, so alternatives cannot share a
 line. Mark the one you recommend `Recommended: <choice>` and put it first,
-and end each set with an `Other: ` escape hatch:
+end each set with an `Other: ` escape hatch, and capitalize every
+alternative the same way (a reviewer flagged `decline` next to
+`Recommended: ...` as a nit on 2026-09-10):
 
     Which flavor for the launch?
 
-    - [ ] Recommended: vanilla
-    - [ ] chocolate
+    - [ ] Recommended: Vanilla
+    - [ ] Chocolate
     - [ ] Other:
+
+The header takes its title from the source file's first `# ` heading and
+its date from the first YYYY-MM-DD in the source filename; --title and
+--date override either, and --round (default 1) supplies the N.
 """
 import argparse
 import re
@@ -42,6 +50,8 @@ import sys
 
 LEADING_COMMENT = re.compile(r"\A\s*<!--.*?-->[ \t]*\n?", re.S)
 DRAFT_LINE = re.compile(r"^[ \t]*\*\*DRAFT\.\*\*.*(?:\n|\Z)", re.M)
+H1 = re.compile(r"^#[ \t]+(.+?)[ \t]*#*[ \t]*$", re.M)
+FILE_DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
 
 # The reviewer's sign-off block, at the top of every round. Doc-only:
 # doc_diff.py splits it off the read-back and reports which box is ticked.
@@ -62,6 +72,30 @@ REVIEW_STATUS = (
 
 DECISIONS_HEAD = "**Decisions needed:**"
 BOX_LINE = re.compile(r"^[-*+]\s*\[([ xX])\]\s*(.*)$")
+
+
+def header(source_text, source_name=None, title=None, date=None, round_no=None):
+    """The Doc-only header line: the Doc's title without its bracketed status.
+
+    `# <Title> -- <date> r<N>`, so a reviewer with the Doc open (or a copy
+    of it, or a printout) can tell which document and which round it is
+    without looking at the Drive listing. Title from the source's first H1
+    and date from its filename unless given; both are required, because a
+    header missing either would name nothing.
+    """
+    if title is None:
+        m = H1.search(strip_repo_only(source_text))
+        if not m:
+            raise SystemExit("round_text: no '# ' heading in the source to take "
+                             "the title from; pass --title (or --no-header)")
+        title = m.group(1).strip()
+    if date is None:
+        m = FILE_DATE.search(source_name or "")
+        if not m:
+            raise SystemExit("round_text: no YYYY-MM-DD in the source filename "
+                             "to take the date from; pass --date (or --no-header)")
+        date = m.group(0)
+    return f"# {title} \u2014 {date} r{round_no or 1}\n\n"
 
 
 def strip_repo_only(text):
@@ -135,8 +169,9 @@ def decisions(body, warn=sys.stderr):
 
 
 def build(source_text, changed_text=None, round_no=None, status=True,
-          decisions_text=None):
-    """Status block, then decisions, then the Doc-only reply, then the document."""
+          decisions_text=None, header_line=True, source_name=None, title=None,
+          date=None):
+    """Header, status block, decisions, the Doc-only reply, then the document."""
     text = strip_repo_only(source_text)
     if changed_text is not None:
         text = what_changed(changed_text, round_no) + text
@@ -144,6 +179,8 @@ def build(source_text, changed_text=None, round_no=None, status=True,
         text = decisions(decisions_text) + text
     if status:
         text = REVIEW_STATUS + text
+    if header_line:
+        text = header(source_text, source_name, title, date, round_no) + text
     if not text.endswith("\n"):
         text += "\n"
     return text
@@ -165,6 +202,14 @@ def main():
                     help="write here (default: stdout)")
     ap.add_argument("--no-status", action="store_true",
                     help="omit the leading Review status sign-off block")
+    ap.add_argument("--title", metavar="TEXT",
+                    help="document title for the header line (default: the "
+                         "source's first '# ' heading)")
+    ap.add_argument("--date", metavar="YYYY-MM-DD",
+                    help="document date for the header line (default: the "
+                         "first date in the source filename)")
+    ap.add_argument("--no-header", action="store_true",
+                    help="omit the leading '# <Title> -- <date> r<N>' line")
     args = ap.parse_args()
 
     with open(args.source, encoding="utf-8") as f:
@@ -179,7 +224,8 @@ def main():
             decisions_text = f.read()
 
     text = build(source, changed, args.round, status=not args.no_status,
-                 decisions_text=decisions_text)
+                 decisions_text=decisions_text, header_line=not args.no_header,
+                 source_name=args.source, title=args.title, date=args.date)
     if args.out:
         with open(args.out, "w", encoding="utf-8", newline="\n") as f:
             f.write(text)

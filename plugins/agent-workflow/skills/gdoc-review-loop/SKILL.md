@@ -55,7 +55,13 @@ live co-editing by several people at once; the loop assumes one reviewer acting 
   and answered; if it is a question, answer it; if you decline it, say so and why.
 - **The "What changed since r<N-1>" section is Doc-only.** It is the reply to the reviewer. It
   never enters the committed Markdown.
-- **Every round opens with a Doc-only "Review status" block**, above everything else in the Doc:
+- **Every round opens with a Doc-only header line**, `# <Title> — <date> r<N>`: the Doc's own
+  title without its bracketed status, so a reviewer with the Doc open — or a copy of it, or a
+  printout — can tell which document and which round they are looking at without the Drive
+  listing (asked for by a reviewer on 2026-09-10, when a round arrived with no version on the
+  page). `round_text.py` builds it from the file's H1 and the date in its filename;
+  `doc_diff.py` splits it off the read-back and reports the round it names.
+- **Under the header, a Doc-only "Review status" block**, above everything else in the Doc:
   two boxes the reviewer ticks — *Reviewed with comments* and *Approved as-is* — over a
   *Comments* label for anything that does not belong in a margin comment. **No box ticked is the
   default and a state of its own**: the review is still in progress. There is no box for it —
@@ -69,15 +75,17 @@ live co-editing by several people at once; the loop assumes one reviewer acting 
   round needs them to choose — a title, a number, whether a section stays — put it in the
   Doc-only *Decisions needed* block, right under the Review status block: a question line, then
   one `- [ ]` alternative per line, the one you recommend first and marked `Recommended: `, and
-  an `Other: ` line last for an answer you did not think of.
+  an `Other: ` line last for an answer you did not think of. Capitalize every alternative the
+  same way — `Decline`, not `decline`, beside `Recommended: Apply it` — a reviewer flagged the
+  mix as a nit on 2026-09-10, and a nit in the ask list costs attention the document needs.
 
   ```
   **Decisions needed:**
 
   Which flavor for the launch?
 
-  - [ ] Recommended: vanilla
-  - [ ] chocolate
+  - [ ] Recommended: Vanilla
+  - [ ] Chocolate
   - [ ] Other:
   ```
 
@@ -94,9 +102,11 @@ live co-editing by several people at once; the loop assumes one reviewer acting 
 Round N, starting from a repo file that is ready for eyes.
 
 1. **Build the round text mechanically** from the repo file: drop the leading license/SPDX HTML
-   comment, drop any `**DRAFT.**` marker line, prepend the Review status block, and for N > 1
-   put the Doc-only section `## What changed since r<N-1>` and a `---` rule between that block
-   and the document. `scripts/round_text.py` does exactly this:
+   comment, drop any `**DRAFT.**` marker line, prepend the header line and the Review status
+   block, and for N > 1 put the Doc-only section `## What changed since r<N-1>` and a `---` rule
+   between that block and the document. `scripts/round_text.py` does exactly this, taking the
+   header's title from the file's first `# ` heading and its date from the filename (`--title`
+   and `--date` override either; `--round` is the N, default 1):
 
    ```bash
    python3 <skill-dir>/scripts/round_text.py <path/to/doc.md> --out round.txt
@@ -174,8 +184,8 @@ noise the round trip introduces, so what survives is the reviewer's work:
 python3 <skill-dir>/scripts/doc_diff.py <path/to/doc.md> readback.txt
 ```
 
-It prints the ticked box first, with what that box means for the loop (look there before
-anything else — that is step 8), then each decision with the alternative the reviewer ticked
+It prints the round the header names, then the ticked box with what that box means for the
+loop (look there before anything else — that is step 8), then each decision with the alternative the reviewer ticked
 (`(UNDECIDED)` when they ticked none), then the comment threads in document order, one line per thread
 with the paragraph it starts in (and the paragraph it runs through when a thread spans several), every paragraph
 carrying a `~~` deletion, and a unified diff of the remaining paragraphs. Exit 0 means no
