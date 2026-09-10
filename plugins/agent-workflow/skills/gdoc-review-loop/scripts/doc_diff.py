@@ -9,9 +9,9 @@ normalizing both past the noise the Markdown -> Doc -> text round trip adds
 table header and alignment rows with bolded cells, curly quotes, hard wraps,
 fenced code blocks flattened to one paragraph per line with a stray language
 tag on the opening fence, horizontal rules that come back as ----- , and the
-inline <comment_start/end id=...> anchors). The Doc-only "Review status"
-block at the top is split off and its ticked box reported, not diffed. What
-survives is the reviewer's work:
+inline <comment_start/end id=...> anchors). The Doc-only "Review status" and
+"Decisions needed" blocks at the top are split off and their ticked boxes
+reported, not diffed. What survives is the reviewer's work:
 the comment threads in document order, every paragraph carrying a
 `~~strikethrough~~` deletion, and a unified diff of paragraphs. Stdlib only,
 Python 3.9+. Exit 0 when the two agree, 1 when they differ.
@@ -54,13 +54,18 @@ RULE = re.compile(r"^-{3,}\s*$")
 BOX = re.compile(r"^[-*+]\s*\[([ xX])\]\s*(.*)$")
 STATUS_HEAD = re.compile(r"^\*{0,2}review status:?\*{0,2}$", re.I)
 COMMENTS_HEAD = re.compile(r"^\*{0,2}comments:?\*{0,2}$", re.I)
-BOXES = ("In progress", "Reviewed with comments", "Approved as-is")
+DECISIONS_HEAD = re.compile(r"^\*{0,2}decisions needed:?\*{0,2}$", re.I)
+BOXES = ("Reviewed with comments", "Approved as-is")
 # What each ticked box means for the loop; SKILL.md step 8 is the authority.
+# No box ticked is the default and a state of its own - the review is still
+# in progress - so there is no box for it.
 ACTIONS = {
-    "in progress": "reviewer is not finished - do not process this round yet",
     "reviewed with comments": "apply the round, then publish the next one",
     "approved as-is": "close the review: commit the Markdown, retitle [CLOSED]",
 }
+NO_BOX = ("reviewer has not signed off - still in progress unless they said "
+          "otherwise in chat, or the Doc carries comments (then treat it as "
+          "'Reviewed with comments')")
 
 
 def normalize(text):
@@ -197,10 +202,53 @@ def review_status(doc):
     return doc[end + 1:], status, end + 1
 
 
+def decisions(doc):
+    """Split the leading Doc-only 'Decisions needed' block off a read-back.
+
+    Returns (paragraphs after the block, items, dropped). Each item is
+    {"question": str, "options": [label], "chosen": [label]}; `chosen` is
+    what the reviewer ticked, and an empty one is an unanswered decision --
+    the round is not finished with it. A ticked "Other: <text>" carries the
+    text they typed in its label.
+
+    Like the Review status block it runs to its closing rule; without one it
+    ends at its last box, and whatever follows falls through to the body
+    diff rather than being silently swallowed."""
+    head = next((i for i, p in enumerate(doc[:6])
+                 if DECISIONS_HEAD.match(p.strip())), None)
+    if head is None:
+        return doc, [], 0
+
+    items, end, last_block = [], None, head
+    for j in range(head + 1, len(doc)):
+        para = doc[j].strip()
+        if para == "---":
+            end = j
+            break
+        box = BOX.match(para)
+        if box:
+            label = box.group(2).replace("~~", "").strip()
+            if not items:
+                items.append({"question": "(no question line)",
+                              "options": [], "chosen": []})
+            items[-1]["options"].append(label)
+            if box.group(1).lower() == "x":
+                items[-1]["chosen"].append(label)
+            last_block = j
+        elif para:
+            items.append({"question": para, "options": [], "chosen": []})
+            last_block = j
+    if end is None:
+        end = last_block
+    return doc[end + 1:], items, end + 1
+
+
 def report(repo_text, doc_text, out=sys.stdout):
     repo, _ = paragraphs(repo_text)
     doc, threads = paragraphs(doc_text, hard_wrapped=False)
-    doc, status, dropped = review_status(doc)
+    doc, status, dropped_status = review_status(doc)
+    doc, chosen, dropped_dec = decisions(doc)
+    dropped = dropped_status + dropped_dec
     pre = preamble_len(doc, repo)
     doc = doc[pre:]
     skip = dropped + pre                  # Doc-only paragraphs ahead of the body
@@ -214,6 +262,8 @@ def report(repo_text, doc_text, out=sys.stdout):
             action = ACTIONS.get(label.lower())
             if action:
                 print(f"  action: {action}", file=out)
+        if not checked:
+            print(f"  action: {NO_BOX}", file=out)
         if len(checked) > 1:
             print("  ! more than one box ticked - ask the reviewer", file=out)
         if tuple(status["boxes"]) != BOXES:
@@ -222,15 +272,36 @@ def report(repo_text, doc_text, out=sys.stdout):
         if not status["closed"]:
             print("  ! block has no closing rule; anything typed under "
                   "Comments will show in the diff below", file=out)
-    elif dropped == 0:
+    elif dropped_status == 0:
         print("== review status ==\n  ! no Review status block in this "
               "read-back", file=out)
+
+    undecided = 0
+    if chosen:
+        print("== decisions ==", file=out)
+        for n, item in enumerate(chosen, 1):
+            picks = item["chosen"]
+            answer = " | ".join(picks) if picks else "(UNDECIDED)"
+            if not picks:
+                undecided += 1
+            print(f"  {n}. {item['question']} -> {answer}", file=out)
+            if len(picks) > 1:
+                print(f"     ! decision {n} has more than one box ticked - "
+                      "ask the reviewer", file=out)
+            if not item["options"]:
+                print(f"     ! decision {n} has no alternatives - the "
+                      "reviewer may have deleted them", file=out)
+        if undecided:
+            print(f"  ! {undecided} decision(s) unanswered - ask before "
+                  "publishing the next round", file=out)
 
     if threads:
         print("== comment threads, document order ==", file=out)
         for cid, first, last in threads:
-            if first < dropped:
+            if first < dropped_status:
                 where = "(review status block)"
+            elif first < dropped:
+                where = "(decisions block)"
             elif first < skip:
                 where = "(preamble)"
             else:
@@ -249,8 +320,10 @@ def report(repo_text, doc_text, out=sys.stdout):
         print("== paragraph diff (repo -> doc) ==", file=out)
         print("\n".join(diff), file=out)
     changed = sum(1 for l in diff[2:] if l[:1] in "+-")
+    tail = (f"; {len(chosen) - undecided}/{len(chosen)} decision(s) answered"
+            if chosen else "")
     print(f"{changed} paragraph line(s) differ; {len(deletions)} deletion(s); "
-          f"{len(threads)} comment thread(s)", file=out)
+          f"{len(threads)} comment thread(s){tail}", file=out)
     return 1 if diff else 0
 
 
@@ -277,13 +350,32 @@ STATUS_HEADER = """-----
 
 **Review status:**
 
-- [ ] In progress
 - [ ] Reviewed with comments
 - [x] Approved as-is
 
 **Comments:**
 
 ship it
+
+-----
+
+"""
+
+# The Doc-only decisions block, read back with one choice made and one left
+# open. It rides between the status block and any What-changed preamble.
+DECISIONS_BLOCK = """**Decisions needed:**
+
+Which flavor for the launch?
+
+- [ ] Recommended: vanilla
+- [x] chocolate
+- [ ] Other:
+
+Ship before or after the conference?
+
+- [ ] Recommended: after
+- [ ] before
+- [ ] Other:
 
 -----
 
@@ -361,16 +453,57 @@ def self_test():
     assert "0 deletion(s)" in text, text
     assert "kix.2: - A bullet the reviewer will edit.  (through paragraph 6)" in text, text
 
-    # Reviewer left it mid-review, and renamed nothing.
+    # Reviewer left it mid-review: no box ticked is the default state, and
+    # there is no box to tick for it.
     buf = io.StringIO()
     rc = report(REPO_FIXTURE,
                 STATUS_HEADER.replace("- [x] Approved as-is",
                                       "- [ ] Approved as-is")
-                .replace("- [ ] In progress", "- [x] In progress")
                 + DOC_FIXTURE_SINGLE_NEWLINE, out=buf)
     text = buf.getvalue()
-    assert rc == 0 and "do not process this round yet" in text, text
-    assert "! boxes are not the standard three" not in text, text
+    assert rc == 0 and "  checked: (none)" in text, text
+    assert "reviewer has not signed off" in text, text
+    assert "! boxes are not the standard" not in text, text
+    assert "In progress" not in text, text
+
+    # A decisions block: the answered one is reported with its choice, the
+    # unanswered one is called out, and neither is diffed as an edit.
+    buf = io.StringIO()
+    rc = report(REPO_FIXTURE,
+                STATUS_HEADER + DECISIONS_BLOCK + DOC_FIXTURE_SINGLE_NEWLINE,
+                out=buf)
+    text = buf.getvalue()
+    assert rc == 0, text
+    assert "  1. Which flavor for the launch? -> chocolate" in text, text
+    assert "  2. Ship before or after the conference? -> (UNDECIDED)" in text, text
+    assert "! 1 decision(s) unanswered" in text, text
+    assert "1/2 decision(s) answered" in text, text
+    assert "kix.2: - A bullet the reviewer will edit.  (through paragraph 6)" in text, text
+
+    # A free-text "Other:" answer arrives as the label the reviewer typed.
+    buf = io.StringIO()
+    report(REPO_FIXTURE,
+           STATUS_HEADER
+           + DECISIONS_BLOCK.replace("- [x] chocolate", "- [ ] chocolate")
+                            .replace("- [ ] Other:\n\nShip",
+                                     "- [x] Other: strawberry\n\nShip")
+           + DOC_FIXTURE_SINGLE_NEWLINE, out=buf)
+    text = buf.getvalue()
+    assert "-> Other: strawberry" in text, text
+
+    # Two boxes ticked on one decision is a question for the reviewer, and a
+    # comment anchored inside the block is located there, not in the body.
+    buf = io.StringIO()
+    report(REPO_FIXTURE,
+           STATUS_HEADER
+           + DECISIONS_BLOCK.replace(
+               "- [ ] Recommended: vanilla",
+               "<comment_start id=kix.9>- [x] Recommended: vanilla<comment_end id=kix.9>")
+           + DOC_FIXTURE_SINGLE_NEWLINE, out=buf)
+    text = buf.getvalue()
+    assert "-> Recommended: vanilla | chocolate" in text, text
+    assert "! decision 1 has more than one box ticked" in text, text
+    assert "kix.9: (decisions block)" in text, text
 
     # No box ticked at all, and the closing rule deleted: the block still
     # ends, and what they typed under Comments surfaces in the diff instead
