@@ -20,6 +20,7 @@ Antigravity and other harnesses that read skill directories: link the skill you 
 | A driver exists and you want it checked against the upstream, vendor, or original implementation | `reference-driver-review` |
 | You are the agent writing code from a clean-room spec | `cleanroom-implementer` |
 | You need memory maps, boot chains, clocks, or interrupt details for a specific board | `rpi-expert`, `indiedroid-nova-expert` |
+| You need a board expert for a board that does not have one yet | `board-expert-scaffold` |
 
 ## Clean-room driver porting
 
@@ -87,6 +88,13 @@ map and the sources and datasheets to cite; the method and the no-source-code ru
   V2.0) and Rockchip RK3588S/RK3588 bring-up generally (Radxa ROCK 5, Orange Pi 5, …): memory
   map, device tree, boot chain, PSCI/SMP, GIC-600, timers, clocks and power (CRU, SCMI, RK806),
   debug UART, GPIO and pinmux via the GRF, PCIe/USB/eMMC.
+- **`board-expert-scaffold`** — write a new board expert in the same shape as the two above: an
+  interview for the board's identity, sources, citations, cache name, and quick-facts (addressing
+  model, boot chain and entry exception level, GIC, debug UART, timers, clocks, pinmux), an
+  optional research-fill by an `os-investigator` subagent, and `template.md`, the SKILL.md
+  skeleton with the fixed clean-room sections (delegate-don't-inline, the `os-investigator`
+  deferral, the report) that every board expert must keep intact. Authoring only; it reads no
+  source and answers no hardware questions itself.
 
 The Fuchsia-specific skills that consume this pipeline live in
 [curtisgalloway/fuchsia-skills](https://github.com/curtisgalloway/fuchsia-skills) and hand
