@@ -44,3 +44,14 @@ Antigravity and other harnesses that read skill directories: link the skill you 
   supports each surviving claim and resolves the rest of the duplicates. Ends with one ranked
   table and the question of which findings to fix. Triggers on "review this PR", "adversarial
   review", "red-team this diff".
+
+- **`release-train`** — cut a release only after every distribution channel (a `.deb` through an
+  apt repo, a Homebrew keg, a portable zip, a from-source install, a registry) has been built,
+  installed the way a user would in a throwaway prefix, and smoke-tested end to end by a
+  parallel subagent per channel, while a regression archaeologist pins every previously fixed
+  bug that has no executing test. Any failure blocks and becomes an issue with a minimal
+  reproduction; all-green tags, pushes, publishes, then re-verifies the published artifacts
+  from the URLs a user would use. Driven by a per-repo `RELEASE-TRAIN.md` profile the skill
+  constructs (`init`), checks for drift (`check`), and executes (`run`). Ships
+  `scripts/profile_check.py` (stdlib-only) so the profile cannot quietly describe last
+  quarter's packaging.
