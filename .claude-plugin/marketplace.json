@@ -26,7 +26,7 @@
     {
       "name": "dev-tools",
       "source": "./plugins/dev-tools",
-      "description": "Engineering utilities: Jujutsu (jj) in place of git, evidence-based dependency scoring (dep-quality), and conventions for CLIs that agents drive (cli-conventions)."
+      "description": "Engineering utilities: Jujutsu (jj) in place of git, evidence-based dependency scoring (dep-quality), conventions for CLIs that agents drive (cli-conventions), and a four-arm adversarial code review with a referee (review-swarm)."
     },
     {
       "name": "public-skills",
