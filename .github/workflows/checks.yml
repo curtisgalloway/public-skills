@@ -32,3 +32,6 @@ jobs:
 
       - name: review-swarm tests
         run: python3 -m unittest discover -s plugins/dev-tools/skills/review-swarm/tests -v
+
+      - name: release-train tests
+        run: python3 -m unittest discover -s plugins/dev-tools/skills/release-train/tests -v
