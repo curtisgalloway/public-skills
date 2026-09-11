@@ -29,3 +29,6 @@ jobs:
 
       - name: cleanroom-implementer tests
         run: python3 -m unittest discover -s plugins/driver-porting/skills/cleanroom-implementer/tests -v
+
+      - name: review-swarm tests
+        run: python3 -m unittest discover -s plugins/dev-tools/skills/review-swarm/tests -v
