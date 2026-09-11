@@ -1,7 +1,7 @@
 {
   "name": "dev-tools",
   "version": "1.0.0",
-  "description": "Engineering utilities: Jujutsu (jj) in place of git, evidence-based dependency scoring (dep-quality), and conventions for CLIs that agents drive (cli-conventions).",
+  "description": "Engineering utilities: Jujutsu (jj) in place of git, evidence-based dependency scoring (dep-quality), conventions for CLIs that agents drive (cli-conventions), and a four-arm adversarial code review with a referee (review-swarm).",
   "author": {
     "name": "curtisgalloway",
     "url": "https://github.com/curtisgalloway"
@@ -15,6 +15,8 @@
     "dependencies",
     "cli",
     "exit-codes",
-    "command-line"
+    "command-line",
+    "code-review",
+    "adversarial-review"
   ]
 }

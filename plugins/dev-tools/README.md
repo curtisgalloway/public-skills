@@ -34,3 +34,13 @@ Antigravity and other harnesses that read skill directories: link the skill you 
   no prompting without a TTY, `--dry-run`, secrets never in argv, and a four-line CI harness that
   catches most of it. Triggers when writing or reviewing a CLI, or deciding what a command should
   return when it fails.
+- **`review-swarm`** — adversarial review of a diff or pull request by four independent reviewer
+  subagents with non-overlapping mandates (security and secrets; correctness and concurrency;
+  data loss, migration and backward compatibility; documentation-vs-reality), each forbidden from
+  reporting anything it cannot quote verbatim from the checkout. A stdlib checker
+  (`scripts/swarm.py verify`) re-reads every cited `file:line`, drops findings whose quote is not
+  there, merges plain duplicates, and marks any arm that produced no usable output `ARM FAILED`
+  in capitals rather than letting it vanish; a referee subagent then judges whether the code
+  supports each surviving claim and resolves the rest of the duplicates. Ends with one ranked
+  table and the question of which findings to fix. Triggers on "review this PR", "adversarial
+  review", "red-team this diff".
