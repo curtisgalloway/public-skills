@@ -56,6 +56,9 @@ Working branch: <branch>
 Checkpoint commit prefix: <prefix>
 Design gate: <approved revision/date, unchanged authoritative design, or explicit waiver>
 User overrides: <scope and duration of any waiver or execution override; otherwise none>
+Review method: <review-swarm / reviewer subagent / self-review; note any milestone that
+differs. Naming it here authorizes it; executing sessions do not re-decide.>
+Review order: review and fixes precede the checkpoint commit, which is the last step.
 
 ## Status
 | ID | Outcome | Dependencies | Status |
@@ -83,6 +86,7 @@ User overrides: <scope and duration of any waiver or execution override; otherwi
 - Tests to add or update: <behavior, errors, edge cases, integration>
 - Verify with: <known commands/manual steps and expected results>
 - Review focus: <design contracts, regressions, coverage, scope>
+- Review method: <inherit the conventions block, or name a different one and why>
 
 ### Session sizing
 Files/context needed to start, uncertainty, and a safe split/checkpoint if work grows.
@@ -134,7 +138,11 @@ implementation steps, acceptance criteria, and verification requirements.
 Commands/checks, outcomes, relevant output excerpts, and manual/hardware results.
 
 ## Review
-Review method, findings and severity, fixes, and subsequent verification/review.
+Review method actually used, and where the review happened: a run directory, the
+reviewer's returned findings, or the per-criterion checklist for a self-review. Then
+findings with severity, fixes, and subsequent verification/review. A section asserting
+a review without an artifact or a named reviewer means the review did not happen.
+Record when the review ran relative to the checkpoint commit; it should precede it.
 
 ## Limitations and blockers
 Unmet requirements, pre-existing failures, and explicit nonblocking follow-ups.
