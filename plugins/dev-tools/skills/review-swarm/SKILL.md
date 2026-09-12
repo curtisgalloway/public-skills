@@ -8,7 +8,9 @@ description: >-
   evidence check and a referee subagent that re-reads every citation, drops what the code does
   not support, and deduplicates. Liveness is enforced: a reviewer that produces no output within
   its budget is marked EXPLICITLY FAILED in the result, never silently omitted. Ends with one
-  ranked table of surviving findings and a question about which to fix. Use when asked to
+  ranked table of surviving findings and a question about which to fix — or, where a project or
+  the user has authorized fixing without the question, with the fixes and a written record of
+  every finding, what was fixed, and what was not and why. Use when asked to
   "review this PR", "adversarial review", "review swarm", "red-team this diff", or before
   merging anything that touches secrets, concurrency, persisted data, or user-facing docs.
   Ships scripts/swarm.py (stdlib-only evidence checker and table renderer).
@@ -179,7 +181,7 @@ Wait for the referee with the same bounded loop. If it produces nothing, the tab
 from `verified.json` and headed `UNREFEREED`; say so in the message. Do not skip the table
 because the referee failed, and do not present unrefereed findings as refereed.
 
-### 6. The table, then the question
+### 6. The table, then the question — or the record
 
 ```sh
 python3 <skill-dir>/scripts/swarm.py table --run <run>
@@ -198,6 +200,29 @@ what the checker and referee dropped below it. Then ask which findings to fix, b
 harness's structured question tool where there is one (multi-select over the IDs); otherwise
 ask in prose. **Fix nothing until the user answers.** A review that fixes what it found is not
 a review any more, and the user has not yet seen it.
+
+**Unless fixing is already authorized.** A project's instruction file or plan may say that
+verified findings are fixed without asking, and the user may say so in the session. Where that
+authorization exists, skip the question and fix the findings you accept — the point of the
+question was never the pause, it was that the user must be able to see what the review found and
+what became of it. So the authorization carries an obligation in its place: write the record,
+into the project's verification or evidence file where there is one, and otherwise into the
+reply.
+
+The record names, at minimum:
+
+- every finding that survived the referee, with its severity and location — the whole table,
+  not the part that got fixed;
+- for each one, what was changed, and the check that now covers it;
+- for each one *not* fixed, why, what the tradeoff is, and which milestone, issue, or owner has
+  it now. A finding quietly dropped because fixing it was awkward is exactly what this rule
+  exists to prevent.
+
+Two things the authorization does not extend to. It is not permission to fix **unverified**
+findings: the mechanical check and the referee still run first, and a finding they dropped stays
+dropped. And it does not cover a fix that changes a decision the project has already recorded —
+a calibrated constant, a documented contract, an accepted design tradeoff. Fixing those is a
+decision, not a repair; report the finding, propose the change, and leave it to the user.
 
 ## Reporting rules
 
@@ -225,7 +250,9 @@ signal in the ranking becomes noise.
 
 - It does not run tests, build the code, or execute anything in the repository. A finding that
   needs a test to confirm is a finding with a `suggested_fix` of "add this test".
-- It does not fix anything. The user picks; a later step fixes.
+- It does not fix anything on its own initiative. The user picks, or a standing authorization
+  in the project says to fix without asking; either way the fixing is a later step, and the
+  record of what was and was not fixed is part of it.
 - It does not review the review. If the user wants a second opinion on the referee's drops,
   `verified.json` still holds every finding the checker passed, with the referee's reason for
   each drop in `final.json`.
