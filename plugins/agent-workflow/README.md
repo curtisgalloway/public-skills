@@ -18,6 +18,15 @@ Antigravity and other harnesses that read skill directories: link the skill you 
   architecture, and brainstorming that explores the problem, lays out options and trade-offs,
   and pushes back, without touching code. Triggers on "let's brainstorm", "should I", "talk me
   through the trade-offs"; drops when the user says to build.
+- **`project-plan`** — turn a project outcome into a detailed design and an implementation
+  plan. Requires approval for a new or materially revised design unless waived, reuses
+  an unchanged authoritative design, and builds cohesive milestones sized for roughly
+  75% of a fresh session's context. Requires testing, review, and linked evidence before
+  completion. Commits at every checkpoint by default and stops after one milestone for
+  user review, with a handoff for a fresh session; unfinished work is handed off without
+  advancing. Triggers on
+  "plan this project", "turn this design into an implementation plan", or "break this
+  work into milestones".
 - **`intern-mode`** — during: a loop-safety posture. After twelve turns without meaningful
   progress the agent stops, files a stuck report, and waits for direction. Stays active until
   explicitly released. For "stop if you get stuck" and protection against silent thrashing.
