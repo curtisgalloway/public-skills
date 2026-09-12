@@ -110,7 +110,8 @@ For each milestone, record:
 - **Verification:** appropriate automated tests, integration checks, manual or hardware
   checks, and project-required checks. Give known commands and expected results; mark
   commands needing discovery rather than presenting guesses as working commands.
-- **Review:** what to inspect against the design and what regressions to consider.
+- **Review:** what to inspect against the design, what regressions to consider, and the
+  review method if it differs from the conventions block's default.
 - **Sizing and checkpoint:** why the scope fits a session, likely sources of uncertainty,
   and a safe split point if it grows.
 - **Status and evidence:** initially `pending`; later record results and remaining work.
@@ -164,15 +165,20 @@ Before declaring **any milestone complete**:
 
 1. Run its planned tests and applicable project checks. Check the acceptance criteria,
    relevant failure paths, and integration with previously completed milestones.
-2. Prefer a reviewer subagent with fresh context when delegation is available and permitted;
-   otherwise perform an explicit self-review after re-reading the design and milestone.
-   Supply the design, milestone, verification evidence, and the milestone's commits since
-   the starting revision. Also include any relevant staged, unstaged, and new files still
-   awaiting the checkpoint commit; a commit-only diff can omit unfinished work.
-   Ask the reviewer to check every acceptance criterion with evidence, design conformance,
-   regressions, maintainability, test coverage, and scope deviations, and rank findings by
-   severity. Record the review method; do not imply an independent review occurred when it
-   did not.
+2. Run the review by the method the plan's conventions block records for this milestone
+   (see "Choose the review method while planning" below). Supply the design, milestone,
+   verification evidence, and the milestone's commits since the starting revision. Also
+   include any relevant staged, unstaged, and new files still awaiting the checkpoint
+   commit; a commit-only diff can omit unfinished work. Ask the reviewer to check every
+   acceptance criterion with evidence, design conformance, regressions, maintainability,
+   test coverage, and scope deviations, and rank findings by severity.
+
+   **The review must leave an artifact.** Record in the evidence file where the review
+   happened, not only that it happened: a run directory, the reviewer's returned findings,
+   or — for self-review — the per-criterion checklist with the quotes that satisfied each
+   criterion. A review section asserting completion with neither a linked artifact nor a
+   named reviewer is incomplete verification, exactly like a skipped test, and the
+   milestone is not complete. Never imply an independent review occurred when it did not.
 3. Fix blocking findings and failures. Repeat affected tests and review changed areas;
    broaden verification when the findings indicate a wider risk. Obtain another review
    for substantial fixes. If review or debugging stops producing progress, save an
@@ -186,6 +192,43 @@ Before declaring **any milestone complete**:
    acceptance criteria there; retain its ID, outcome, dependencies, status, evidence link,
    and open limitations in the plan. Finished milestones should cost each new session a
    few lines, not a page.
+
+### Choose the review method while planning
+
+Decide the review method when deriving the plan, not when executing, and write it into the
+conventions block. **A plan naming a review method is the authorization to use it**, so an
+executing session does not re-litigate whether delegation is permitted. In order:
+
+- The `review-swarm` skill, when available: several reviewers with narrow mandates, a
+  mechanical check that drops any finding not quotable from the code, and a referee. Its
+  run directory is the artifact step 2 requires. Prefer it for milestones whose review
+  focus spans more than one concern.
+- A reviewer subagent with fresh context, when delegation is available. Its returned
+  findings are the artifact.
+- Explicit self-review, when neither is available. The artifact is the per-criterion
+  checklist described in step 2; a summary sentence is not one.
+
+Record the chosen method per milestone when they differ, and record the fallback actually
+used when the preferred one was unavailable.
+
+### Review before the checkpoint, always
+
+The checkpoint commit is the last step of a milestone, after tests, review, and fixes.
+A review run after the checkpoint is not a gate: the work reads as closed, and findings
+arrive with nowhere to go. If a review does happen late and finds a blocker, reopen the
+milestone's status and say so in the evidence file rather than leaving `complete` standing
+on a gate that had not run.
+
+**Why this is stated so plainly:** the review is the only milestone step with no natural
+output of its own. Build, type-check, tests, and the commit all emit text that proves they
+ran; the review emits nothing unless it is made to. That asymmetry makes it the step that
+gets *recorded* instead of *performed* — a template's "Review" heading gets filled with a
+sentence asserting the review, because the heading needed content and the assertion felt
+true. Observed 2026-09-11: a session ran every executable check correctly, committed, and
+wrote "self-review completed" into the evidence file without having reviewed anything; the
+milestone's own review focus named the defect that a real review would likely have caught.
+Requiring an artifact and fixing the order are what prevent it; the instruction alone did
+not.
 
 Unavailable hardware, missing credentials, or a skipped required check means verification
 is incomplete. Record the blocker and leave the milestone `in_progress` or `blocked`;
