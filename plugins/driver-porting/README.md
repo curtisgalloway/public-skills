@@ -19,7 +19,7 @@ Antigravity and other harnesses that read skill directories: link the skill you 
 | The reference driver is yours, or you may copy from it, and you want a spec whose every fact points back at the code | `anchored-peripheral-spec` |
 | A driver exists and you want it checked against the upstream, vendor, or original implementation | `reference-driver-review` |
 | You are the agent writing code from a clean-room spec | `cleanroom-implementer` |
-| You need memory maps, boot chains, clocks, or interrupt details for a specific board | `rpi-expert`, `indiedroid-nova-expert` |
+| You need memory maps, boot chains, clocks, or interrupt details for a specific board | `rpi-expert`, `rpi4-expert`, `indiedroid-nova-expert` |
 | You need a board expert for a board that does not have one yet | `board-expert-scaffold` |
 
 ## Clean-room driver porting
@@ -84,6 +84,12 @@ map and the sources and datasheets to cite; the method and the no-source-code ru
 - **`rpi-expert`** — Raspberry Pi 5 and Compute Module 5 (BCM2712 plus the RP1 southbridge):
   memory map and MMIO addresses, device tree, boot chain and exception-level hand-off,
   PSCI/SMP, interrupts, timers, clocks and power, UART/GPIO, PCIe and the RP1.
+- **`rpi4-expert`** — Raspberry Pi 4 Model B and the BCM2711 (family includes the Pi 400 and
+  Compute Module 4/4S): the low- versus high-peripheral memory map, device tree, the boot chain
+  from BootROM through the SPI-EEPROM bootloader and `start4.elf` to the armstub, PSCI/SMP across
+  4×Cortex-A72, the GIC-400, the PL011 debug UART and the mini-UART trap, GPIO and the BCM2711
+  pull registers, GENET Ethernet, EMMC2/SDHCI, and the VL805 USB bridge on PCIe. The BCM2711 ARM
+  Peripherals datasheet is public, so it is the citation of record rather than the kernel.
 - **`indiedroid-nova-expert`** — the Indiedroid Nova (same hardware as the 9Tripod Pico PC
   V2.0) and Rockchip RK3588S/RK3588 bring-up generally (Radxa ROCK 5, Orange Pi 5, …): memory
   map, device tree, boot chain, PSCI/SMP, GIC-600, timers, clocks and power (CRU, SCMI, RK806),
