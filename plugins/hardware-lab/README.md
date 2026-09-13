@@ -6,7 +6,7 @@ source, drive an MCCI 3411 USB 3.2 test device, poke buses with a Bus Pirate, an
 Siglent oscilloscope from a script.
 
 ```
-/plugin install hardware-lab@public-skills
+/plugin install hardware-lab@curtisg-skills
 ```
 
 Antigravity and other harnesses that read skill directories: link the skill you want from

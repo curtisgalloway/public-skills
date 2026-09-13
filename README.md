@@ -16,7 +16,7 @@ repo's Claude Code marketplace, and has its own README with the details.
 | [`agent-workflow`](plugins/agent-workflow/README.md) | Working with a coding agent over time: design partnership, project planning, loop safety, handoffs, summaries, session learning, document review, portable skill authoring | `design-partner`, `project-plan`, `intern-mode`, `handoff`, `wrapup`, `learn`, `teach`, `claude-session-transcript`, `gdoc-review-loop`, `agent-agnostic-skills` |
 | [`dev-tools`](plugins/dev-tools/README.md) | Engineering utilities | `jj`, `dep-quality`, `cli-conventions`, `review-swarm`, `release-train` |
 
-`public-skills` is a fifth marketplace entry that bundles all four. Install either it or the
+`everything` is a fifth marketplace entry that bundles all four. Install either it or the
 themed plugins, not both, or every skill loads twice.
 
 Each skill lives in `plugins/<theme>/skills/<name>/` and contains at minimum a `SKILL.md`
@@ -55,18 +55,18 @@ session, or with the `claude plugin` CLI outside one:
 
 ```
 /plugin marketplace add curtisgalloway/public-skills
-/plugin install hardware-lab@public-skills
-/plugin install driver-porting@public-skills
-/plugin install agent-workflow@public-skills
-/plugin install dev-tools@public-skills
+/plugin install hardware-lab@curtisg-skills
+/plugin install driver-porting@curtisg-skills
+/plugin install agent-workflow@curtisg-skills
+/plugin install dev-tools@curtisg-skills
 ```
 
-Install the themes you want; `/plugin install public-skills@public-skills` takes all of them
+Install the themes you want; `/plugin install everything@curtisg-skills` takes all of them
 as one plugin. For a local clone, add the clone directory as the marketplace instead:
 
 ```
 /plugin marketplace add /path/to/public-skills
-/plugin install hardware-lab@public-skills
+/plugin install hardware-lab@curtisg-skills
 ```
 
 ### Any agent that reads `SKILL.md` directories
