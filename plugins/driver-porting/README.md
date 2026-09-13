@@ -5,7 +5,7 @@ to copy from: a clean-room pipeline for encumbered source, source-anchored specs
 for source you own, and board experts that supply the per-SoC facts both need.
 
 ```
-/plugin install driver-porting@public-skills
+/plugin install driver-porting@curtisg-skills
 ```
 
 Antigravity and other harnesses that read skill directories: link the skill you want from
