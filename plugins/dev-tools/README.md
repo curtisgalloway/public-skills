@@ -5,7 +5,7 @@ evidence-based scorer for choosing dependencies, and the conventions that make a
 tool drivable by a program.
 
 ```
-/plugin install dev-tools@public-skills
+/plugin install dev-tools@curtisg-skills
 ```
 
 Antigravity and other harnesses that read skill directories: link the skill you want from

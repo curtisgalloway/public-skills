@@ -1,11 +1,11 @@
 {
-  "name": "public-skills",
+  "name": "curtisg-skills",
   "owner": {
     "name": "curtisgalloway",
     "url": "https://github.com/curtisgalloway"
   },
   "metadata": {
-    "description": "General-purpose agent skills, packaged by theme: hardware-lab (USB analysis and bench instruments), driver-porting (clean-room and source-anchored driver specs, board experts), agent-workflow (session learning, handoffs, loop safety, design partnership), dev-tools (Jujutsu, dependency scoring, CLI conventions). public-skills is all four in one."
+    "description": "General-purpose agent skills, packaged by theme: hardware-lab (USB analysis and bench instruments), driver-porting (clean-room and source-anchored driver specs, board experts), agent-workflow (session learning, handoffs, loop safety, design partnership), dev-tools (Jujutsu, dependency scoring, CLI conventions). The everything plugin is all four in one."
   },
   "plugins": [
     {
@@ -29,7 +29,7 @@
       "description": "Engineering utilities: Jujutsu (jj) in place of git, evidence-based dependency scoring (dep-quality), conventions for CLIs that agents drive (cli-conventions), a four-arm adversarial code review with a referee (review-swarm), and a release train that installs and smoke-tests every distribution channel before tagging (release-train)."
     },
     {
-      "name": "public-skills",
+      "name": "everything",
       "source": "./",
       "description": "Every skill in this repo in one plugin: hardware-lab, driver-porting, agent-workflow and dev-tools combined. Install either this or the themed plugins, not both.",
       "skills": [
