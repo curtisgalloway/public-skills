@@ -6,7 +6,7 @@ clear, summarize what happened, turn the lessons into instructions, review a doc
 stakeholder, and write skills that survive a change of harness.
 
 ```
-/plugin install agent-workflow@public-skills
+/plugin install agent-workflow@curtisg-skills
 ```
 
 Antigravity and other harnesses that read skill directories: link the skill you want from
