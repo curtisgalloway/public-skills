@@ -46,6 +46,12 @@ of last quarter's packaging ships last quarter's mistakes.
   VM, a temp dir on the bench host. If an install step of the project itself writes to a fixed
   per-user path, redirect it (`CARGO_INSTALL_ROOT`, `UV_TOOL_DIR`, `npm_config_prefix`, and so
   on) and record in the profile which variable was needed.
+- **One writer per worktree.** The archaeologist commits on the release branch (Step 3), so
+  while it runs the orchestrator does not commit there: queue profile edits and anything else
+  until its report is in, then commit with files staged by name, never `commit -a`. A
+  subagent's prove-it-bites step leaves fixed source temporarily reverted in the working tree,
+  and `-a` sweeps that revert into whatever commit comes next (it un-fixed a shipped bug on a
+  release branch on 2026-09-13; the build stayed green and only the archaeologist noticed).
 - **Never publish from a red board.** Any arm FAIL, any unwaived PARTIAL or SKIP, or any
   archaeology assertion failing on HEAD → `BLOCKED`. `--waive` never waives a FAIL.
 - **Never push, merge, or tag without the gate.** On all-green, stop and ask. Whatever push
