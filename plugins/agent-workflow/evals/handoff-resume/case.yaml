@@ -1,0 +1,62 @@
+schema_version: "1.1"
+name: handoff-resume
+description: >-
+  Resume mode. A HANDOFF.md from a prior session sits at the repo root, but
+  the world has moved: it records branch feature/csv-quoting at deadbee with
+  an uncommitted parser change, while the repo is now on main with that
+  change committed. The skill should read the file, report the drift rather
+  than trust it, consume it by renaming to HANDOFF.md.read, recap, and
+  start on the first next step (a test) without touching README.md.
+tags: [handoff, resume]
+runs: 3
+execution:
+  max_turns: 15
+  timeout_seconds: 300
+  allowed_tools: [Read, Glob, Grep, Skill, Bash, Write]
+  prompt: |
+    New session. Pick up where the last one left off from the handoff.
+context:
+  scaffold_script: fixture.sh
+graders:
+  - name: skill-fired
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"[^"]*handoff'
+  - name: read-before-consume
+    type: tool_order
+    before: {tool: Read, input_match: "HANDOFF\\.md"}
+    after: {tool: Bash, input_match: "HANDOFF\\.md\\.read"}
+  - name: consumed
+    type: tool_used
+    tool: Bash
+    input_match: "HANDOFF\\.md\\.read"
+  - name: readme-untouched
+    type: tool_used
+    tool: Write
+    input_match: "README\\.md"
+    min: 0
+    max: 0
+  - name: drift-reported
+    type: llm
+    criteria: |
+      PASS if the response tells the user that the repo state differs from
+      what the handoff recorded: it names at least one of these mismatches
+      explicitly: the branch (handoff says feature/csv-quoting, repo is on
+      main), the commit (handoff says deadbee, HEAD is something else), or
+      the working tree (handoff says parser.py uncommitted, it is now
+      committed and clean).
+      FAIL if the response proceeds as though the handoff were current, or
+      only vaguely says things "may have changed" without naming a mismatch.
+  - name: recap-and-continue
+    type: llm
+    focus: trace
+    criteria: |
+      PASS if the agent (a) gives the user a short recap of the task and
+      where it stands, and (b) starts on the first next step from the
+      handoff, which is writing a test for the parser, rather than stopping
+      after the recap or asking what to do.
+      FAIL if it re-does the already-committed parser change, edits
+      README.md, or asks the user to restate the task. Reporting that a
+      later step is blocked by the environment, or asking one question
+      about that blocked step, is not a failure as long as the test was
+      written first.
