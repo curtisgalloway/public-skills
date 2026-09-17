@@ -102,9 +102,11 @@ the next session can dig past the summary when it needs to.
 
 ### 3. Exclude it from git
 
-If inside a git repo and `git check-ignore -q HANDOFF.md` fails, append `HANDOFF.md*` to
-`.git/info/exclude`. That keeps both the handoff and its consumed form out of `git status` without
-touching the repo's tracked `.gitignore`.
+If a `.git` directory exists at the project root and `git check-ignore -q HANDOFF.md` does not
+succeed, append `HANDOFF.md*` to `.git/info/exclude`. "Does not succeed" includes git itself
+failing to run: the exclude file is plain text and needs no git binary to write, so do not skip
+this step because `git` is broken or missing from the sandbox. That keeps both the handoff and
+its consumed form out of `git status` without touching the repo's tracked `.gitignore`.
 
 ### 4. Close out
 
