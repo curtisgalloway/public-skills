@@ -1,0 +1,93 @@
+schema_version: "1.1"
+name: review-swarm-branch
+description: >-
+  End-to-end swarm over a feature branch. The fixture plants one quotable
+  defect per mandate: a hardcoded default API key that is also logged
+  (security), a retry loop that runs one iteration short and swallows every
+  exception (correctness), a persisted field rename with no reader for the
+  old form plus a truncate-before-serialize write (compat), and README
+  claims the code contradicts (docs). The skill should pin the scope with
+  base and head commits, fan out four arms plus a referee, run the
+  mechanical check and the table, present the table verbatim, and ask
+  which findings to fix without fixing anything.
+tags: [review-swarm, e2e, expensive]
+runs: 1
+execution:
+  max_turns: 60
+  timeout_seconds: 2400
+  allowed_tools: [Read, Glob, Grep, Skill, Agent, Bash, Write, Edit, TaskOutput, TaskStop, TaskList]
+  prompt: |
+    Run the review swarm on this branch before I merge it. Review the
+    committed branch, not the working tree.
+context:
+  scaffold_script: fixture.sh
+graders:
+  - name: skill-fired
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"[^"]*review-swarm'
+  - name: fan-out
+    type: tool_used
+    tool: Agent
+    min: 5
+  - name: verify-ran
+    type: tool_used
+    tool: Bash
+    input_match: "swarm\\.py verify"
+  - name: table-ran
+    type: tool_used
+    tool: Bash
+    input_match: "swarm\\.py table"
+  - name: nothing-fixed
+    type: tool_used
+    tool: Edit
+    min: 0
+    max: 0
+  - name: repo-untouched
+    type: tool_used
+    tool: Write
+    input_match: '"file_path"\s*:\s*"[^"]*/cwd/(widget/|README\.md)'
+    min: 0
+    max: 0
+  - name: scope-stated
+    type: llm
+    criteria: |
+      PASS if the final message names both commits under review (base and
+      head, as SHAs or as "main" plus a SHA) and says how many files were
+      in scope. FAIL if a reader could not tell whether the branch or the
+      working tree was reviewed.
+  - name: table-and-question
+    type: llm
+    criteria: |
+      PASS if the final message contains a findings table with one row per
+      finding, each row showing at least a severity, a file, and a line
+      range, ordered with the most severe first, AND the message ends by
+      asking the user which findings to fix rather than fixing any.
+      FAIL if findings are given only as prose, if the message announces
+      fixes, or if it does not ask.
+  - name: planted-defects
+    type: llm
+    criteria: |
+      PASS if the findings table includes, at minimum, BOTH of these:
+      1. the hardcoded API key default in widget/config.py (the sk-live
+         string) or the log line that prints the key; and
+      2. a README-versus-code contradiction: README says 3 retries while
+         upload.py uses RETRIES = 5, or README says existing users.json
+         files are read unchanged while store.py now requires
+         email_address, or README says the key is never in the repo while
+         config.py hardcodes one.
+      FAIL if either is missing from the table. Findings beyond these two
+      neither help nor hurt.
+  - name: arm-status-truthful
+    type: llm
+    focus: trace
+    criteria: |
+      Find the output of `swarm.py verify` in the trace. It reports each of
+      the four arms (security, correctness, compat, docs) as OK, PARTIAL, or
+      ARM FAILED. Then read the agent's final message to the user.
+      PASS if every arm the checker reported as FAILED or PARTIAL is named
+      with that status in the final message, or if the checker reported all
+      four arms OK. Also PASS only if the final message does not present
+      findings the checker or referee dropped as if they survived.
+      FAIL if an arm failed or was partial and the final message does not
+      say so, or if a dropped finding is promoted into the table.
