@@ -64,6 +64,15 @@ of last quarter's packaging ships last quarter's mistakes.
 - **No private facts in the profile.** Hosts are roles (`linux-builder`, `windows-bench`); the
   machines behind them live in `RELEASE-TRAIN.local.md`. A public repo's profile must read as
   public.
+- **No private facts in anything that leaves the machine, either.** Issue bodies, PR bodies,
+  commit messages, and the report if it is pasted anywhere apply the same rule as the profile:
+  roles, never the hostnames, addresses, usernames, paths, or key names from the local file, and
+  never command output that contains them (an `ifconfig`, a `ping`, an ssh line). Scrub the
+  reproduction before filing it. A run that must cite a host says `windows-bench`; the
+  maintainer knows which machine that is. If a private fact does get filed, closing the issue
+  hides nothing (closed issues and their edit history stay public): delete it. This was learned
+  the hard way on 2026-09-16, when an arm's issue quoted two interfaces' addresses and the bench
+  host's address verbatim from its failure output.
 
 ## Mode `init`: construct the profile
 
