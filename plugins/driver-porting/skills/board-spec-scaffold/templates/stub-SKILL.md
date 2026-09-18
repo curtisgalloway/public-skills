@@ -9,7 +9,14 @@ description: >-
   the method and the clean-room no-source-code rule.
 ---
 
-<!-- license header per the target repo's convention -->
+<!--
+SPDX-FileCopyrightText: <year> contributors
+SPDX-License-Identifier: Apache-2.0
+-->
+<!-- In this repository the header is exactly the two lines above with the year; another repo
+     carries whatever its neighbors do. Keep the description's "Board expert for" prefix and its
+     "A stub over the <id> board spec" sentence: consumers match the first, the checker finds
+     stubs by the second. -->
 
 # <Board display name> Expert (stub)
 

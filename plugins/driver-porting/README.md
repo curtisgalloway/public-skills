@@ -85,8 +85,9 @@ board, SoC, or companion chip, composed (a board names its SoC and chips as `par
 is the clean-side artifact, so it may live in the target OS tree next to the board code it
 describes; the reference source stays in the expert's out-of-tree cache.
 `board-expert/SPEC-FORMAT.md` is the contract, and `scripts/spec_check.py` (stdlib-only, tests
-under `tests/`) enforces it: required keys per kind, every reference resolving, a provenance tag on
-every fact, nothing internal under a public root.
+under `tests/`) enforces it: required keys per kind, every reference resolving, instance shapes, the
+tag clause at the end of every fact, nothing internal under a public root, and every stub's id
+resolving (`--stubs-from` finds the stubs by their "stub over" sentence).
 
 - **`board-expert`** — the reader. Resolves a spec by id or by the board/SoC names in the question
   across every spec root it can see (its own `specs/`, roots declared by project or vendor skills, a
@@ -135,7 +136,5 @@ python3 -m unittest discover -s plugins/driver-porting/skills/cleanroom-implemen
 python3 -m unittest discover -s plugins/driver-porting/skills/board-expert/tests -v
 python3 plugins/driver-porting/skills/board-expert/scripts/spec_check.py \
   plugins/driver-porting/skills/board-expert/specs \
-  --stub plugins/driver-porting/skills/rpi-expert/SKILL.md \
-  --stub plugins/driver-porting/skills/rpi4-expert/SKILL.md \
-  --stub plugins/driver-porting/skills/indiedroid-nova-expert/SKILL.md
+  --stubs-from plugins/driver-porting/skills
 ```

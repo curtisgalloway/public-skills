@@ -39,8 +39,15 @@ stated here; the skills point at this file instead of restating it.
   cache is the encumbered side of the clean-room wall; the spec is the clean side.
 - **Provenance tag** — the class of authority behind a fact. `[databook]`, `[standard]`, `[DT]`, and
   `[source-observed]` are `os-investigator`'s; specs add `[doc]` (a project's own public
-  documentation, such as Trusted Firmware-A platform pages or a vendor's documentation site; cite the
-  page) and `[hardware]` (measured on a live board; say which).
+  documentation, such as Trusted Firmware-A platform pages or a vendor's documentation site; always
+  followed by a parenthetical naming the page), `[hardware]` (measured on a live board; say which),
+  and `[press]` (press, teardown, or marketing material: allowed only with a
+  `TODO (verify on hardware)`, or in Orientation prose).
+- **Series** — a patch series on a mailing list that adds or changes device trees or drivers before
+  it is merged. A `resources.series` entry; a map (`[DT]`, `[source-observed]`), never an authority.
+- **Variant** — a model of a board that shares the SoC and most facts with a base model (a "Pro"
+  phone, a board revision). Listed under `variants:` on the base spec, or a spec of its own with
+  `variant_of:` when its board facts differ materially.
 
 ## What a spec is, and is not
 
@@ -85,23 +92,47 @@ triggers: [pi 5, raspberry pi 5, rpi5, cm5, compute module 5]
 aliases: []                   # optional: other ids this spec answers to
 parts: [bcm2712, rp1]         # board (required) and chip (optional): ids this spec composes
 cache: rpi5-resources         # reference material is cloned under ~/src/<cache>/
+variants:                     # optional, board only: models that share this spec's facts
+  - name: Raspberry Pi 5 (16 GB)
+    triggers: [pi 5 16gb]
+    shares: [soc, parts, boot, console]
+    differs: DRAM size only
 resources:
   repos:
     - name: linux-rpi
       url: https://github.com/raspberrypi/linux
       ref: rpi-6.12.y
       license: GPL-2.0-only
+      status: merged          # optional: unmerged when the listed files are not in the ref yet
+      verified: 2026-09-18    # optional: the date the URL and ref were last checked
+      fetch: ok               # optional: ok | blocked | truncated, for automated fetchers
       files:                  # highest-value paths, relative to the repo root
         - arch/arm64/boot/dts/broadcom/bcm2712-rpi-5-b.dts
       note: the real Pi 5 device trees and drivers; read for behavior, cite the datasheet
+  series:                     # optional: unmerged patch series that are the public map
+    - title: Add Laguna SoC and boards
+      url: https://lore.kernel.org/linux-arm-kernel/<message-id>/
+      message_id: <message-id>
+      target: linux-mainline  # the repo entry it patches
+      status: unmerged        # unmerged | merged | superseded
+      files: [arch/arm64/boot/dts/google/lga.dtsi]
+      note: a map, never cite: true
   docs:
     - title: RP1 peripherals datasheet
       url: https://datasheets.raspberrypi.com/rp1/rp1-peripherals.pdf
       access: public          # public | internal
       cite: true              # a clean-room authority: cite it, not the kernel
+      verified: 2026-09-18
+      fetch: ok
   tools: []                   # usually filled by overlays; see Tools
 ---
 ```
+
+`cite: true` marks a clean-room authority: cite it, not the kernel. `cite: false` or absent means
+context or map only; the reader never cites such an entry as authority. A `series` entry can never
+be `cite: true`. `status` on a repo or series entry says whether the listed `files` exist at the
+`ref` yet (`unmerged` when they do not). `verified` and `fetch` record when a URL was last checked
+and whether an automated fetcher could read it; they make link rot detectable and are optional.
 
 An SoC or chip spec also carries an `instances:` table, one row per placement of an IP block:
 
@@ -109,9 +140,11 @@ An SoC or chip spec also carries an `instances:` table, one row per placement of
 instances:
   - name: uart10              # the instance name as the device tree or datasheet calls it
     ip: pl011                 # id of the IP spec (the binding)
-    reg: 0x107d001000         # CPU-physical base, or null with a TODO in `note`
-    irq: null                 # INTID or DT tuple, or null
-    clocks: [clk_uart]        # names as the SoC spec's clocks section uses them
+    reg: 0x107d001000         # CPU-physical base as an integer, or null with a TODO in `note`
+    irq: {kind: SPI, number: 121, intid: 153, trigger: level-high, note: shared line}
+                              # null, or a mapping: kind SPI | PPI | extended, integer number,
+                              # optional integer intid, optional trigger and note strings
+    clocks: [clk_uart]        # DT clock names as the SoC's device tree uses them
     role: debug console       # optional: what this instance is for
     note: <quirks, or TODO (verify on hardware)>
 ```
@@ -123,9 +156,19 @@ Keys by kind:
 | `kind`, `id`, `name`, `triggers` | required | required | required | required | not used |
 | `parts` | required | no | optional | no | no |
 | `instances` | no | required (may be empty) | recommended | no | optional |
+| `variants`, `variant_of` | optional | no | no | no | no |
 | `cache` | required | recommended | optional | recommended | no; inherited |
 | `resources` | optional | optional | optional | required | optional |
 | `overlays` | no | no | no | no | required |
+
+**Variants.** A model that shares the SoC and most board facts with a base model is a row under
+the base spec's `variants:` (`name`, `triggers`, `shares`: which fact groups apply, `differs`: one
+line). A model whose board facts differ materially (another SoC stepping, another console path,
+another PMIC) is a board spec of its own with `variant_of: <base id>`, carrying only what differs
+and pointing at the base for the rest. `triggers` match by substring, so "pixel 10" also matches a
+question about a "Pixel 10 Pro"; when a question matches a variant's triggers, or the base's
+triggers with a variant name present, the reader treats it as a `Needs decision` between the base
+and the variant (`QUESTIONS.md` item 1).
 
 Body: fixed `##` headings per kind. The templates under `board-spec-scaffold/templates/` carry the
 exact list; in short:
@@ -145,9 +188,23 @@ exact list; in short:
   errata that are public); `Gotchas`. No instance facts: those belong in the SoC spec's
   `instances:` row.
 
-Every fact in `Quick-facts` and `Gotchas` carries a provenance tag. A fact with no public authority is
-`[source-observed]` and must also say `TODO (verify on hardware)`. A bullet that records only a gap
-(`TODO (verify on hardware)` and nothing else) is not a fact and carries no tag.
+**Tag rules.** Every bullet in a fact section (`Quick-facts`, `Gotchas`, and for an IP spec
+`Standards and databook`, `Programming model`, `Known variants and quirks`) ends with its **tag
+clause**: one or more tags, each optionally followed by a parenthetical citation, then at most one
+closing sentence that starts with `TODO (verify on hardware)`. A tag in the middle of the prose does
+not count; put the facts first and the tags last.
+
+```
+- **Debug UART.** PL011 `uart10` at `0x10_7D00_1000`, left enabled by firmware. `[DT]`
+  (`bcm2712.dtsi`), `[databook]` (DDI 0183). `TODO (verify on hardware)`: the IRQ number.
+```
+
+- `[source-observed]` and `[press]` facts must carry `TODO (verify on hardware)`.
+- `[doc]` is always followed by a parenthetical naming the page or document, so a store page, a
+  platform guide, and a cover letter cannot be confused.
+- A **gap bullet** is one whose text, after the optional bold lead-in, starts with
+  `TODO (verify on hardware)`; it records what is missing and carries no tag:
+  `- **Power.** `TODO (verify on hardware)`: the PMIC part is not recorded here yet.`
 
 ### Overlays
 
@@ -233,6 +290,10 @@ block per `QUESTIONS.md`, and the orchestrator asks.
   label convention (for example a `//src/...` prefix) when its project skill defines it.
 - Out-of-tree material is a URL plus, for repositories, the `cache` it is cloned under.
 - Nothing in a spec points into a cache by absolute path; caches are per machine.
+- Arm documents are cited by id (`DDI 0183`, `IHI 0069`, `DEN 0022`). The
+  `developer.arm.com/documentation/<id>/latest` URL is the canonical link, but it redirects to a
+  portal that automated fetchers cannot read; record `fetch: blocked` on such an entry rather than
+  dropping the URL or inventing another.
 
 ## Tools
 
@@ -247,9 +308,15 @@ skill is not loaded, the reader reports the tool as unavailable and continues.
 These are `os-investigator`'s caching rule applied to a file that may sit in the target tree:
 
 - Only facts that are datasheet-, standard-, documentation-, or DT-cited, verifier-PASSed, or
-  measured on hardware belong in a spec. `[source-observed]` is allowed only with `TODO (verify on
-  hardware)`.
-- No source excerpts, no source-invented identifiers, no reconstructed file organization.
+  measured on hardware belong in a spec. `[source-observed]` and `[press]` are allowed only with
+  `TODO (verify on hardware)`.
+- **Device-tree content is hardware description, not source.** Node names, labels, `compatible`
+  strings, property names, and values (addresses, interrupt tuples, clock names, pin groups) are
+  hardware facts, tagged `[DT]`, and may be read from a device tree and written into a spec by the
+  spec's author directly. Driver and firmware *code* is different: only the research subagent reads
+  it, and it returns facts and mechanism prose, never excerpts.
+- No source excerpts, no source-invented identifiers (function, struct, and variable names from
+  driver code), no reconstructed file organization.
 - An overlay in a vendor layer may cite NDA documents. Facts from it reach the report tagged with
   their layer, so the clean-room verifier can see that a citation is not publicly checkable. They are
   never copied into a public-layer spec.
@@ -258,21 +325,27 @@ These are `os-investigator`'s caching rule applied to a file that may sit in the
 
 ## What the checker enforces
 
-`board-expert/scripts/spec_check.py <root>... [--stub SKILL.md] [--public-skill NAME]` fails on:
+`board-expert/scripts/spec_check.py <root>... [--stubs-from <skills dir>] [--stub SKILL.md]
+[--public-skill NAME]` fails on:
 
 - frontmatter missing a key its kind requires, an unknown `kind` or `layer`, or a duplicate `id`;
-- a `parts` or `overlays` reference that resolves to nothing across the given roots;
+- a `parts`, `overlays`, `variant_of`, or `instances[].ip` reference that resolves to nothing
+  across the given roots, or an `ip` spec with no `docs` entry marked `cite: true`;
+- an `instances:` row whose `reg` is not an integer or null, or whose `irq` is not null or a
+  mapping with `kind` (SPI | PPI | extended) and an integer `number`; a `variants:` entry without a
+  `name`;
+- a `series` entry with `cite: true`; a `fetch` value other than ok | blocked | truncated; a
+  `status` other than unmerged | merged | superseded;
 - `access: internal`, or a `via:` naming a skill outside the public set, under a `public` root;
-- an `instances:` row whose `ip` resolves to nothing, or an `ip` spec with no `docs` entry marked
-  `cite: true`;
-- a `Quick-facts` or `Gotchas` bullet without a provenance tag (a bullet that is only a
-  `TODO (verify on hardware)` gap is exempt), or `[source-observed]` without
-  `TODO (verify on hardware)`;
-- a stub whose spec id does not resolve.
+- a fact bullet that does not end with its tag clause, a `[source-observed]` or `[press]` bullet
+  without `TODO (verify on hardware)`, or a `[doc]` without a parenthetical naming its source;
+- a stub whose `spec: <id>` does not resolve. `--stubs-from` finds every `*/SKILL.md` under a
+  skills directory whose frontmatter says "stub over", so CI cannot forget one.
 
-It is stdlib-only, reads the frontmatter with PyYAML when available and with its own parser for the
-format's YAML subset otherwise, and warns (without failing) on two overlays for one id in one layer.
-CI runs it on the public root with every stub in this repository.
+It warns, without failing, on two overlays for one id in one layer and on a part whose `cache`
+differs from its board's. It is stdlib-only: PyYAML when available, otherwise its own parser for the
+format's YAML subset. It does not check URL reachability. CI runs it on the public root with every
+stub in this repository.
 
 ## Related documents
 

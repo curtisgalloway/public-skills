@@ -58,14 +58,13 @@ Nova board decides on top of that: the console pin group, its baud, and the powe
   (`rk3588s-indiedroid-nova.dts`, `/chosen` stdout-path)
 - **Console pin group.** The Nova routes UART2 through the **`uart2m0_xfer`** pin group, overriding
   the SoC base default of `uart2m1_xfer`; a from-reset bare-metal path must set the GRF IOMUX for
-  the **m0** pins or the line stays silent. U-Boot normally muxes them already. `[DT]`
-  (`rk3588s-indiedroid-nova.dts` pinctrl override). Exact pins and GRF registers:
-  `TODO (verify on hardware)` against the TRM GRF chapter and the RK3588S pinctrl DT.
+  the **m0** pins or the line stays silent. U-Boot normally muxes them already. `[DT]` (`rk3588s-indiedroid-nova.dts` pinctrl override). `TODO (verify on hardware)`: the exact
+  pins and GRF registers, against the TRM GRF chapter and the RK3588S pinctrl DT.
 - **Power.** Board voltage rails come from an external RK806-class PMIC; the Nova uses `rk8602` /
   `rk8603` regulators over I²C/SPI. `[DT]` (`rk3588s-indiedroid-nova.dts` regulator nodes)
 - **Headers and board-level GPIO.** `TODO (verify on hardware)`: the 40-pin header assignment and
   the storage (eMMC / microSD / NVMe) wiring are not recorded here yet.
-- **Product documentation.** `TODO (verify)`: no board-level datasheet or schematic URL is recorded
+- **Product documentation.** `TODO (verify on hardware)`: no board-level datasheet or schematic URL is recorded
   here yet; the SoC spec's TRM and datasheet mirrors are the citable authorities.
 
 ## Gotchas
@@ -74,5 +73,5 @@ Nova board decides on top of that: the console pin group, its baud, and the powe
   shows garbage, not silence. `[DT]`
 - Silence despite a correct UART2 base address means the **m0** IOMUX is not set; the SoC default is
   **m1**. `[DT]`
-- `rkbin` (DDR init + BL31) or a self-built TF-A is mandatory; the BootROM → SPL → BL31 → BL33 chain
-  is Rockchip-specific and cannot be skipped. `[doc]`
+- `rkbin` (DDR init + BL31) or a self-built TF-A is mandatory; the BootROM → SPL → BL31 → BL33 chain is Rockchip-specific and cannot be skipped. `[doc]` (rkbin repository README; TF-A
+  Rockchip platform page)
