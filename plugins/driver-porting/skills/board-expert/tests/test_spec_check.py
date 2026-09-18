@@ -106,13 +106,27 @@ class SubsetParser(unittest.TestCase):
         with self.assertRaises(spec_check.YamlError):
             spec_check.parse_yaml_subset("irq: {kind: SPI\n")
 
+    def test_rejects_colon_space_in_plain_scalars_like_pyyaml(self):
+        with self.assertRaises(spec_check.YamlError) as ctx:
+            spec_check.parse_yaml_subset("note: TODO (verify on hardware): the PMIC\n")
+        self.assertIn("'note'", str(ctx.exception))
+        with self.assertRaises(spec_check.YamlError):
+            spec_check.parse_yaml_subset("irq: {kind: SPI, number: 3, note: shared: yes}\n")
+        with self.assertRaises(spec_check.YamlError):
+            spec_check.parse_yaml_subset("files:\n  - a: b: c\n")
+        self.assertEqual(
+            spec_check.parse_yaml_subset('note: "TODO (verify on hardware): quoted"\n'),
+            {"note": "TODO (verify on hardware): quoted"},
+        )
+        self.assertEqual(spec_check.parse_yaml_subset("url: https://x/y\n"), {"url": "https://x/y"})
+
     def test_agrees_with_pyyaml_on_the_shipped_specs_and_fixtures(self):
         try:
             import yaml
         except ImportError:
             self.skipTest("PyYAML not installed")
         paths = list((HERE.parent / "specs").rglob("*.spec.md"))
-        paths += [p for p in FIX.rglob("*.spec.md") if p.name != "broken.spec.md"]
+        paths += [p for p in FIX.rglob("*.spec.md") if p.name not in ("broken.spec.md", "colon.spec.md")]
         for path in sorted(paths):
             m = spec_check.FRONTMATTER_RE.match(path.read_text())
             self.assertIsNotNone(m, path)
@@ -150,6 +164,13 @@ class TagRules(unittest.TestCase):
         self.assertIsNotNone(spec_check.DOC_UNNAMED_RE.search("`[doc]`"))
         self.assertIsNotNone(spec_check.DOC_UNNAMED_RE.search("`[doc]`, `[DT]` (node)"))
 
+    def test_dt_needs_a_parenthetical(self):
+        dt = spec_check.UNNAMED_RES["DT"]
+        self.assertIsNone(dt.search("`[DT]` (`bcm2712.dtsi`)"))
+        self.assertIsNone(dt.search("[DT] (lga-b0.dtb from a prebuilt tree)"))
+        self.assertIsNotNone(dt.search("`[DT]`"))
+        self.assertIsNotNone(dt.search("`[DT]`, `[databook]` (DDI 0183)"))
+
 
 class GoodRoot(unittest.TestCase):
     def test_clean_root_passes_with_both_parsers(self):
@@ -159,6 +180,16 @@ class GoodRoot(unittest.TestCase):
                 self.assertEqual(code, 0, err + json.dumps(data))
                 self.assertEqual(messages(data), [])
                 self.assertEqual(data["specs"], 3)
+                expected = "subset" if flags or not spec_check.pyyaml_available() else "pyyaml"
+                self.assertEqual(data["parser"], expected)
+
+    def test_human_output_names_the_parser(self):
+        proc = subprocess.run(
+            [sys.executable, str(CHECKER), "--no-pyyaml", str(GOOD)],
+            capture_output=True, text=True, check=False,
+        )
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertIn("(parser: subset)", proc.stdout)
 
     def test_shipped_public_root_passes(self):
         for flags in PARSER_FLAGS:
@@ -193,6 +224,12 @@ class BadRoot(unittest.TestCase):
                     "[source-observed] fact without",
                     "[press] fact without",
                     "[doc] must be followed by a parenthetical",
+                    "[DT] must be followed by a parenthetical",
+                    "irq.kind extended requires irq.parent",
+                    "irq.parent is only valid for kind extended",
+                    "irq.intid is not valid for kind extended",
+                    "file 'c/d.dtsi': status must be one of",
+                    "files entry must be a path or a mapping with path",
                     "does not end with its tag clause",
                     "ip 'nosuchip' resolves to nothing",
                     "'badboard' is not an ip spec",
@@ -213,6 +250,11 @@ class BadRoot(unittest.TestCase):
                     "stub spec id 'nosuchboard' resolves to nothing",
                 ):
                     self.assertIn(expected, msgs)
+                # colon.spec.md fails under both parsers, each in its own words
+                if spec_check.parser_name(not flags) == "subset":
+                    self.assertIn("contains ': '", msgs)
+                else:
+                    self.assertIn("mapping values are not allowed here", msgs)
 
     def test_public_skill_allowlist_silences_via(self):
         code, data, _ = run(BAD, "--public-skill", "acme-board-tools", flags=["--no-pyyaml"])

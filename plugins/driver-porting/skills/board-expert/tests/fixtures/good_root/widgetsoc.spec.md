@@ -21,7 +21,7 @@ resources:
 
 ## Quick-facts
 
-- **Addressing.** Flat. `[DT]`
+- **Addressing.** Flat. `[DT]` (`widgetsoc.dtsi`)
 - **Timer.** 24 MHz. `[standard]`, `[hardware]`
 - **Ordering.** Reset before clock. `[source-observed]` `TODO (verify on hardware)`: confirm the order.
 - **GPU.** Widget-G1 per press. `[press]` `TODO (verify on hardware)`: the part number.

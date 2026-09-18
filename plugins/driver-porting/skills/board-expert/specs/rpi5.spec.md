@@ -73,7 +73,8 @@ until PCIe is up.
 
 - The "console" on the 40-pin header is RP1 `uart0`, behind PCIe. The early console is the debug
   connector, on-SoC `uart10`. Mixing these up is the most common Pi 5 bring-up dead end. `[DT]`
+  (`bcm2712-rpi-5-b.dts`, `aliases`)
 - Nothing on RP1 is reachable until PCIe is up; early bring-up uses on-SoC blocks only.
-  `[databook]` (RP1 datasheet §2.3.1), `[DT]`
+  `[databook]` (RP1 datasheet §2.3.1), `[DT]` (`rp1.dtsi`)
 - Older Pi bring-up guides that poke per-core release addresses do not apply: secondary cores start
   via PSCI `CPU_ON` (see `bcm2712`). `[DT]` (`psci { method = "smc" }`)

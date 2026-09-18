@@ -1,7 +1,8 @@
 ---
 name: <board>-expert
 description: >-
-  Board expert for the <Board display name> (<SoC part number><, variants>): memory map and MMIO
+  Board expert for the <Board display name> (<SoC part number>; family: <the sibling models the
+  board facts cover, e.g. "Pixel 10 Pro and Pro XL">): memory map and MMIO
   addresses, device tree, boot chain and exception-level hand-off, interrupts, timers,
   clocks/power, debug UART, GPIO/pinmux, plus sources and datasheets for bring-up. Use for any
   "<keyword1>", "<keyword2>", or "<keyword3>" hardware or low-level question, even if Linux isn't
@@ -16,7 +17,9 @@ SPDX-License-Identifier: Apache-2.0
 <!-- In this repository the header is exactly the two lines above with the year; another repo
      carries whatever its neighbors do. Keep the description's "Board expert for" prefix and its
      "A stub over the <id> board spec" sentence: consumers match the first, the checker finds
-     stubs by the second. -->
+     stubs by the second. For a device family, list in the description the sibling models whose
+     board facts this spec covers (the `variants:` rows); a model whose facts differ has its own
+     `variant_of` spec and, if wanted, its own stub. -->
 
 # <Board display name> Expert (stub)
 

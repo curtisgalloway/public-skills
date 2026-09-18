@@ -25,8 +25,14 @@ private resources, a `<vendor>-board-tools` skill for a vendor's internal tools,
 a source tree. The format, the layers, and the clean-room rules are in `board-expert/SPEC-FORMAT.md`;
 read it before writing anything, and do not restate it in what you write.
 
-The worked example to mirror is the `rpi5` set under `board-expert/specs/`: `rpi5.spec.md` (board),
-`bcm2712.spec.md` (SoC), `rp1.spec.md` (chip), and the `rpi-expert` stub that points at it.
+The worked examples are every spec under `board-expert/specs/` and the stubs beside this skill.
+Pick the closest: for a single-board computer with public firmware, `rpi5.spec.md` + `bcm2712.spec.md`
++ `rp1.spec.md` and the `rpi-expert` stub; for an SoC whose firmware tree is not public, `rk3588s.spec.md`
+(vendor blobs named, TF-A cited where it exists) with `indiedroid-nova.spec.md`; for a board with a
+public datasheet as the citation of record, `rpi4.spec.md` + `bcm2711.spec.md`; for an IP block,
+`ip/pl011.spec.md` and `ip/dw-apb-uart.spec.md`. A handset or other closed device has no shipped
+example: use the board template's second bullet set and the soc template's closed-firmware phrasing
+of the Boot chain bullet.
 
 ## What you produce
 
@@ -52,9 +58,9 @@ The worked example to mirror is the `rpi5` set under `board-expert/specs/`: `rpi
   `SPDX-License-Identifier: Apache-2.0` in an HTML comment immediately *after* the frontmatter,
   never above it — a comment before the frontmatter stops it parsing. A source tree carries whatever
   header its neighbors do.
-- **Cache convention.** A board spec names `cache: <short>-resources`; the expert clones under
-  `~/src/<short>-resources/`. Pick a short, unambiguous `<short>`. Parts inherit the board's cache
-  unless they name their own.
+- **Cache convention.** A board spec names `cache: <board-id>-resources` (`rpi5-resources`); the
+  expert clones under `~/src/<board-id>-resources/`. SoC, chip, and IP parts inherit the board's
+  cache unless they name their own; a generic IP spec names `<ip-id>-resources`.
 - **Clean-room first.** Every fact carries a provenance tag, at the end of its bullet; anything
   unverified is `TODO (verify on hardware)`; no source excerpts, ever. A spec may end up in the
   target OS tree, so it must already be safe there. Device trees are hardware description, not
@@ -80,7 +86,7 @@ The worked example to mirror is the `rpi5` set under `board-expert/specs/`: `rpi
      highest-value files per repo (board `.dts`, SoC `.dtsi`, console UART driver, irqchip).
    - **Citations:** the authoritative datasheet / TRM / programmer's guide URLs (and public *proxy*
      parts when the exact one is NDA), plus the relevant ARM specs (GIC, PSCI, SCMI, ARM ARM).
-   - **Cache:** the `<short>-resources` name.
+   - **Cache:** `<board-id>-resources` unless the user has a convention.
    - **Quick-facts** (fill what's known; the rest is TODO for the expert or user to confirm on
      hardware). SoC: addressing model, boot chain + entry EL + MMU/cache state + DTB-pointer register
      + secondary-core release, SMP/MPIDR mapping, interrupt controller (version, GICD/GICR/GICC
@@ -121,8 +127,9 @@ The worked example to mirror is the `rpi5` set under `board-expert/specs/`: `rpi
    `marketplace.json` descriptions enumerate the board experts in prose; add the new one.
    `python3 utilities/check-skill-registration.py` confirms the two READMEs and CI runs it on every
    push. CI's checker step and the README's Tests block use `--stubs-from`, which finds every stub
-   whose description says "stub over", so they need no edit. A spec in a source tree follows that
-   tree's review process.
+   whose description says "stub over", so they need no edit. No skill description may enumerate
+   the stubs by name (`board-expert`'s says "when no board-specific stub matches"), so adding a stub
+   never stales another skill. A spec in a source tree follows that tree's review process.
 6. **Check.** Run `python3 <board-expert>/scripts/spec_check.py <root>... --stubs-from <skills dir>`
    over every root the new spec references (a vendor root needs the public root beside it, or its
    overlay targets do not resolve). It enforces `SPEC-FORMAT.md` § *What the checker enforces*:

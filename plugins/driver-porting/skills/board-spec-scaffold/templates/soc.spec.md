@@ -3,7 +3,7 @@ kind: soc
 id: <soc-id>
 name: <SoC vendor and part number>
 triggers: [<part number>, <family alias>]
-cache: <short>-resources
+cache: <board-id>-resources   # inherit the board's cache; name your own only for a shared SoC
 resources:
   repos:
     - name: <linux repo short name>
@@ -17,7 +17,7 @@ resources:
         - <irqchip driver>
         - <clock driver>
         - Documentation/arch/arm64/booting.rst
-      note: <vendor/downstream or mainline, and why this one>
+      note: "<vendor/downstream or mainline, and why this one>"   # quote: may hold ': '
     - name: arm-trusted-firmware   # omit when the platform's EL3 firmware is closed; say so in Boot chain
       url: https://github.com/ARM-software/arm-trusted-firmware
       ref: master
@@ -83,9 +83,13 @@ so in Boot chain and cite what the vendor publishes.>
 
 - **Addressing model.** <Flat versus high window; `#address-cells`/`#size-cells` at the root and on
   the peripheral bus; any `ranges` translation trap; a worked example address (the debug UART).> `[DT]`
-- **Boot chain and entry state.** <BootROM → … → OS image; the entry exception level, MMU/cache
-  state, DTB-pointer register; resident firmware regions to avoid.> `[doc]` (<page>), `[standard]`
-  (arm64 `booting.rst`)
+- **Boot chain and entry state.** <Public firmware: BootROM → … → OS image; the entry exception
+  level, MMU/cache state, DTB-pointer register; resident firmware regions to avoid. Closed firmware
+  and handsets: boot ROM → the vendor's closed stages (name what the DT reserves for them) → the
+  product bootloader → the boot-image layout it loads (which image carries the kernel, the DTB, the
+  overlays); the exception level at hand-off from the vendor's platform documentation, or
+  `TODO (verify on hardware)` when it is only inferred.> `[doc]` (<page>), `[standard]` (arm64
+  `booting.rst`)
 - **SMP topology.** <Core count and clusters; cpu `reg` → MPIDR mapping; secondary-core release (PSCI
   `CPU_ON` versus spin-table); the boot core.> `[DT]`, `[standard]`
 - **Interrupts.** <GIC version; GICD/GICR/GICC addresses; DT `#interrupt-cells`; SPI→INTID and

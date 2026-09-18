@@ -17,11 +17,12 @@ What fails (exit 1):
     ``variant_of`` that resolves to nothing across the given roots
   * an ``instances[]`` row whose ``reg`` is not an integer or null, or whose
     ``irq`` is not null or a mapping with ``kind`` (SPI | PPI | extended)
-    and an integer ``number``
+    and an integer ``number``; an ``extended`` irq without ``parent``, or a
+    SPI/PPI irq with one
   * a ``variants[]`` entry without a ``name``
   * a ``resources.series`` entry with ``cite: true``; a ``fetch:`` value
     other than ok | blocked | truncated; a ``status:`` other than
-    unmerged | merged | superseded
+    unmerged | merged | superseded, on an entry or on one of its ``files``
   * under a ``public`` root: any ``access: internal`` entry, or a ``via:``
     naming a skill not passed with ``--public-skill``
   * an ``ip`` spec with no ``docs`` entry marked ``cite: true``
@@ -32,8 +33,9 @@ What fails (exit 1):
     optional bold lead-in, starts with ``TODO (verify on hardware)`` is a gap
     and needs no tag
   * a ``[source-observed]`` or ``[press]`` bullet without
-    ``TODO (verify on hardware)``; a ``[doc]`` not followed by a
-    parenthetical naming its source
+    ``TODO (verify on hardware)``; a ``[doc]`` or ``[DT]`` not followed by a
+    parenthetical naming its source (for ``[DT]``: the file, and its origin
+    when it is a decompiled blob rather than a source ``.dts``)
   * a stub (``--stub PATH``, or every stub found by ``--stubs-from DIR``: a
     ``*/SKILL.md`` whose frontmatter says "stub over") whose ``spec: <id>``
     does not resolve
@@ -45,9 +47,11 @@ What warns (reported, exit stays 0):
 
 Stdlib only.  PyYAML is used when importable; otherwise a parser for the
 YAML subset the format uses (block mappings and lists, flow lists, one-level
-flow mappings, folded and literal scalars, comments) reads the frontmatter.  ``--no-pyyaml``
-forces the subset parser, which is what the tests exercise so the fallback
-never rots.
+flow mappings, folded and literal scalars, comments) reads the frontmatter.
+The subset parser rejects ``: `` inside an unquoted scalar, as PyYAML does,
+so the two never disagree on that trap.  ``--no-pyyaml`` forces the subset
+parser, which is what the tests exercise so the fallback never rots; the
+output names the parser that ran (``parser: pyyaml`` or ``parser: subset``).
 
 Exit codes follow the dev-tools/cli-conventions contract:
 
@@ -95,7 +99,12 @@ TAIL_RE = re.compile(
     rf"(?:\s*`?TODO \(verify on hardware\)`?[^\[\]]*)?\s*$"
 )
 GAP_RE = re.compile(r"^- (?:\*\*[^*]+\*\*\s*)?`?TODO \(verify on hardware\)")
-DOC_UNNAMED_RE = re.compile(r"\[doc\](?:`|(?!`))(?!\s*\()")
+# Tags that must be followed by a parenthetical naming their source.
+NAMED_TAGS = ("doc", "DT")
+UNNAMED_RES = {
+    tag: re.compile(rf"\[{tag}\](?:`|(?!`))(?!\s*\()") for tag in NAMED_TAGS
+}
+DOC_UNNAMED_RE = UNNAMED_RES["doc"]
 FRONTMATTER_RE = re.compile(r"\A---\n(.*?)\n---\n(.*)\Z", re.S)
 
 
@@ -108,7 +117,7 @@ class YamlError(ValueError):
     pass
 
 
-def _scalar(text: str):
+def _scalar(text: str, key: str | None = None):
     text = text.strip()
     if text == "" or text == "null" or text == "~":
         return None
@@ -129,13 +138,16 @@ def _scalar(text: str):
         inner = text[1:-1].strip()
         result = {}
         for part in _split_flow(inner) if inner else []:
-            key, sep, value = part.partition(":")
+            fkey, sep, value = part.partition(":")
             if not sep:
                 raise YamlError(f"flow mapping entry without a colon: {part!r}")
-            result[key.strip()] = _scalar(value)
+            result[fkey.strip()] = _scalar(value, fkey.strip())
         return result
     if (text[0] == text[-1]) and text[0] in "\"'" and len(text) >= 2:
         return text[1:-1]
+    if ": " in text or text.endswith(":"):
+        where = f"the value of {key!r}" if key else "an unquoted value"
+        raise YamlError(f"{where} contains ': ' (mapping values are not allowed here); quote it")
     if re.fullmatch(r"-?\d+", text):
         return int(text)
     if re.fullmatch(r"0x[0-9a-fA-F]+", text):
@@ -217,7 +229,7 @@ def parse_yaml_subset(text: str):
         joiner = "\n" if style.startswith("|") else " "
         return joiner.join(collected)
 
-    def parse_value(after_colon: str, indent: int):
+    def parse_value(after_colon: str, indent: int, key: str | None = None):
         nonlocal pos
         value = after_colon.strip()
         if value in (">", ">-", "|", "|-"):
@@ -225,7 +237,7 @@ def parse_yaml_subset(text: str):
             return block_scalar(indent, value)
         if value != "":
             pos += 1
-            return _scalar(value)
+            return _scalar(value, key)
         pos += 1
         skip_blank()
         if pos >= len(lines):
@@ -254,7 +266,7 @@ def parse_yaml_subset(text: str):
             if not m:
                 raise YamlError(f"expected 'key: value' at line {pos + 1}: {line!r}")
             key, rest = m.group(1), m.group(2)
-            result[key] = parse_value(rest, indent)
+            result[key] = parse_value(rest, indent, key)
         return result
 
     def parse_list(indent: int) -> list:
@@ -307,14 +319,24 @@ def _dates_to_strings(node):
     return node
 
 
-def load_yaml(text: str, use_pyyaml: bool):
-    if use_pyyaml:
-        try:
-            import yaml  # type: ignore
+def pyyaml_available() -> bool:
+    try:
+        import yaml  # type: ignore  # noqa: F401
+    except ImportError:
+        return False
+    return True
 
-            return _dates_to_strings(yaml.safe_load(text))
-        except ImportError:
-            pass
+
+def parser_name(use_pyyaml: bool) -> str:
+    """Which parser load_yaml will actually run: 'pyyaml' or 'subset'."""
+    return "pyyaml" if use_pyyaml and pyyaml_available() else "subset"
+
+
+def load_yaml(text: str, use_pyyaml: bool):
+    if use_pyyaml and pyyaml_available():
+        import yaml  # type: ignore
+
+        return _dates_to_strings(yaml.safe_load(text))
     return parse_yaml_subset(text)
 
 
@@ -455,6 +477,20 @@ def check_instance_shape(p: str, row, findings: list[Finding]) -> None:
     intid = irq.get("intid")
     if intid is not None and (not isinstance(intid, int) or isinstance(intid, bool)):
         findings.append(Finding("error", p, f"instance {name!r}: irq.intid must be an integer"))
+    parent = irq.get("parent")
+    if irq.get("kind") == "extended":
+        if not isinstance(parent, str) or not parent:
+            findings.append(
+                Finding("error", p, f"instance {name!r}: irq.kind extended requires irq.parent")
+            )
+        if intid is not None:
+            findings.append(
+                Finding("error", p, f"instance {name!r}: irq.intid is not valid for kind extended")
+            )
+    elif parent is not None:
+        findings.append(
+            Finding("error", p, f"instance {name!r}: irq.parent is only valid for kind extended")
+        )
 
 
 def check_resources(spec: Spec, findings: list[Finding]) -> None:
@@ -480,6 +516,23 @@ def check_resources(spec: Spec, findings: list[Finding]) -> None:
             findings.append(
                 Finding("error", p, f"{group} entry {label!r}: status must be one of {STATUS_VALUES}")
             )
+        for item in entry.get("files") or []:
+            if isinstance(item, str):
+                continue
+            if not isinstance(item, dict) or not item.get("path"):
+                findings.append(
+                    Finding("error", p, f"{group} entry {label!r}: files entry must be a path or a mapping with path")
+                )
+                continue
+            fstatus = item.get("status")
+            if fstatus is not None and fstatus not in STATUS_VALUES:
+                findings.append(
+                    Finding(
+                        "error",
+                        p,
+                        f"{group} entry {label!r}: file {item['path']!r}: status must be one of {STATUS_VALUES}",
+                    )
+                )
 
 
 def iter_resources(meta: dict):
@@ -634,10 +687,12 @@ def check_tags(spec: Spec, findings: list[Finding]) -> None:
                 findings.append(
                     Finding("error", where, f"[{needs_todo}] fact without 'TODO (verify on hardware)'")
                 )
-        if DOC_UNNAMED_RE.search(bullet):
-            findings.append(
-                Finding("error", where, "[doc] must be followed by a parenthetical naming its source")
-            )
+        for tag, unnamed_re in UNNAMED_RES.items():
+            if unnamed_re.search(bullet):
+                what = "its source" if tag == "doc" else "the file (and its origin, for a blob)"
+                findings.append(
+                    Finding("error", where, f"[{tag}] must be followed by a parenthetical naming {what}")
+                )
 
 
 STUB_RE = re.compile(r"`spec:\s*([a-z0-9][a-z0-9\-]*)`")
@@ -695,7 +750,9 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     findings: list[Finding] = []
-    specs, preconditions = load_specs(args.roots, not args.no_pyyaml, findings)
+    use_pyyaml = not args.no_pyyaml
+    parser_used = parser_name(use_pyyaml)
+    specs, preconditions = load_specs(args.roots, use_pyyaml, findings)
     if preconditions:
         for msg in preconditions:
             print(f"missing precondition: {msg}", file=sys.stderr)
@@ -721,7 +778,12 @@ def main(argv: list[str] | None = None) -> int:
     warnings = [f for f in findings if f.level == "warning"]
     if args.json:
         json.dump(
-            {"specs": len(specs), "stubs": len(stubs), "findings": [asdict(f) for f in findings]},
+            {
+                "specs": len(specs),
+                "stubs": len(stubs),
+                "parser": parser_used,
+                "findings": [asdict(f) for f in findings],
+            },
             sys.stdout,
             indent=2,
         )
@@ -730,9 +792,14 @@ def main(argv: list[str] | None = None) -> int:
         for f in findings:
             print(f"{f.level}: {f.path}: {f.message}", file=sys.stderr)
         if errors:
-            print(f"FAIL: {len(errors)} error(s), {len(warnings)} warning(s)", file=sys.stderr)
+            print(
+                f"FAIL: {len(errors)} error(s), {len(warnings)} warning(s) (parser: {parser_used})",
+                file=sys.stderr,
+            )
         else:
-            print(f"OK: {len(specs)} specs checked, {len(warnings)} warning(s)")
+            print(
+                f"OK: {len(specs)} specs checked, {len(warnings)} warning(s) (parser: {parser_used})"
+            )
     return 1 if errors else 0
 
 

@@ -220,6 +220,11 @@ calling agent's actual question is your instruction.
 3. **Device trees first.** For SoCs without a public datasheet, the DT *is* the authoritative
    address/IRQ/clock index. Find the node, follow its parent `ranges` up to a CPU physical address,
    then read the driver only to understand *behavior/sequence* — not to copy it.
+   A production DTB or DTBO is a device tree too: hardware description, not code. Decompile it
+   (`dtc -I dtb -O dts`, or a pure-Python FDT reader when `dtc` is absent; an Android `dtbo.img` is
+   a container of DTBs behind a table header, split it into its entries first) and tag values from
+   it `[DT]` naming the blob and where it came from, so a value from a shipped image and one from a
+   source `.dtsi` are told apart.
 4. **Cross-check high-stakes facts twice.** Anything that bricks bring-up if wrong (early-console
    address, entry exception level, reset vector) gets confirmed two ways — e.g. DT arithmetic *and* a
    known-good `earlycon=`/firmware-log value, or a datasheet.

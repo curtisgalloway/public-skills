@@ -16,4 +16,6 @@ layer with an internal overlay, a duplicate overlay, and a dangling one), two st
 skills directory for `--stubs-from` with a real stub, a broken one, and a non-stub that must be
 ignored. Every case runs with `--no-pyyaml` so the stdlib subset parser is what CI exercises, and
 again with PyYAML when it is installed; one test asserts the two parsers agree on every shipped
-spec and fixture.
+spec and fixture. On a machine without PyYAML the two runs are the same parser (the checker's last
+line says `parser: subset`), so run the suite once under a Python that has it for the real second
+path: `uv run --with pyyaml python -m unittest discover -s plugins/driver-porting/skills/board-expert/tests -v`.

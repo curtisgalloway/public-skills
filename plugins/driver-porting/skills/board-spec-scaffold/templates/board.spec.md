@@ -5,7 +5,7 @@ name: <Board display name>
 triggers: [<keyword1>, <keyword2>, <keyword3>]
 aliases: []
 parts: [<soc-id>, <chip-id>]
-cache: <short>-resources
+cache: <id>-resources         # the board id; parts inherit it
 variants: []                  # optional: sibling models sharing these facts; see SPEC-FORMAT § Variants
 # variant_of: <base-id>       # instead of variants, when THIS spec is a variant with differing facts
 resources:
@@ -16,7 +16,17 @@ resources:
       license: <SPDX identifier>
       files:
         - <path to the board .dts>
-      note: <what this repo is for; read for behavior, cite the datasheet>
+        # - {path: <path not in the ref yet>, status: unmerged, note: "<which series adds it>"}
+      note: "<what this repo is for; read for behavior, cite the datasheet>"   # quote: may hold ': '
+  # series:                    # unmerged patch series that are the public map; never cite: true
+  #   - title: <series subject>
+  #     url: <canonical lore URL>
+  #     message_id: <message-id>
+  #     target: <repo short name above>
+  #     status: unmerged
+  #     fetch: blocked         # lore's HTML is bot-challenged; name the working form in note
+  #     files: [<board .dts the series adds>]
+  #     note: "<what it establishes; fetched as /raw or t.mbox.gz with a Wget user agent>"
   docs:
     - title: <board documentation, schematic, or boot-configuration reference>
       url: <URL>

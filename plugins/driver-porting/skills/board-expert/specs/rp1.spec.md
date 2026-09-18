@@ -63,6 +63,6 @@ of record for everything on it.
 ## Gotchas
 
 - The 40-pin header "console" UART is RP1's `uart0`, behind PCIe; it is not the early debug console.
-  `[DT]`
+  `[DT]` (`rp1.dtsi`, `uart0`)
 - Early bring-up cannot touch RP1 at all. Use the on-SoC PL011, GIC, and timer until PCIe is up.
-  `[databook]`, `[DT]`
+  `[databook]` (RP1 datasheet §2.3.1), `[DT]` (`rp1.dtsi`)
