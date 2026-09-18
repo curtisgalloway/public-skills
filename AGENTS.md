@@ -36,6 +36,27 @@ python3 utilities/check-skill-registration.py
 CI runs this on every push and pull request, along with the skill test suites,
 so a miss fails the build rather than going unnoticed.
 
+## Behavioral evals
+
+Unit tests cover a skill's scripts. Whether the *skill text* makes an agent
+behave differently is checked with `claude plugin eval`, which runs a case
+against the plugin and against a no-plugin baseline and reports the delta.
+Cases live in `plugins/<plugin>/evals/<case>/` as a `case.yaml` (prompt,
+budget, graders) plus a `fixture.sh` that builds the workspace. Run from the
+plugin directory:
+
+```bash
+claude plugin eval . --scaffold --trust-plugin --allow-tools Bash Write Edit \
+  --judge-model sonnet --no-publish
+```
+
+Each run is a real agent session on your credential, so budget a few dollars
+and several minutes per case; `--case <name>` and `--ablation none` narrow a
+run while iterating. `evals/results/` is gitignored. On macOS, Apple's
+`/usr/bin/git` and `/usr/bin/python3` are xcrun shims that cannot run inside
+the eval sandbox; point `/usr/local/bin/git` and `/usr/local/bin/python3` at
+real binaries first.
+
 ## Writing portable skills
 
 - Use generic placeholder names (`example.com`, `<your-host>`, `<path/to/file>`) instead of real values
