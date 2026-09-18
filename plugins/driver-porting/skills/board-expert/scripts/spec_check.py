@@ -39,11 +39,17 @@ What fails (exit 1):
   * a stub (``--stub PATH``, or every stub found by ``--stubs-from DIR``: a
     ``*/SKILL.md`` whose frontmatter says "stub over") whose ``spec: <id>``
     does not resolve
+  * a verification record (``<root>/resources/<id>.verify.md``, written by
+    the ``spec-verifier`` skill) whose frontmatter is malformed, or whose
+    ``summary.fail`` is not zero; with ``--require-verified``, also a spec
+    with no record or a record whose ``spec_sha256`` no longer matches
 
 What warns (reported, exit stays 0):
 
   * two overlays for the same id in the same layer
   * a part whose ``cache`` differs from its board's
+  * a spec with no verification record ("unverified"), or one whose record
+    was written for an older version of the file ("verification stale")
 
 Stdlib only.  PyYAML is used when importable; otherwise a parser for the
 YAML subset the format uses (block mappings and lists, flow lists, one-level
@@ -64,6 +70,7 @@ Exit codes follow the dev-tools/cli-conventions contract:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import sys
@@ -695,6 +702,99 @@ def check_tags(spec: Spec, findings: list[Finding]) -> None:
                 )
 
 
+RECORD_KEYS = ("spec", "spec_file", "spec_sha256", "verified", "verifier", "sources", "summary")
+SUMMARY_KEYS = ("pass", "fail", "unverifiable", "gap")
+
+
+def record_path(spec: Spec) -> Path:
+    return spec.root / "resources" / f"{spec.id}.verify.md"
+
+
+def check_verification(
+    spec: Spec, use_pyyaml: bool, require: bool, findings: list[Finding]
+) -> str:
+    """Check the spec's verification record; return its status for the summary.
+
+    Statuses: "verified", "unverified", "stale", "failing", "malformed".
+    Only the record's frontmatter is read; the body is the verifier's and the
+    reader's business, not this script's.
+    """
+    p = str(spec.path)
+    level = "error" if require else "warning"
+    rec = record_path(spec)
+    if not rec.exists():
+        findings.append(Finding(level, p, f"unverified: no record at {rec.relative_to(spec.root)}"))
+        return "unverified"
+    rp = str(rec)
+    m = FRONTMATTER_RE.match(rec.read_text())
+    if not m:
+        findings.append(Finding("error", rp, "verification record has no YAML frontmatter"))
+        return "malformed"
+    try:
+        meta = load_yaml(m.group(1), use_pyyaml)
+    except Exception as exc:  # noqa: BLE001
+        findings.append(Finding("error", rp, f"verification record does not parse: {exc}"))
+        return "malformed"
+    if not isinstance(meta, dict):
+        findings.append(Finding("error", rp, "verification record frontmatter is not a mapping"))
+        return "malformed"
+    malformed = False
+    for key in RECORD_KEYS:
+        if key not in meta:
+            findings.append(Finding("error", rp, f"verification record: missing key {key!r}"))
+            malformed = True
+    if meta.get("spec") is not None and meta.get("spec") != spec.id:
+        findings.append(
+            Finding("error", rp, f"verification record: spec {meta.get('spec')!r} is not {spec.id!r}")
+        )
+        malformed = True
+    verified = meta.get("verified")
+    if verified is not None and not re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(verified)):
+        findings.append(Finding("error", rp, "verification record: verified must be an ISO date"))
+        malformed = True
+    if "sources" in meta and not isinstance(meta.get("sources"), list):
+        findings.append(Finding("error", rp, "verification record: sources must be a list"))
+        malformed = True
+    for entry in meta.get("sources") or []:
+        if not isinstance(entry, dict) or not entry.get("name"):
+            findings.append(Finding("error", rp, "verification record: sources entry without a name"))
+            malformed = True
+            continue
+        fetch = entry.get("fetch")
+        if fetch is not None and fetch not in FETCH_VALUES:
+            findings.append(
+                Finding("error", rp, f"verification record: source {entry['name']!r}: fetch must be one of {FETCH_VALUES}")
+            )
+            malformed = True
+    summary = meta.get("summary")
+    if "summary" in meta:
+        if not isinstance(summary, dict):
+            findings.append(Finding("error", rp, "verification record: summary must be a mapping"))
+            malformed = True
+        else:
+            for key in SUMMARY_KEYS:
+                value = summary.get(key)
+                if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+                    findings.append(
+                        Finding("error", rp, f"verification record: summary.{key} must be a non-negative integer")
+                    )
+                    malformed = True
+    if malformed:
+        return "malformed"
+    digest = hashlib.sha256(spec.path.read_bytes()).hexdigest()
+    if str(meta.get("spec_sha256")).lower() != digest:
+        findings.append(
+            Finding(level, p, f"verification stale: {rec.relative_to(spec.root)} was written for another version of this file")
+        )
+        return "stale"
+    if summary.get("fail", 0) > 0:
+        findings.append(
+            Finding("error", p, f"verification record reports {summary['fail']} FAIL verdict(s); see {rec.relative_to(spec.root)}")
+        )
+        return "failing"
+    return "verified"
+
+
 STUB_RE = re.compile(r"`spec:\s*([a-z0-9][a-z0-9\-]*)`")
 
 
@@ -745,6 +845,11 @@ def main(argv: list[str] | None = None) -> int:
         default=[],
         help="a skill name that may appear in via: under a public root",
     )
+    parser.add_argument(
+        "--require-verified",
+        action="store_true",
+        help="a spec with no verification record, or a stale one, is an error instead of a warning",
+    )
     parser.add_argument("--no-pyyaml", action="store_true", help="force the subset parser")
     parser.add_argument("--json", action="store_true", help="machine-readable output")
     args = parser.parse_args(argv)
@@ -759,10 +864,14 @@ def main(argv: list[str] | None = None) -> int:
         return 3
 
     public_skills = set(args.public_skill)
+    verification: dict[str, int] = {}
     for spec in specs:
         check_frontmatter(spec, findings)
         check_public(spec, public_skills, findings)
         check_tags(spec, findings)
+        if isinstance(spec.id, str) and not spec.is_overlay:
+            status = check_verification(spec, use_pyyaml, args.require_verified, findings)
+            verification[status] = verification.get(status, 0) + 1
     check_references(specs, findings)
     ids = {s.id for s in specs if not s.is_overlay and isinstance(s.id, str)}
     stubs = list(args.stub)
@@ -782,6 +891,7 @@ def main(argv: list[str] | None = None) -> int:
                 "specs": len(specs),
                 "stubs": len(stubs),
                 "parser": parser_used,
+                "verification": verification,
                 "findings": [asdict(f) for f in findings],
             },
             sys.stdout,

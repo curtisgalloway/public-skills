@@ -44,6 +44,7 @@ of the Boot chain bullet.
 | `<board>-expert/SKILL.md` stub | the user wants the board findable by name and callable by consumers | `templates/stub-SKILL.md` |
 | `<id>.spec.md` with `overlays:` | private resources for this hardware, vendor or bench-local | `templates/overlay.spec.md` |
 | `<vendor>-board-tools/SKILL.md` | a vendor has no generic skill yet for its internal tools | `templates/vendor-board-tools-SKILL.md` |
+| `<root>/resources/<id>.verify.md` | always, as the last step: the verification record | none; `spec-verifier` writes it |
 
 ## Conventions to honor
 
@@ -136,10 +137,18 @@ of the Boot chain bullet.
    required keys per kind, every `parts`, `instances[].ip`, `variant_of`, and `overlays` reference
    resolving, instance `reg`/`irq` shapes, the tag clause at the end of every fact, nothing internal
    under a public root, and every stub's id resolving.
-7. **Remind to sync.** If the user's machines link skills from a checkout with a sync tool, tell them
+7. **Verify.** A spec is not done until a fresh verifier has re-derived every fact from the source
+   it cites and the record has zero `FAIL`. Run the verification phase as `spec-verifier` § Board
+   specs defines it: spawn the verifier subagent with the spec and nothing of this session, two
+   independent verifiers for the addressing model, entry state, and debug UART, and write
+   `<root>/resources/<id>.verify.md` (the record lives outside the spec so the reader never loads
+   it). Fix every `FAIL` the record proposes, then re-run until it is clean; the checker reports a
+   missing record as "unverified" and a record older than the spec as "stale". The same phase runs
+   again on demand through `spec-verifier`.
+8. **Remind to sync.** If the user's machines link skills from a checkout with a sync tool, tell them
    to re-run it so a new stub is linked; a plugin install picks it up on the next update. Specs in a
    source tree need nothing.
-8. **Don't push unprompted.** Stage/commit if asked; follow the repo's push rules.
+9. **Don't push unprompted.** Stage/commit if asked; follow the repo's push rules.
 
 ## Filling guidance
 
@@ -161,6 +170,8 @@ of the Boot chain bullet.
 - Every quick-fact and gotcha tagged; unverified items flagged, not guessed; no source excerpts.
 - Sources name obtainable repos and refs *and* citable datasheets/specs, not just the kernel.
 - Nothing internal under a public root.
+- A verification record exists for every spec written, its `spec_sha256` matches the file, and its
+  summary has zero `FAIL`.
 - A stub, if written, starts its description with the prefix "Board expert for" (the article is
   free: "Board expert for the Raspberry Pi 5" is fine; consumers such as `reference-driver-review`
   match the prefix), says "A stub over the `<id>` board spec" (which is how `--stubs-from` finds

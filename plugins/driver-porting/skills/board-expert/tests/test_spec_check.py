@@ -24,6 +24,7 @@ FIX = HERE / "fixtures"
 GOOD = FIX / "good_root"
 BAD = FIX / "bad_root"
 VENDOR = FIX / "vendor_root"
+VERIFY = FIX / "verify_root"
 STUBS = FIX / "stubs"
 
 sys.path.insert(0, str(CHECKER.parent))
@@ -51,6 +52,11 @@ def run(*args, flags):
 
 def messages(data):
     return [f["message"] for f in data["findings"]]
+
+
+def substantive(data):
+    """Findings other than the 'unverified' warning every record-less fixture spec carries."""
+    return [f for f in data["findings"] if not f["message"].startswith("unverified:")]
 
 
 class SubsetParser(unittest.TestCase):
@@ -126,7 +132,9 @@ class SubsetParser(unittest.TestCase):
         except ImportError:
             self.skipTest("PyYAML not installed")
         paths = list((HERE.parent / "specs").rglob("*.spec.md"))
+        paths += list((HERE.parent / "specs").rglob("*.verify.md"))
         paths += [p for p in FIX.rglob("*.spec.md") if p.name not in ("broken.spec.md", "colon.spec.md")]
+        paths += list(FIX.rglob("*.verify.md"))
         for path in sorted(paths):
             m = spec_check.FRONTMATTER_RE.match(path.read_text())
             self.assertIsNotNone(m, path)
@@ -178,8 +186,9 @@ class GoodRoot(unittest.TestCase):
             with self.subTest(flags=flags):
                 code, data, err = run(GOOD, "--stub", FIX / "stub_good.md", flags=flags)
                 self.assertEqual(code, 0, err + json.dumps(data))
-                self.assertEqual(messages(data), [])
+                self.assertEqual(substantive(data), [])
                 self.assertEqual(data["specs"], 3)
+                self.assertEqual(data["verification"], {"unverified": 3})
                 expected = "subset" if flags or not spec_check.pyyaml_available() else "pyyaml"
                 self.assertEqual(data["parser"], expected)
 
@@ -286,7 +295,7 @@ class VendorRoot(unittest.TestCase):
                 self.assertEqual(code, 1, msgs)
                 self.assertIn("overlays 'nosuchboard' resolves to nothing", "\n".join(msgs))
                 self.assertNotIn("access: internal", "\n".join(msgs))
-                warnings = [f for f in data["findings"] if f["level"] == "warning"]
+                warnings = [f for f in substantive(data) if f["level"] == "warning"]
                 self.assertEqual(len(warnings), 2)
                 self.assertIn("2 overlays for 'widgetboard' in layer 'product'", warnings[0]["message"])
 
@@ -307,9 +316,74 @@ class CacheWarning(unittest.TestCase):
             soc.write_text(soc.read_text().replace("cache: widget-resources", "cache: other-resources"))
             code, data, _ = run(root, flags=["--no-pyyaml"])
             self.assertEqual(code, 0)
-            warnings = [f for f in data["findings"] if f["level"] == "warning"]
+            warnings = [f for f in substantive(data) if f["level"] == "warning"]
             self.assertEqual(len(warnings), 1)
             self.assertIn("names cache 'other-resources'", warnings[0]["message"])
+
+
+class Verification(unittest.TestCase):
+    """Records under <root>/resources/<id>.verify.md, read by frontmatter only."""
+
+    def test_record_hashes_match_the_fixture_specs(self):
+        # The records for vok and vfail must carry the hash of the fixture file as committed.
+        # If this fails, someone edited the fixture spec: recompute with `shasum -a 256`.
+        import hashlib
+
+        for sid in ("vok", "vfail"):
+            spec = VERIFY / f"{sid}.spec.md"
+            record = (VERIFY / "resources" / f"{sid}.verify.md").read_text()
+            digest = hashlib.sha256(spec.read_bytes()).hexdigest()
+            self.assertIn(f"spec_sha256: {digest}", record, sid)
+
+    def test_every_status_is_reported(self):
+        for flags in PARSER_FLAGS:
+            with self.subTest(flags=flags):
+                code, data, _ = run(VERIFY, flags=flags)
+                self.assertEqual(code, 1)
+                self.assertEqual(data["specs"], 5)  # records are not specs
+                self.assertEqual(
+                    data["verification"],
+                    {"verified": 1, "stale": 1, "failing": 1, "unverified": 1, "malformed": 1},
+                )
+                msgs = "\n".join(messages(data))
+                self.assertIn("verification record reports 1 FAIL verdict(s)", msgs)
+                self.assertIn("verification stale: resources/vstale.verify.md", msgs)
+                self.assertIn("unverified: no record at resources/vnone.verify.md", msgs)
+                self.assertIn("verification record: missing key 'summary'", msgs)
+                self.assertIn("verified must be an ISO date", msgs)
+                self.assertIn("fetch must be one of", msgs)
+                self.assertIn("sources entry without a name", msgs)
+                by_level = {f["message"]: f["level"] for f in data["findings"]}
+                self.assertEqual(by_level["unverified: no record at resources/vnone.verify.md"], "warning")
+                self.assertTrue(
+                    any(k.startswith("verification stale") and v == "warning" for k, v in by_level.items())
+                )
+
+    def test_require_verified_upgrades_the_warnings(self):
+        code, data, _ = run(VERIFY, "--require-verified", flags=["--no-pyyaml"])
+        self.assertEqual(code, 1)
+        by_level = {f["message"]: f["level"] for f in data["findings"]}
+        self.assertEqual(by_level["unverified: no record at resources/vnone.verify.md"], "error")
+        self.assertTrue(
+            any(k.startswith("verification stale") and v == "error" for k, v in by_level.items())
+        )
+        code, data, _ = run(GOOD, "--require-verified", flags=["--no-pyyaml"])
+        self.assertEqual(code, 1)
+        self.assertEqual(data["verification"], {"unverified": 3})
+
+    def test_a_verified_root_is_clean_under_require_verified(self):
+        import shutil, tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp) / "root"
+            (root / "resources").mkdir(parents=True)
+            shutil.copy(VERIFY / "board-specs.yaml", root)
+            shutil.copy(VERIFY / "vok.spec.md", root)
+            shutil.copy(VERIFY / "resources" / "vok.verify.md", root / "resources")
+            code, data, err = run(root, "--require-verified", flags=["--no-pyyaml"])
+            self.assertEqual(code, 0, err + json.dumps(data))
+            self.assertEqual(messages(data), [])
+            self.assertEqual(data["verification"], {"verified": 1})
 
 
 if __name__ == "__main__":
