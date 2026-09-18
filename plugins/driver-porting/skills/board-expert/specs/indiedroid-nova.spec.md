@@ -70,8 +70,8 @@ Nova board decides on top of that: the console pin group, its baud, and the powe
 ## Gotchas
 
 - The console is the SoC's DW 8250 at 1.5 Mbaud, not a PL011 at 115200; a terminal at the wrong baud
-  shows garbage, not silence. `[DT]`
+  shows garbage, not silence. `[DT]` (`rk3588s-indiedroid-nova.dts`, `chosen` and `uart2`)
 - Silence despite a correct UART2 base address means the **m0** IOMUX is not set; the SoC default is
-  **m1**. `[DT]`
+  **m1**. `[DT]` (`rk3588s-indiedroid-nova.dts`, `uart2` pinctrl)
 - `rkbin` (DDR init + BL31) or a self-built TF-A is mandatory; the BootROM → SPL → BL31 → BL33 chain is Rockchip-specific and cannot be skipped. `[doc]` (rkbin repository README; TF-A
   Rockchip platform page)

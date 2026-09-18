@@ -109,9 +109,11 @@ the mini UART by default, not the PL011.
 
 - **The header console is the mini UART, not the PL011.** GPIO 14/15 default to UART1, whose baud
   tracks the VPU core clock (`enable_uart=1` pins it); UART0 goes to Bluetooth on GPIO 32/33.
-  `dtoverlay=disable-bt` frees UART0 for the header. `[DT]`, `[doc]` (Raspberry Pi documentation)
+  `dtoverlay=disable-bt` frees UART0 for the header. `[DT]` (`bcm2711-rpi-4-b.dts`), `[doc]`
+  (Raspberry Pi documentation)
 - **Ethernet is on-SoC GENET, not Pi 5's RP1.** Do not port Pi 5 (`0x1F_...`, RP1) assumptions;
   Pi 4 peripherals live at `0xFE...` / `0xFD...`. Only the VL805 USB 3 xHCI is behind PCIe. `[DT]`
+  (`bcm2711.dtsi`)
 - **Low- vs high-peripheral mode must be consistent** across firmware, DT, and armstub; everything
   stock assumes low (`0xFE...`). `arm_peri_high=1` without a matching DT and stub does not boot.
   `[doc]` (Raspberry Pi documentation, config.txt), `[databook]` (BCM2711 datasheet §1.2)

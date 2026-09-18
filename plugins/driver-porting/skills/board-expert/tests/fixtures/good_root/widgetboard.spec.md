@@ -46,4 +46,4 @@ Synthetic.
 
 ## Gotchas
 
-- Console is the second UART. `[DT]`
+- Console is the second UART. `[DT]` (`widgetboard.dts`)

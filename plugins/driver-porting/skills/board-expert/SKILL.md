@@ -6,9 +6,9 @@ description: >-
   sources it names into the expert's cache, and answers bring-up questions: memory map and MMIO
   addresses, boot chain and exception-level hand-off, interrupts, timers, clocks/power, debug UART,
   GPIO/pinmux, sources and datasheets. Use for a hardware or low-level question about a named board,
-  SoC, chip, or IP block (a dwc3 spec, a PL011 spec) when no board-specific expert (rpi-expert,
-  rpi4-expert, indiedroid-nova-expert) matches. Pairs with os-investigator, which supplies the
-  method and the clean-room rule.
+  SoC, chip, or IP block (a dwc3 spec, a PL011 spec) when no board-specific stub (a
+  <board>-expert skill) matches. Pairs with os-investigator, which supplies the method and the
+  clean-room rule.
 ---
 
 <!--

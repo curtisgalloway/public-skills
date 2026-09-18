@@ -3,7 +3,7 @@ kind: chip
 id: <chip-id>
 name: <Chip vendor and part name>
 triggers: [<part name>]
-cache: <short>-resources
+cache: <board-id>-resources   # inherit the board's cache; name your own only for a shared chip
 resources:
   repos:
     - name: <repo short name>
@@ -12,13 +12,13 @@ resources:
       license: <SPDX identifier>
       files:
         - <the chip's device-tree fragment>
-      note: <what this repo is for>
+      note: "<what this repo is for>"   # quote: may hold ': '
   docs:
     - title: <chip datasheet>
       url: <URL>
       access: public
       cite: true
-      note: <which section covers the host-visible address mapping>
+      note: "<which section covers the host-visible address mapping>"
   tools: []
 ---
 

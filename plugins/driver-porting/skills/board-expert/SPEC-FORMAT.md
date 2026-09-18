@@ -34,15 +34,32 @@ stated here; the skills point at this file instead of restating it.
   Vendor and bench-local material is always an overlay.
 - **Stub** — a short skill named `<board>-expert` whose content is trigger keywords and a spec id. It
   exists so the harness's skill matching finds the board by name and so consumers can call the expert
-  by a stable name.
+  by a stable name. Its description starts with the prefix "Board expert for" and contains the
+  sentence "A stub over the `<id>` board spec": consumers match the prefix, and the checker's
+  `--stubs-from` finds stubs by the sentence.
 - **Cache** — the out-of-tree directory `~/src/<cache>/` where the expert clones reference source. The
   cache is the encumbered side of the clean-room wall; the spec is the clean side.
 - **Provenance tag** — the class of authority behind a fact. `[databook]`, `[standard]`, `[DT]`, and
-  `[source-observed]` are `os-investigator`'s; specs add `[doc]` (a project's own public
-  documentation, such as Trusted Firmware-A platform pages or a vendor's documentation site; always
-  followed by a parenthetical naming the page), `[hardware]` (measured on a live board; say which),
-  and `[press]` (press, teardown, or marketing material: allowed only with a
-  `TODO (verify on hardware)`, or in Orientation prose).
+  `[source-observed]` are `os-investigator`'s; specs add `[doc]`, `[hardware]`, and `[press]`. The
+  classes, with what falls in each:
+  - `[databook]` — the IP databook, TRM, or datasheet; cite the section.
+  - `[standard]` — a public standard or architecture specification (ARM ARM, GICv3, PSCI, USB, IEEE
+    802.3, the 16550 register model, the arm64 boot protocol in `booting.rst`); cite the clause.
+  - `[DT]` — a value read out of a device tree. Always followed by a parenthetical naming the file it
+    came from and, when that file is not a source `.dts`/`.dtsi` (a decompiled production DTB or an
+    entry in a DTBO image), where the blob came from.
+  - `[doc]` — a project's or vendor's own published documentation: a vendor's official
+    specification page, a platform documentation site, a repository README, a commit message, a
+    patch cover letter, or a maintainer's reply on a list. Always followed by a parenthetical naming
+    which, so a store page, a platform guide, and a cover letter cannot be confused.
+  - `[hardware]` — measured on a live board; say which board and how.
+  - `[press]` — third-party press, teardowns, reviews, and marketing claims that appear nowhere in
+    the vendor's own documentation (a modem part named only by reviewers, a GPU model, clock speeds
+    from a launch article). Allowed in a fact bullet only with `TODO (verify on hardware)`, and
+    freely in Orientation prose.
+  - `[source-observed]` — established only by code or by the shape of a tree: a driver's behavior,
+    a module file name, a kernel version string, a third-party prebuilt tree's file listing. Always
+    with `TODO (verify on hardware)`.
 - **Series** — a patch series on a mailing list that adds or changes device trees or drivers before
   it is merged. A `resources.series` entry; a map (`[DT]`, `[source-observed]`), never an authority.
 - **Variant** — a model of a board that shares the SoC and most facts with a base model (a "Pro"
@@ -91,7 +108,7 @@ name: Raspberry Pi 5 / Compute Module 5
 triggers: [pi 5, raspberry pi 5, rpi5, cm5, compute module 5]
 aliases: []                   # optional: other ids this spec answers to
 parts: [bcm2712, rp1]         # board (required) and chip (optional): ids this spec composes
-cache: rpi5-resources         # reference material is cloned under ~/src/<cache>/
+cache: rpi5-resources         # <board id>-resources by convention; cloned under ~/src/<cache>/
 variants:                     # optional, board only: models that share this spec's facts
   - name: Raspberry Pi 5 (16 GB)
     triggers: [pi 5 16gb]
@@ -103,12 +120,13 @@ resources:
       url: https://github.com/raspberrypi/linux
       ref: rpi-6.12.y
       license: GPL-2.0-only
-      status: merged          # optional: unmerged when the listed files are not in the ref yet
+      status: merged          # optional: the default for every file below (unmerged | merged)
       verified: 2026-09-18    # optional: the date the URL and ref were last checked
       fetch: ok               # optional: ok | blocked | truncated, for automated fetchers
       files:                  # highest-value paths, relative to the repo root
         - arch/arm64/boot/dts/broadcom/bcm2712-rpi-5-b.dts
-      note: the real Pi 5 device trees and drivers; read for behavior, cite the datasheet
+        - {path: arch/arm64/boot/dts/google/lga.dtsi, status: unmerged, note: "lands with the series"}
+      note: "the real Pi 5 device trees and drivers; read for behavior, cite the datasheet"
   series:                     # optional: unmerged patch series that are the public map
     - title: Add Laguna SoC and boards
       url: https://lore.kernel.org/linux-arm-kernel/<message-id>/
@@ -116,7 +134,7 @@ resources:
       target: linux-mainline  # the repo entry it patches
       status: unmerged        # unmerged | merged | superseded
       files: [arch/arm64/boot/dts/google/lga.dtsi]
-      note: a map, never cite: true
+      note: "a map, never cite: true; the canonical lore URL is bot-challenged, see Paths and URLs"
   docs:
     - title: RP1 peripherals datasheet
       url: https://datasheets.raspberrypi.com/rp1/rp1-peripherals.pdf
@@ -131,8 +149,16 @@ resources:
 `cite: true` marks a clean-room authority: cite it, not the kernel. `cite: false` or absent means
 context or map only; the reader never cites such an entry as authority. A `series` entry can never
 be `cite: true`. `status` on a repo or series entry says whether the listed `files` exist at the
-`ref` yet (`unmerged` when they do not). `verified` and `fetch` record when a URL was last checked
-and whether an automated fetcher could read it; they make link rot detectable and are optional.
+`ref` yet (`unmerged` when they do not) and is the default for every file it lists; a `files:`
+entry may also be a mapping `{path, status, note}` when one repository carries some of the listed
+files and not others (mainline may carry a binding and a driver while the SoC's `.dtsi` is still on
+the list). `verified` and `fetch` record when a URL was last checked and whether an automated fetcher
+could read it; they make link rot detectable and are optional.
+
+**Quoting.** Both parsers the checker uses reject an unquoted scalar that contains `: ` (a colon
+followed by a space) or ends with a colon; a `#` after a space starts a comment; a comma inside a
+flow mapping (`{...}`) splits the entry. Double-quote any `note`, `title`, or `name` that contains
+one of those, as the examples do.
 
 An SoC or chip spec also carries an `instances:` table, one row per placement of an IP block:
 
@@ -141,13 +167,23 @@ instances:
   - name: uart10              # the instance name as the device tree or datasheet calls it
     ip: pl011                 # id of the IP spec (the binding)
     reg: 0x107d001000         # CPU-physical base as an integer, or null with a TODO in `note`
-    irq: {kind: SPI, number: 121, intid: 153, trigger: level-high, note: shared line}
+    irq: {kind: SPI, number: 121, intid: 153, trigger: level-high, note: "shared by all PL011s"}
                               # null, or a mapping: kind SPI | PPI | extended, integer number,
-                              # optional integer intid, optional trigger and note strings
+                              # optional integer intid, optional trigger and note strings (quoted)
     clocks: [clk_uart]        # DT clock names as the SoC's device tree uses them
     role: debug console       # optional: what this instance is for
-    note: <quirks, or TODO (verify on hardware)>
+    note: "quirks, or TODO (verify on hardware): what is missing"   # quote it: it holds a colon
+  - name: cli12_uart
+    ip: dw-apb-uart
+    reg: 0x3a352000
+    irq: {kind: extended, number: 4, parent: gia_lsio, note: "GIA aggregator line, not a GIC SPI"}
 ```
+
+`irq.kind` is `SPI` or `PPI` when the line goes to the GIC: `number` is the DT interrupt number and
+`intid` (optional) the resulting INTID (`32 + number` for an SPI, `16 + number` for a PPI). It is
+`extended` when the line goes to a secondary controller or aggregator (`interrupts-extended` in the
+DT): `parent` names that controller by its DT label, `number` is the line on that parent, and
+`intid` is absent; the parent's own GIC line, if known, goes in `note`.
 
 Keys by kind:
 
@@ -202,6 +238,11 @@ not count; put the facts first and the tags last.
 - `[source-observed]` and `[press]` facts must carry `TODO (verify on hardware)`.
 - `[doc]` is always followed by a parenthetical naming the page or document, so a store page, a
   platform guide, and a cover letter cannot be confused.
+- `[DT]` is always followed by a parenthetical naming the file the value came from (`bcm2712.dtsi`,
+  and the node when it helps) and, when the file is a decompiled production DTB or a DTBO entry
+  rather than a source `.dts`/`.dtsi`, where the blob came from (`lga-b0.dtb` from a named public
+  prebuilt tree). A value from a mailing-list `.dtsi` and one from a shipped blob are both `[DT]`;
+  the parenthetical is what tells them apart.
 - A **gap bullet** is one whose text, after the optional bold lead-in, starts with
   `TODO (verify on hardware)`; it records what is missing and carries no tag:
   `- **Power.** `TODO (verify on hardware)`: the PMIC part is not recorded here yet.`
@@ -290,10 +331,15 @@ block per `QUESTIONS.md`, and the orchestrator asks.
   label convention (for example a `//src/...` prefix) when its project skill defines it.
 - Out-of-tree material is a URL plus, for repositories, the `cache` it is cloned under.
 - Nothing in a spec points into a cache by absolute path; caches are per machine.
-- Arm documents are cited by id (`DDI 0183`, `IHI 0069`, `DEN 0022`). The
-  `developer.arm.com/documentation/<id>/latest` URL is the canonical link, but it redirects to a
-  portal that automated fetchers cannot read; record `fetch: blocked` on such an entry rather than
-  dropping the URL or inventing another.
+- Arm documents are cited by id (`DDI 0183`, `IHI 0069`, `DEN 0022`); the document id is the
+  citation. `developer.arm.com/documentation/<id>/latest` is the citation form to write; it now
+  redirects to `support.arm.com/documentation/<id>/latest`, a portal that automated fetchers cannot
+  read. Record `fetch: blocked` on such an entry rather than dropping the URL or inventing another.
+- Mailing-list series are cited by their canonical `lore.kernel.org/<list>/<message-id>/` URL, whose
+  HTML form is bot-challenged. Record that URL with `fetch: blocked` and a `note` naming the form
+  that does work: the `/raw` suffix for one message, `/t.mbox.gz` for the whole thread, fetched
+  with a `Wget` user agent. Do not substitute a mirror's URL for the canonical one; a mirror may go
+  in `note`.
 
 ## Tools
 
@@ -332,20 +378,23 @@ These are `os-investigator`'s caching rule applied to a file that may sit in the
 - a `parts`, `overlays`, `variant_of`, or `instances[].ip` reference that resolves to nothing
   across the given roots, or an `ip` spec with no `docs` entry marked `cite: true`;
 - an `instances:` row whose `reg` is not an integer or null, or whose `irq` is not null or a
-  mapping with `kind` (SPI | PPI | extended) and an integer `number`; a `variants:` entry without a
-  `name`;
+  mapping with `kind` (SPI | PPI | extended) and an integer `number`; an `extended` irq without
+  `parent`, or a SPI/PPI irq with one; a `variants:` entry without a `name`;
 - a `series` entry with `cite: true`; a `fetch` value other than ok | blocked | truncated; a
-  `status` other than unmerged | merged | superseded;
+  `status` other than unmerged | merged | superseded, on an entry or on one of its `files`;
 - `access: internal`, or a `via:` naming a skill outside the public set, under a `public` root;
 - a fact bullet that does not end with its tag clause, a `[source-observed]` or `[press]` bullet
-  without `TODO (verify on hardware)`, or a `[doc]` without a parenthetical naming its source;
+  without `TODO (verify on hardware)`, or a `[doc]` or `[DT]` without a parenthetical naming its
+  source;
 - a stub whose `spec: <id>` does not resolve. `--stubs-from` finds every `*/SKILL.md` under a
   skills directory whose frontmatter says "stub over", so CI cannot forget one.
 
 It warns, without failing, on two overlays for one id in one layer and on a part whose `cache`
 differs from its board's. It is stdlib-only: PyYAML when available, otherwise its own parser for the
-format's YAML subset. It does not check URL reachability. CI runs it on the public root with every
-stub in this repository.
+format's YAML subset, and its last line says which one ran (`parser: pyyaml` or `parser: subset`).
+The two agree on the quoting traps above by construction. It does not check URL reachability. CI has
+no PyYAML, so it runs the subset parser; run the checker once under a Python that has PyYAML (for
+example `uv run --with pyyaml python ...`) to exercise the other path.
 
 ## Related documents
 

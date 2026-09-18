@@ -138,3 +138,8 @@ python3 plugins/driver-porting/skills/board-expert/scripts/spec_check.py \
   plugins/driver-porting/skills/board-expert/specs \
   --stubs-from plugins/driver-porting/skills
 ```
+
+The checker's last line names the parser it ran. CI has no PyYAML, so it and the plain `python3`
+commands above exercise the checker's own subset parser; to exercise the PyYAML path as well, run
+the tests and the checker once under a Python that has it, for example
+`uv run --with pyyaml python -m unittest discover -s plugins/driver-porting/skills/board-expert/tests`.

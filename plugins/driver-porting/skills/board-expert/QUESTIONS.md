@@ -82,7 +82,8 @@ the options come from → default, if any.
      skills. No default.
    - Spec id when the marketing name and the codename differ → "`<marketing>` or `<codename>`?"
      Default: the marketing name as `id`, the codename in `aliases` and `triggers`.
-   - Cache name → default `<id>-resources`; ask only if the user has a convention.
+   - Cache name → default `<board-id>-resources` (the board's id; SoC, chip, and IP parts inherit it
+     unless they name their own); ask only if the user has a convention.
 5. **How far, and filled or stubbed.**
    - "Full driver spec, quick-facts only, or answer the one question?" Default: what the caller
      asked for; if nothing was asked for, quick-facts.
