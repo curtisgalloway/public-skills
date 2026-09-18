@@ -65,6 +65,10 @@ stated here; the skills point at this file instead of restating it.
 - **Variant** — a model of a board that shares the SoC and most facts with a base model (a "Pro"
   phone, a board revision). Listed under `variants:` on the base spec, or a spec of its own with
   `variant_of:` when its board facts differ materially.
+- **Verification record** — `<root>/resources/<id>.verify.md`: the verdicts a fresh verifier
+  reached when it re-derived every fact bullet from the authority it cites, kept outside the spec so
+  no reader spends context on it. Written by `spec-verifier` as the scaffold's last step and on
+  demand; the checker reads only its frontmatter. See *Verification*.
 
 ## What a spec is, and is not
 
@@ -341,6 +345,35 @@ block per `QUESTIONS.md`, and the orchestrator asks.
   with a `Wget` user agent. Do not substitute a mirror's URL for the canonical one; a mirror may go
   in `note`.
 
+## Verification
+
+A spec is written once by an author who read the sources as they went. Verification is the separate
+pass that re-derives every fact bullet from the authority its tag clause cites, in a fresh context
+that never saw the author's reasoning, and records the result **outside the spec**. The procedure is
+`spec-verifier` § Board specs (the one statement of it; the scaffold runs it as its last step and it
+runs again on demand). This section fixes only what the format and the checker rely on.
+
+- **Location.** `<root>/resources/<id>.verify.md`, in a `resources/` directory beside the root
+  marker, one file per spec, overlays included under their own root. It is not a spec: the reader
+  globs `*.spec.md` only and loads nothing from `resources/`. `board-expert` reports a spec's
+  verification status from the record's **frontmatter only**.
+- **Frontmatter.** `spec` (the id), `spec_file` (relative to the root), `spec_sha256` (the spec
+  file's SHA-256 when the record was written), `verified` (ISO date), `verifier` (free text: which
+  agent and harness), `sources` (a list of `{name, commit | url, fetch}` for every repository,
+  series, and document actually consulted), and `summary` (`{pass, fail, unverifiable, gap}`,
+  integers that equal the verdict lines in the body).
+- **Body.** One line per fact bullet, keyed `<Section>/<ordinal> "<bold lead-in>"` (1-based,
+  top-level bullets only), never by line number: `PASS` with what was compared against what; `FAIL`
+  with the discrepancy and the proposed correction; `UNVERIFIABLE` with the reason; `GAP` for a
+  TODO-only bullet. `instances:` rows are keyed `instances/<name>`. No source is reproduced.
+- **Staleness.** Any edit to the spec file changes its hash, so the record is stale until the phase
+  runs again. Stale is a fact about the record, not a judgment of the edit.
+- **What the checker does with it.** No record: warning `unverified`. Record whose `spec_sha256`
+  differs from the file: warning `verification stale`. Record whose `summary.fail` is not zero:
+  error. A record with a malformed frontmatter: error. `--require-verified` turns the two warnings
+  into errors, for a root whose policy is that nothing unverified lands. CI keeps the default so a
+  new spec can merge before its first verification, but a failing or stale record never can.
+
 ## Tools
 
 `resources.tools` entries are declarative: what exists and which skill knows how to drive it. The
@@ -372,7 +405,7 @@ These are `os-investigator`'s caching rule applied to a file that may sit in the
 ## What the checker enforces
 
 `board-expert/scripts/spec_check.py <root>... [--stubs-from <skills dir>] [--stub SKILL.md]
-[--public-skill NAME]` fails on:
+[--public-skill NAME] [--require-verified]` fails on:
 
 - frontmatter missing a key its kind requires, an unknown `kind` or `layer`, or a duplicate `id`;
 - a `parts`, `overlays`, `variant_of`, or `instances[].ip` reference that resolves to nothing
@@ -387,10 +420,14 @@ These are `os-investigator`'s caching rule applied to a file that may sit in the
   without `TODO (verify on hardware)`, or a `[doc]` or `[DT]` without a parenthetical naming its
   source;
 - a stub whose `spec: <id>` does not resolve. `--stubs-from` finds every `*/SKILL.md` under a
-  skills directory whose frontmatter says "stub over", so CI cannot forget one.
+  skills directory whose frontmatter says "stub over", so CI cannot forget one;
+- a verification record (`<root>/resources/<id>.verify.md`) whose frontmatter is malformed or whose
+  `summary.fail` is not zero; with `--require-verified`, also a spec with no record or with a stale
+  one.
 
-It warns, without failing, on two overlays for one id in one layer and on a part whose `cache`
-differs from its board's. It is stdlib-only: PyYAML when available, otherwise its own parser for the
+It warns, without failing, on two overlays for one id in one layer, on a part whose `cache`
+differs from its board's, on a spec with no verification record (`unverified`), and on a record
+whose `spec_sha256` no longer matches the spec (`verification stale`). It is stdlib-only: PyYAML when available, otherwise its own parser for the
 format's YAML subset, and its last line says which one ran (`parser: pyyaml` or `parser: subset`).
 The two agree on the quoting traps above by construction. It does not check URL reachability. CI has
 no PyYAML, so it runs the subset parser; run the checker once under a Python that has PyYAML (for
@@ -402,3 +439,5 @@ example `uv run --with pyyaml python ...`) to exercise the other path.
   that produces or consumes specs.
 - `VENDOR-GUIDE.md` — how a vendor sets up overlay roots, wraps internal tools as skills, and keeps
   internal material out of public roots.
+- `../spec-verifier/SKILL.md` — the verification procedure for every spec kind, with the board-spec
+  section this format's *Verification* section points at.

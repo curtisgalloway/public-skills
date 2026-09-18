@@ -21,6 +21,7 @@ Antigravity and other harnesses that read skill directories: link the skill you 
 | You are the agent writing code from a clean-room spec | `cleanroom-implementer` |
 | You need memory maps, boot chains, clocks, or interrupt details for a specific board | `rpi-expert`, `rpi4-expert`, `indiedroid-nova-expert`, or `board-expert` for any board with a spec |
 | You need a board expert for a board that does not have one yet | `board-spec-scaffold` writes the spec and stub; `board-expert` does its best without one |
+| You want a spec checked against every source it cites, or re-checked after the sources moved | `spec-verifier`, for board specs, clean-room driver specs, and anchored specs and reviews alike |
 
 ## Clean-room driver porting
 
@@ -121,8 +122,20 @@ resolving (`--stubs-from` finds the stubs by their "stub over" sentence).
   `<vendor>-board-tools` skill for a vendor's internal resources, or a new spec root in a source
   tree: an interview for the hardware's identity, root, sources, citations, cache name, and
   quick-facts, an optional research-fill by an `os-investigator` subagent, and a template for every
-  artifact under `templates/`. Authoring only; it reads no source and answers no hardware questions
-  itself.
+  artifact under `templates/`. Its last step is the verification phase. Authoring only; it reads no
+  source and answers no hardware questions itself.
+- **`spec-verifier`** — re-derive a spec's claims from the sources it cites, in a fresh verifier
+  context, and write a verification record outside the spec (`<root>/resources/<id>.verify.md` for
+  a board spec; a `resources/` sibling or the project's `docs/provenance/` for the others). One
+  procedure with a section per kind: board specs (every tagged fact against its device tree,
+  databook, or document; two independent verifiers for the addressing model, entry state, and debug
+  UART), anchored specs and reviews (`anchor_check.py` resolves every anchor at the pin, then the
+  creating skill's own verifier judges whether the cited lines support each claim; one verdict per
+  anchor), and clean-room driver specs (`cleanroom-spec`'s five-check verifier unchanged, then an
+  accuracy pass over every `[databook]`/`[standard]`/`[DT]` fact). It never edits a spec; a `FAIL`
+  carries the proposed correction and re-running is the loop. The checker reads the record's
+  frontmatter: unverified and stale are warnings, a recorded `FAIL` is an error, and
+  `--require-verified` makes the warnings errors too.
 
 The Fuchsia-specific skills that consume this pipeline live in
 [curtisgalloway/fuchsia-skills](https://github.com/curtisgalloway/fuchsia-skills) and hand
@@ -139,7 +152,8 @@ python3 plugins/driver-porting/skills/board-expert/scripts/spec_check.py \
   --stubs-from plugins/driver-porting/skills
 ```
 
-The checker's last line names the parser it ran. CI has no PyYAML, so it and the plain `python3`
+Add `--require-verified` to make a missing or stale verification record an error rather than a
+warning (CI keeps the default). The checker's last line names the parser it ran. CI has no PyYAML, so it and the plain `python3`
 commands above exercise the checker's own subset parser; to exercise the PyYAML path as well, run
 the tests and the checker once under a Python that has it, for example
 `uv run --with pyyaml python -m unittest discover -s plugins/driver-porting/skills/board-expert/tests`.

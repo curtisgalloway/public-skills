@@ -117,7 +117,11 @@ short **Spec provenance** block:
 - every fact that came from a vendor or local layer, so a citation that is not publicly checkable is
   visible to the verifier;
 - for an IP: the mode (anchored to which board and instance, or generic), and the commit of every
-  tree read.
+  tree read;
+- for every spec used, its verification status from `<root>/resources/<id>.verify.md`: the
+  record's `verified` date and `summary` counts, "stale" when the record's `spec_sha256` no longer
+  matches the file, or "unverified" when there is no record. Read the record's frontmatter only;
+  its body is not for you and would only spend context.
 
 If a fork blocked part of the work, add the **Needs decision** block from `QUESTIONS.md` before the
 provenance section, listing the options the specs offered and what you assumed meanwhile.

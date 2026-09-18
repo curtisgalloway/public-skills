@@ -225,7 +225,9 @@ comfortably beside the review.
    `[suspect]` on the verify-on-hardware list). Verdict: `PASS + report path` or `FAIL + report
    path + {finding, spec line, anchor, one-line reason}` list.
 3. **PASS** → move the review to `docs/<driver>-review.md` (or the project's review location),
-   fill the verification record (pins, date, report paths, `sha256sum` at PASS).
+   fill the verification record (pins, date, report paths, `sha256sum` at PASS). To re-run steps 1
+   and 2 on demand later and get a per-anchor record outside the review, use `spec-verifier`
+   § Anchored specs and reviews; it runs this same checker and verifier on both sides.
 4. **FAIL** → hand the verdict back to a review subagent to fix the flagged findings, then
    re-verify. A finding the verifier could not confirm from the cited lines is fixed by finding
    the right lines — or by deleting the finding — never by widening the anchor until it "fits".

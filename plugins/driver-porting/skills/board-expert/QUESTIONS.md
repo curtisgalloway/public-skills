@@ -89,6 +89,9 @@ the options come from → default, if any.
      asked for; if nothing was asked for, quick-facts.
    - For the scaffold: "Research-fill the facts from the public sources, or write the spec with
      TODO stubs for the user to fill?" Default: research-fill whenever the sources are public.
+   - For the scaffold: "Verify the spec now (a fresh verifier re-derives every fact from its
+     sources and writes the record, per `spec-verifier`), or later?" Default: now; a spec without a
+     record is reported as unverified by the checker and by `board-expert`.
 6. **Variant policy** (scaffold, when the board has sibling models). "Sibling models as
    `variants:` rows on this spec, as their own specs with `variant_of`, or left out?" Default:
    `variants:` rows when the SoC and console are shared and only capacity, radios, or size differ;

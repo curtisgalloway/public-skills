@@ -250,7 +250,9 @@ driver fits comfortably beside the spec.
    {section, spec line, anchor, one-line reason}` list.
 3. **PASS** → move the spec to `docs/<device>-spec.md`, fill the verification record (pins, date,
    report path, `sha256sum` of the file at PASS), add a one-line `AGENTS.md` index entry from the
-   returned summary.
+   returned summary. To re-run steps 1 and 2 on demand later (after an edit, or after the source
+   moved) and get a per-anchor record outside the spec, use `spec-verifier` § Anchored specs and
+   reviews; it runs this same checker and verifier and records a verdict for every anchor.
 4. **FAIL** → hand the verdict to a spec subagent (the original is fine — there is nothing to
    protect it from) to fix the flagged claims at the scratch path, then re-verify. A claim the
    verifier could not confirm from the cited lines is fixed by **finding the right lines**, not by
