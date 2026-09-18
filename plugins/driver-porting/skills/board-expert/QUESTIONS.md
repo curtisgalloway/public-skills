@@ -52,7 +52,9 @@ the options come from → default, if any.
 1. **Which hardware.**
    - The board name matched several specs or variants → "Which one: <base>, <variant>, ...?"
      Options from the matching specs' `name`, `aliases`, and `variants[].name`. No default. A match
-     on a base spec whose `variants:` list a model named in the question is the same fork.
+     on a base spec whose `variants:` list a model named in the question is the same fork. A spec
+     whose `not_triggers` the question contains is not a candidate at all (`SPEC-FORMAT.md` §
+     Trigger matching): "pixel 10a" never offers the `pixel10` spec.
    - The board revision changes the facts (different SoC stepping, different PMIC) → "Which
      revision?" Options from the board spec's `variants:` if it lists them. Default: the latest,
      stated.
@@ -81,7 +83,9 @@ the options come from → default, if any.
    - For an overlay: "Which vendor skill does this overlay go through?" Options from loaded vendor
      skills. No default.
    - Spec id when the marketing name and the codename differ → "`<marketing>` or `<codename>`?"
-     Default: the marketing name as `id`, the codename in `aliases` and `triggers`.
+     Default: the marketing name as `id`, every codename in `aliases` and `triggers` (an SoC may
+     have two: `aliases: [laguna, lga]`). Ids are normalized: lowercase, spaces and underscores
+     become hyphens, only `[a-z0-9-]`, so "Tensor G5" is `tensor-g5`.
    - Cache name → default `<board-id>-resources` (the board's id; SoC, chip, and IP parts inherit it
      unless they name their own); ask only if the user has a convention.
 5. **How far, and filled or stubbed.**

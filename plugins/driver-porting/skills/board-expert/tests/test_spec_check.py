@@ -126,6 +126,16 @@ class SubsetParser(unittest.TestCase):
         )
         self.assertEqual(spec_check.parse_yaml_subset("url: https://x/y\n"), {"url": "https://x/y"})
 
+    def test_quotes_protect_commas_and_colons_inside_flow_mappings(self):
+        text = 'irq: {kind: SPI, number: 3, note: "a, b: c"}\n'
+        expected = {"irq": {"kind": "SPI", "number": 3, "note": "a, b: c"}}
+        self.assertEqual(spec_check.parse_yaml_subset(text), expected)
+        try:
+            import yaml
+        except ImportError:
+            return
+        self.assertEqual(yaml.safe_load(text), expected)
+
     def test_agrees_with_pyyaml_on_the_shipped_specs_and_fixtures(self):
         try:
             import yaml
@@ -178,6 +188,35 @@ class TagRules(unittest.TestCase):
         self.assertIsNone(dt.search("[DT] (lga-b0.dtb from a prebuilt tree)"))
         self.assertIsNotNone(dt.search("`[DT]`"))
         self.assertIsNotNone(dt.search("`[DT]`, `[databook]` (DDI 0183)"))
+
+    def tags_of(self, body):
+        spec = spec_check.Spec(pathlib.Path("x.spec.md"), pathlib.Path("."), "public", {}, body)
+        findings = []
+        spec_check.check_tags(spec, findings)
+        return [f.message for f in findings]
+
+    def test_tag_names_in_prose_are_not_tags(self):
+        prose = "## Gotchas\n\n- Every address here is a decompiled-blob `[DT]` fact. `[DT]` (`x.dtb`, prebuilts)\n"
+        self.assertEqual(self.tags_of(prose), [])
+        bare = "## Gotchas\n\n- Uses a `[doc]` page and a `[press]` claim. `[standard]` (ARM ARM)\n"
+        self.assertEqual(self.tags_of(bare), [])
+        only_prose = "## Gotchas\n\n- The `[DT]` value is 5, and then more prose.\n"
+        self.assertEqual(len(self.tags_of(only_prose)), 1)
+        self.assertIn("a tag name in the prose does not count", self.tags_of(only_prose)[0])
+
+    def test_placeholder_scan(self):
+        findings = []
+        spec_check.check_placeholders(
+            "id: <id>\nSee <https://a.b/c> and <x@y.z>; the tuple `<type number flags>` and\n"
+            "```\n<in a fence>\n```\nbut <node> here.",
+            "f",
+            findings,
+        )
+        tokens = sorted(f.message for f in findings)
+        self.assertEqual(
+            tokens,
+            ["unsubstituted template placeholder '<id>'", "unsubstituted template placeholder '<node>'"],
+        )
 
 
 class GoodRoot(unittest.TestCase):
@@ -257,8 +296,24 @@ class BadRoot(unittest.TestCase):
                     "fetch must be one of",
                     "status must be one of",
                     "stub spec id 'nosuchboard' resolves to nothing",
+                    "a tag name in the prose does not count",
+                    "id '<chip-id>' is not a normalized id",
+                    "aliases entry 'Bad_Alias' is not a normalized id",
+                    "not_triggers must be a list of non-empty strings",
+                    "tag must be a provenance class, not 'rumor'",
+                    "source must be a string",
+                    "fetch_via must be a non-empty string",
+                    "unsubstituted template placeholder '<chip-id>'",
+                    "unsubstituted template placeholder '<bus>'",
+                    "unsubstituted template placeholder '<node>'",
                 ):
                     self.assertIn(expected, msgs)
+                self.assertNotIn("<https://example.com/ok>", msgs)
+                self.assertNotIn("<id@example.com>", msgs)
+                self.assertNotIn("<type number flags>", msgs)
+                self.assertNotIn("'ok-alias'", msgs)
+                # fetch: partial is a legal value; only fetch_via was wrong in badvariant
+                self.assertNotIn("'Partially readable page': fetch must be", msgs)
                 # colon.spec.md fails under both parsers, each in its own words
                 if spec_check.parser_name(not flags) == "subset":
                     self.assertIn("contains ': '", msgs)
@@ -275,9 +330,11 @@ class Stubs(unittest.TestCase):
     def test_stubs_from_finds_stubs_by_their_sentence(self):
         code, data, _ = run(GOOD, "--stubs-from", STUBS, flags=["--no-pyyaml"])
         self.assertEqual(code, 1)
-        self.assertEqual(data["stubs"], 2)  # widget-expert and broken-expert; not-a-stub ignored
+        # widget-expert, broken-expert, placeholder-expert; not-a-stub ignored
+        self.assertEqual(data["stubs"], 3)
         msgs = "\n".join(messages(data))
         self.assertIn("stub spec id 'nosuchboard' resolves to nothing", msgs)
+        self.assertIn("unsubstituted template placeholder '<Board display name>'", msgs)
         self.assertNotIn("not-a-stub", msgs)
 
     def test_stubs_from_needs_a_directory(self):

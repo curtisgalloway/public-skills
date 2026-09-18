@@ -63,7 +63,9 @@ and IP names in the question.
    skill's `specs/`, the `board-spec root:` line of every loaded skill, `board-specs.yaml` at the
    checkout root, `~/.config/board-specs/board-specs.yaml`, and whatever `roots:` those markers list.
    Never walk a tree looking for markers.
-2. **Match.** By id first, then by `triggers` and `aliases` across every root. A hit on an SoC or chip
+2. **Match.** By id first, then by `triggers` and `aliases` across every root, case-insensitively
+   and as whole-word substrings; a spec whose `not_triggers` the question contains is excluded
+   before its `triggers` are looked at (`SPEC-FORMAT.md` § Trigger matching). A hit on an SoC or chip
    spec with no board spec is still a hit; say which board-level facts are missing.
 3. **Compose.** Resolve `parts` recursively (board → SoC + chips), then the IP specs named by the
    `instances:` rows that the question touches.

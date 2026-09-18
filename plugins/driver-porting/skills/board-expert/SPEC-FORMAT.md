@@ -47,7 +47,9 @@ stated here; the skills point at this file instead of restating it.
     802.3, the 16550 register model, the arm64 boot protocol in `booting.rst`); cite the clause.
   - `[DT]` — a value read out of a device tree. Always followed by a parenthetical naming the file it
     came from and, when that file is not a source `.dts`/`.dtsi` (a decompiled production DTB or an
-    entry in a DTBO image), where the blob came from.
+    entry in a DTBO image), where the blob came from; the origin may be the `name` of a
+    `resources.repos` entry declared once, so `[DT] (lga-b0.dtb, laguna-kernel-prebuilts)` is
+    complete.
   - `[doc]` — a project's or vendor's own published documentation: a vendor's official
     specification page, a platform documentation site, a repository README, a commit message, a
     patch cover letter, or a maintainer's reply on a list. Always followed by a parenthetical naming
@@ -104,13 +106,19 @@ Found by globbing `**/*.spec.md` below a root. Placement under the root is free:
 spec describes, so a driver change and its spec update land in one review under the same owners, or in
 a central directory. The filename is a convention; the frontmatter `id` is what resolves.
 
+**Ids.** An `id` (and every `aliases`, `parts`, `variant_of`, and `overlays` value) is normalized:
+lowercase, spaces and underscores become hyphens, only `[a-z0-9-]`, so "Tensor G5" is `tensor-g5`
+and "RK3588S" is `rk3588s`. The marketing name is the id; every codename is an alias (`aliases:
+[laguna, lga]`) and a trigger.
+
 ```yaml
 ---
 kind: board                   # board | soc | chip | ip
-id: rpi5                      # kebab-case; unique across every root the reader sees
+id: rpi5                      # normalized (see Ids); unique across every root the reader sees
 name: Raspberry Pi 5 / Compute Module 5
 triggers: [pi 5, raspberry pi 5, rpi5, cm5, compute module 5]
-aliases: []                   # optional: other ids this spec answers to
+not_triggers: [pi 500]        # optional: a question containing one of these never matches this spec
+aliases: []                   # optional: other ids this spec answers to (codenames)
 parts: [bcm2712, rp1]         # board (required) and chip (optional): ids this spec composes
 cache: rpi5-resources         # <board id>-resources by convention; cloned under ~/src/<cache>/
 variants:                     # optional, board only: models that share this spec's facts
@@ -118,6 +126,8 @@ variants:                     # optional, board only: models that share this spe
     triggers: [pi 5 16gb]
     shares: [soc, parts, boot, console]
     differs: DRAM size only
+    tag: doc                  # optional: the provenance class the row rests on; default doc
+    source: Raspberry Pi product page   # optional: which document or listing names the variant
 resources:
   repos:
     - name: linux-rpi
@@ -125,8 +135,9 @@ resources:
       ref: rpi-6.12.y
       license: GPL-2.0-only
       status: merged          # optional: the default for every file below (unmerged | merged)
-      verified: 2026-09-18    # optional: the date the URL and ref were last checked
-      fetch: ok               # optional: ok | blocked | truncated, for automated fetchers
+      verified: 2026-09-18    # optional: the date the URL and ref were last checked (unquoted is fine)
+      fetch: ok               # optional: ok | blocked | truncated | partial, for automated fetchers
+      fetch_via: git          # optional: the method that worked (/raw, t.mbox.gz, curl with Wget UA, redirect)
       files:                  # highest-value paths, relative to the repo root
         - arch/arm64/boot/dts/broadcom/bcm2712-rpi-5-b.dts
         - {path: arch/arm64/boot/dts/google/lga.dtsi, status: unmerged, note: "lands with the series"}
@@ -157,12 +168,17 @@ be `cite: true`. `status` on a repo or series entry says whether the listed `fil
 entry may also be a mapping `{path, status, note}` when one repository carries some of the listed
 files and not others (mainline may carry a binding and a driver while the SoC's `.dtsi` is still on
 the list). `verified` and `fetch` record when a URL was last checked and whether an automated fetcher
-could read it; they make link rot detectable and are optional.
+could read it; they make link rot detectable and are optional. `fetch` is `ok` (readable), `blocked`
+(refused or bot-challenged), `truncated` (readable but cut short), or `partial` (readable by one
+method only); `fetch_via` names the method that worked, so the next fetcher does not rediscover it.
+`verified` is an ISO date; unquoted (`verified: 2026-09-18`) is fine under both parsers.
 
 **Quoting.** Both parsers the checker uses reject an unquoted scalar that contains `: ` (a colon
-followed by a space) or ends with a colon; a `#` after a space starts a comment; a comma inside a
-flow mapping (`{...}`) splits the entry. Double-quote any `note`, `title`, or `name` that contains
-one of those, as the examples do.
+followed by a space) or ends with a colon; a `#` after a space starts a comment. Inside a flow
+mapping (`{...}`) an unquoted comma splits the entry and an unquoted `: ` starts a new key; quotes
+protect both, so `irq: {kind: SPI, number: 3, note: "shared, see: the GIC spec"}` parses as one
+entry with the whole note. Double-quote any `note`, `title`, or `name` that contains a comma, a
+colon, or a `#`, as the examples do.
 
 An SoC or chip spec also carries an `instances:` table, one row per placement of an IP block:
 
@@ -174,7 +190,7 @@ instances:
     irq: {kind: SPI, number: 121, intid: 153, trigger: level-high, note: "shared by all PL011s"}
                               # null, or a mapping: kind SPI | PPI | extended, integer number,
                               # optional integer intid, optional trigger and note strings (quoted)
-    clocks: [clk_uart]        # DT clock names as the SoC's device tree uses them
+    clocks: [clk_uart]        # the DT clock-names values; [] when the DT gives only clock-frequency
     role: debug console       # optional: what this instance is for
     note: "quirks, or TODO (verify on hardware): what is missing"   # quote it: it holds a colon
   - name: cli12_uart
@@ -189,11 +205,17 @@ instances:
 DT): `parent` names that controller by its DT label, `number` is the line on that parent, and
 `intid` is absent; the parent's own GIC line, if known, goes in `note`.
 
+`clocks` lists the DT `clock-names` values of the instance as the SoC's device tree gives them.
+When two public trees disagree (a mainline `.dtsi` with only `clock-frequency`, a production blob
+with named clocks), use the mainline names and put the other tree's in `note`; write `[]` when the
+DT gives only `clock-frequency` or nothing, and say which in `note`.
+
 Keys by kind:
 
 | Key | board | soc | chip | ip | overlay |
 | --- | --- | --- | --- | --- | --- |
 | `kind`, `id`, `name`, `triggers` | required | required | required | required | not used |
+| `not_triggers`, `aliases` | optional | optional | optional | optional | no |
 | `parts` | required | no | optional | no | no |
 | `instances` | no | required (may be empty) | recommended | no | optional |
 | `variants`, `variant_of` | optional | no | no | no | no |
@@ -203,12 +225,20 @@ Keys by kind:
 
 **Variants.** A model that shares the SoC and most board facts with a base model is a row under
 the base spec's `variants:` (`name`, `triggers`, `shares`: which fact groups apply, `differs`: one
-line). A model whose board facts differ materially (another SoC stepping, another console path,
-another PMIC) is a board spec of its own with `variant_of: <base id>`, carrying only what differs
-and pointing at the base for the rest. `triggers` match by substring, so "pixel 10" also matches a
-question about a "Pixel 10 Pro"; when a question matches a variant's triggers, or the base's
-triggers with a variant name present, the reader treats it as a `Needs decision` between the base
-and the variant (`QUESTIONS.md` item 1).
+line, and optionally `tag` and `source`). A row rests on some authority like any fact: the default
+is documentation-grade (`tag: doc`, the vendor's own page); a row known only from press or from
+the shape of a prebuilt tree says so with `tag: press` or `tag: source-observed` and names the
+source in `source`. A model whose board facts differ materially (another SoC stepping, another
+console path, another PMIC) is a board spec of its own with `variant_of: <base id>`, carrying only
+what differs and pointing at the base for the rest.
+
+**Trigger matching.** A trigger matches when it appears in the question as a whole-word substring,
+case-insensitively: `pi 5` matches "my Pi 5 board" and not "pi 500". `not_triggers` are checked
+first, longest entry first: a question that contains one never matches this spec, whatever its
+`triggers` say, so `not_triggers: [pixel 10a]` keeps a "pixel 10" spec away from a product whose
+name merely extends it. When a question matches a variant's triggers, or the base's triggers with
+a variant name present, the reader treats it as a `Needs decision` between the base and the variant
+(`QUESTIONS.md` item 1).
 
 Body: fixed `##` headings per kind. The templates under `board-spec-scaffold/templates/` carry the
 exact list; in short:
@@ -231,8 +261,11 @@ exact list; in short:
 **Tag rules.** Every bullet in a fact section (`Quick-facts`, `Gotchas`, and for an IP spec
 `Standards and databook`, `Programming model`, `Known variants and quirks`) ends with its **tag
 clause**: one or more tags, each optionally followed by a parenthetical citation, then at most one
-closing sentence that starts with `TODO (verify on hardware)`. A tag in the middle of the prose does
-not count; put the facts first and the tags last.
+closing sentence that starts with `TODO (verify on hardware)`. Put the facts first and the tags
+last. **Only the tail clause is a tag clause**: a tag name mentioned in the prose ("every address
+here is a decompiled-blob `[DT]` fact") is not a tag, the checker ignores it, and the bullet still
+needs a real tag clause at its end. The closing TODO sentence may not contain square brackets; a
+tag token inside it would be read as a tag.
 
 ```
 - **Debug UART.** PL011 `uart10` at `0x10_7D00_1000`, left enabled by firmware. `[DT]`
@@ -244,9 +277,11 @@ not count; put the facts first and the tags last.
   platform guide, and a cover letter cannot be confused.
 - `[DT]` is always followed by a parenthetical naming the file the value came from (`bcm2712.dtsi`,
   and the node when it helps) and, when the file is a decompiled production DTB or a DTBO entry
-  rather than a source `.dts`/`.dtsi`, where the blob came from (`lga-b0.dtb` from a named public
-  prebuilt tree). A value from a mailing-list `.dtsi` and one from a shipped blob are both `[DT]`;
-  the parenthetical is what tells them apart.
+  rather than a source `.dts`/`.dtsi`, where the blob came from. The origin may be the `name` of a
+  `resources.repos` entry declared once in the frontmatter, so `[DT] (lga-b0.dtb,
+  laguna-kernel-prebuilts)` is complete and the spec need not repeat a sentence twenty times. A
+  value from a mailing-list `lga-b0.dts` and one from a shipped `lga-b0.dtb` are both `[DT]`; the
+  parenthetical, one letter apart, is what tells them apart.
 - A **gap bullet** is one whose text, after the optional bold lead-in, starts with
   `TODO (verify on hardware)`; it records what is missing and carries no tag:
   `- **Power.** `TODO (verify on hardware)`: the PMIC part is not recorded here yet.`
@@ -336,9 +371,11 @@ block per `QUESTIONS.md`, and the orchestrator asks.
 - Out-of-tree material is a URL plus, for repositories, the `cache` it is cloned under.
 - Nothing in a spec points into a cache by absolute path; caches are per machine.
 - Arm documents are cited by id (`DDI 0183`, `IHI 0069`, `DEN 0022`); the document id is the
-  citation. `developer.arm.com/documentation/<id>/latest` is the citation form to write; it now
-  redirects to `support.arm.com/documentation/<id>/latest`, a portal that automated fetchers cannot
-  read. Record `fetch: blocked` on such an entry rather than dropping the URL or inventing another.
+  citation. `developer.arm.com/documentation/<id>/latest` is the citation form to write, **without
+  fetching it**: it redirects to `support.arm.com/documentation/<id>/latest`, a portal that
+  automated fetchers cannot read. Such an entry carries `fetch: blocked` and no `verified` date, or
+  the date the redirect was observed with `fetch_via: redirect`. The rule that every URL in a spec
+  was fetched or copied verbatim from a fetched page has this one exception.
 - Mailing-list series are cited by their canonical `lore.kernel.org/<list>/<message-id>/` URL, whose
   HTML form is bot-challenged. Record that URL with `fetch: blocked` and a `note` naming the form
   that does work: the `/raw` suffix for one message, `/t.mbox.gz` for the whole thread, fetched
@@ -394,6 +431,10 @@ These are `os-investigator`'s caching rule applied to a file that may sit in the
   hardware facts, tagged `[DT]`, and may be read from a device tree and written into a spec by the
   spec's author directly. Driver and firmware *code* is different: only the research subagent reads
   it, and it returns facts and mechanism prose, never excerpts.
+- **What an author may do to a driver file** before the research subagent exists, to decide which
+  files matter: list a directory, check that a path exists at a ref, and grep a file for a
+  `compatible` string, a symbol name, or a register name. The author may not read a driver's body,
+  and a grep hit is a pointer, not a fact.
 - No source excerpts, no source-invented identifiers (function, struct, and variable names from
   driver code), no reconstructed file organization.
 - An overlay in a vendor layer may cite NDA documents. Facts from it reach the report tagged with
@@ -408,17 +449,23 @@ These are `os-investigator`'s caching rule applied to a file that may sit in the
 [--public-skill NAME] [--require-verified]` fails on:
 
 - frontmatter missing a key its kind requires, an unknown `kind` or `layer`, or a duplicate `id`;
+  an `id`, alias, part, `variant_of`, or `overlays` value that is not a normalized id; a `triggers`
+  or `not_triggers` that is not a list of strings;
 - a `parts`, `overlays`, `variant_of`, or `instances[].ip` reference that resolves to nothing
   across the given roots, or an `ip` spec with no `docs` entry marked `cite: true`;
 - an `instances:` row whose `reg` is not an integer or null, or whose `irq` is not null or a
   mapping with `kind` (SPI | PPI | extended) and an integer `number`; an `extended` irq without
-  `parent`, or a SPI/PPI irq with one; a `variants:` entry without a `name`;
-- a `series` entry with `cite: true`; a `fetch` value other than ok | blocked | truncated; a
-  `status` other than unmerged | merged | superseded, on an entry or on one of its `files`;
+  `parent`, or a SPI/PPI irq with one; a `variants:` entry without a `name`, or with a `tag` that
+  is not a provenance class;
+- a `series` entry with `cite: true`; a `fetch` value other than ok | blocked | truncated | partial,
+  or a `fetch_via` that is not a string; a `status` other than unmerged | merged | superseded, on an
+  entry or on one of its `files`;
 - `access: internal`, or a `via:` naming a skill outside the public set, under a `public` root;
-- a fact bullet that does not end with its tag clause, a `[source-observed]` or `[press]` bullet
-  without `TODO (verify on hardware)`, or a `[doc]` or `[DT]` without a parenthetical naming its
-  source;
+- a fact bullet that does not end with its tag clause; in the tail clause, a `[source-observed]` or
+  `[press]` without `TODO (verify on hardware)`, or a `[doc]` or `[DT]` without a parenthetical
+  naming its source (tag names in the prose are ignored);
+- an unsubstituted template placeholder, `<...>` starting with a letter outside backtick code spans
+  (autolinks and message ids excepted), in a spec's frontmatter or body or in a stub;
 - a stub whose `spec: <id>` does not resolve. `--stubs-from` finds every `*/SKILL.md` under a
   skills directory whose frontmatter says "stub over", so CI cannot forget one;
 - a verification record (`<root>/resources/<id>.verify.md`) whose frontmatter is malformed or whose

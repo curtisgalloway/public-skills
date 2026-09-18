@@ -19,23 +19,33 @@ What fails (exit 1):
     ``irq`` is not null or a mapping with ``kind`` (SPI | PPI | extended)
     and an integer ``number``; an ``extended`` irq without ``parent``, or a
     SPI/PPI irq with one
-  * a ``variants[]`` entry without a ``name``
+  * a ``variants[]`` entry without a ``name``, or with a ``tag`` that is not
+    a provenance class
+  * an ``id``, ``aliases[]``, ``parts[]``, ``variant_of``, or ``overlays``
+    value that is not a normalized id (``^[a-z0-9][a-z0-9-]*$``); a
+    ``triggers`` or ``not_triggers`` that is not a list of strings
   * a ``resources.series`` entry with ``cite: true``; a ``fetch:`` value
-    other than ok | blocked | truncated; a ``status:`` other than
-    unmerged | merged | superseded, on an entry or on one of its ``files``
+    other than ok | blocked | truncated | partial, or a ``fetch_via:`` that
+    is not a string; a ``status:`` other than unmerged | merged |
+    superseded, on an entry or on one of its ``files``
   * under a ``public`` root: any ``access: internal`` entry, or a ``via:``
     naming a skill not passed with ``--public-skill``
   * an ``ip`` spec with no ``docs`` entry marked ``cite: true``
   * a fact bullet that does not END with its tag clause (one or more
     ``[tag]``, each optionally followed by a parenthetical citation, then at
-    most one closing ``TODO (verify on hardware)`` sentence); a tag in the
-    middle of the prose does not count.  A bullet whose text, after an
-    optional bold lead-in, starts with ``TODO (verify on hardware)`` is a gap
-    and needs no tag
-  * a ``[source-observed]`` or ``[press]`` bullet without
-    ``TODO (verify on hardware)``; a ``[doc]`` or ``[DT]`` not followed by a
-    parenthetical naming its source (for ``[DT]``: the file, and its origin
-    when it is a decompiled blob rather than a source ``.dts``)
+    most one closing ``TODO (verify on hardware)`` sentence).  Only the tail
+    clause is examined: a tag name mentioned in the prose is not a tag and is
+    ignored by every rule below.  A bullet whose text, after an optional
+    bold lead-in, starts with ``TODO (verify on hardware)`` is a gap and
+    needs no tag
+  * a tail clause with ``[source-observed]`` or ``[press]`` but no
+    ``TODO (verify on hardware)``; a ``[doc]`` or ``[DT]`` in the tail not
+    followed by a parenthetical naming its source (for ``[DT]``: the file,
+    and its origin when it is a decompiled blob rather than a source
+    ``.dts``; the origin may be the ``name`` of a ``resources.repos`` entry)
+  * an unsubstituted template placeholder (``<...>`` starting with a letter,
+    outside backtick code spans, not a URL or a message id) in a spec's
+    frontmatter or body, or in a stub
   * a stub (``--stub PATH``, or every stub found by ``--stubs-from DIR``: a
     ``*/SKILL.md`` whose frontmatter says "stub over") whose ``spec: <id>``
     does not resolve
@@ -86,8 +96,13 @@ REQUIRED = {
     "ip": ("kind", "id", "name", "triggers", "resources"),
 }
 IRQ_KINDS = ("SPI", "PPI", "extended")
-FETCH_VALUES = ("ok", "blocked", "truncated")
+FETCH_VALUES = ("ok", "blocked", "truncated", "partial")
 STATUS_VALUES = ("unmerged", "merged", "superseded")
+ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
+# An unsubstituted template placeholder: <...> starting with a letter, but not an
+# autolink (<https://...>) or a message id (<id@host>).
+PLACEHOLDER_RE = re.compile(r"<(?!https?://|mailto:)[A-Za-z][^>@\n]*>")
+CODE_SPAN_RE = re.compile(r"```.*?```|`[^`\n]*`", re.S)
 FACT_SECTIONS = {
     "Quick-facts",
     "Gotchas",
@@ -96,6 +111,7 @@ FACT_SECTIONS = {
     "Known variants and quirks",
 }
 TAG_NAMES = "databook|standard|DT|source-observed|doc|hardware|press"
+TAG_CLASSES = tuple(TAG_NAMES.split("|"))
 TAG_RE = re.compile(rf"\[({TAG_NAMES})\]")
 TODO_RE = re.compile(r"TODO \(verify on hardware\)")
 # One tag with an optional parenthetical citation (one level of nesting allowed).
@@ -452,8 +468,70 @@ def check_frontmatter(spec: Spec, findings: list[Finding]) -> None:
     for variant in spec.meta.get("variants") or []:
         if not isinstance(variant, dict) or not variant.get("name"):
             findings.append(Finding("error", p, "variants: entry without a name"))
+            continue
+        tag = variant.get("tag")
+        if tag is not None and tag not in TAG_CLASSES:
+            findings.append(
+                Finding(
+                    "error",
+                    p,
+                    f"variants: entry {variant['name']!r}: tag must be a provenance class, not {tag!r}",
+                )
+            )
+        source = variant.get("source")
+        if source is not None and not isinstance(source, str):
+            findings.append(
+                Finding("error", p, f"variants: entry {variant['name']!r}: source must be a string")
+            )
     if "variant_of" in spec.meta and kind != "board":
         findings.append(Finding("error", p, "variant_of is only valid on a board spec"))
+    check_ids_and_triggers(spec, findings)
+
+
+def check_ids_and_triggers(spec: Spec, findings: list[Finding]) -> None:
+    """Ids are normalized (lowercase, hyphens); triggers and not_triggers are lists of strings."""
+    p = str(spec.path)
+    candidates: list[tuple[str, object]] = []
+    for key in ("id", "variant_of", "overlays"):
+        if spec.meta.get(key) is not None:
+            candidates.append((key, spec.meta[key]))
+    for key in ("aliases", "parts"):
+        values = spec.meta.get(key)
+        if values is None:
+            continue
+        if not isinstance(values, list):
+            findings.append(Finding("error", p, f"{key} must be a list"))
+            continue
+        candidates += [(f"{key} entry", v) for v in values]
+    for key, value in candidates:
+        if not isinstance(value, str) or not ID_RE.match(value):
+            findings.append(
+                Finding(
+                    "error",
+                    p,
+                    f"{key} {value!r} is not a normalized id (lowercase, digits, hyphens; "
+                    "spaces and underscores become hyphens)",
+                )
+            )
+    for key in ("triggers", "not_triggers"):
+        values = spec.meta.get(key)
+        if values is None:
+            continue
+        if not isinstance(values, list) or not all(isinstance(v, str) and v for v in values):
+            findings.append(Finding("error", p, f"{key} must be a list of non-empty strings"))
+
+
+def check_placeholders(text: str, where: str, findings: list[Finding]) -> None:
+    """An unsubstituted <...> template placeholder, outside code spans, is an error."""
+    stripped = CODE_SPAN_RE.sub("", text)
+    seen: list[str] = []
+    for m in PLACEHOLDER_RE.finditer(stripped):
+        if m.group(0) not in seen:
+            seen.append(m.group(0))
+    for token in seen[:3]:
+        findings.append(
+            Finding("error", where, f"unsubstituted template placeholder {token!r}")
+        )
 
 
 def check_instance_shape(p: str, row, findings: list[Finding]) -> None:
@@ -512,6 +590,11 @@ def check_resources(spec: Spec, findings: list[Finding]) -> None:
         if fetch is not None and fetch not in FETCH_VALUES:
             findings.append(
                 Finding("error", p, f"{group} entry {label!r}: fetch must be one of {FETCH_VALUES}")
+            )
+        fetch_via = entry.get("fetch_via")
+        if fetch_via is not None and (not isinstance(fetch_via, str) or not fetch_via):
+            findings.append(
+                Finding("error", p, f"{group} entry {label!r}: fetch_via must be a non-empty string")
             )
         verified = entry.get("verified")
         if verified is not None and not re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(verified)):
@@ -675,27 +758,32 @@ def check_tags(spec: Spec, findings: list[Finding]) -> None:
         if GAP_RE.match(raw):
             continue  # a gap-only bullet: "- **Topic.** TODO (verify on hardware) ..."
         bullet = " ".join(line.strip() for line in raw.splitlines())
-        tags = TAG_RE.findall(bullet)
-        has_todo = bool(TODO_RE.search(bullet))
-        if not tags:
-            findings.append(Finding("error", where, "fact bullet has no provenance tag"))
-            continue
-        if not TAIL_RE.search(bullet):
-            findings.append(
-                Finding(
-                    "error",
-                    where,
-                    "fact bullet does not end with its tag clause "
-                    "(tags, each with an optional parenthetical, then at most one TODO sentence)",
+        tail_match = TAIL_RE.search(bullet)
+        if not tail_match:
+            if TAG_RE.search(bullet):
+                findings.append(
+                    Finding(
+                        "error",
+                        where,
+                        "fact bullet does not end with its tag clause (tags, each with an optional "
+                        "parenthetical, then at most one TODO sentence); a tag name in the prose "
+                        "does not count",
+                    )
                 )
-            )
+            else:
+                findings.append(Finding("error", where, "fact bullet has no provenance tag"))
+            continue
+        # Only the tail clause is examined from here on: prose may mention tag names freely.
+        tail = tail_match.group(0)
+        tags = TAG_RE.findall(tail)
+        has_todo = bool(TODO_RE.search(tail))
         for needs_todo in ("source-observed", "press"):
             if needs_todo in tags and not has_todo:
                 findings.append(
                     Finding("error", where, f"[{needs_todo}] fact without 'TODO (verify on hardware)'")
                 )
         for tag, unnamed_re in UNNAMED_RES.items():
-            if unnamed_re.search(bullet):
+            if unnamed_re.search(tail):
                 what = "its source" if tag == "doc" else "the file (and its origin, for a blob)"
                 findings.append(
                     Finding("error", where, f"[{tag}] must be followed by a parenthetical naming {what}")
@@ -812,6 +900,7 @@ def check_stub(path: Path, ids: set[str], findings: list[Finding]) -> None:
     if not path.exists():
         findings.append(Finding("error", str(path), "stub file not found"))
         return
+    check_placeholders(path.read_text(), str(path), findings)
     found = STUB_RE.findall(path.read_text())
     if not found:
         findings.append(Finding("error", str(path), "stub names no `spec: <id>`"))
@@ -869,6 +958,7 @@ def main(argv: list[str] | None = None) -> int:
         check_frontmatter(spec, findings)
         check_public(spec, public_skills, findings)
         check_tags(spec, findings)
+        check_placeholders(spec.path.read_text(), str(spec.path), findings)
         if isinstance(spec.id, str) and not spec.is_overlay:
             status = check_verification(spec, use_pyyaml, args.require_verified, findings)
             verification[status] = verification.get(status, 0) + 1

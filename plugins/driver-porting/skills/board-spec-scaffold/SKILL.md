@@ -66,7 +66,10 @@ of the Boot chain bullet.
   unverified is `TODO (verify on hardware)`; no source excerpts, ever. A spec may end up in the
   target OS tree, so it must already be safe there. Device trees are hardware description, not
   source: you may read them and copy node names, compatibles, and values into a spec as `[DT]`
-  facts. Driver and firmware code is source: only the research-fill subagent reads it.
+  facts. Driver and firmware code is source: only the research-fill subagent reads it. To decide
+  which files matter before that subagent exists, you may list a directory, check that a path
+  exists at a ref, and grep a driver file for a `compatible` string, a symbol, or a register name;
+  you may not read a driver's body, and a grep hit is a pointer, not a fact.
 - **Public root, public content.** A spec under a `public` root names nothing private: no internal
   hosts, tools, codenames, or NDA documents. Those go in an overlay under a vendor or local root.
 
@@ -106,7 +109,10 @@ of the Boot chain bullet.
    SoC or IP spec is available to it), and ask it to return the addressing model / boot hand-off /
    GIC / UART / timer / clock facts as a clean-room report, each fact tagged, plus ready-to-paste
    `instances:` rows in the format's shape. It may clone into `~/src/<cache>/` as `os-investigator`
-   directs. Drop the returned facts into the templates. Driver and firmware code is read only by
+   directs; when a clone is impractical (no `git` transport, a huge tree, a prebuilt-only mirror),
+   fetching the needed files raw at a pinned commit into the same cache is an acceptable
+   substitute, with that commit recorded in the report and the spec. Drop the returned facts into
+   the templates. Driver and firmware code is read only by
    that subagent; you may read device trees yourself (see Conventions). Write TODO stubs instead
    only when the user asks for a skeleton or no public source exists.
 3. **Write the spec(s)** from the templates, substituting every `<...>` placeholder. Split facts by
@@ -125,7 +131,9 @@ of the Boot chain bullet.
    the Themes table of the root `README.md` (the `driver-porting` row); the "Which one do I want?"
    table and the "Board experts" list in `plugins/driver-porting/README.md`; and the `board-expert`
    bullet's list of shipped specs in that README, for the new spec ids. The `plugin.json` and
-   `marketplace.json` descriptions enumerate the board experts in prose; add the new one.
+   `.claude-plugin/marketplace.json` descriptions are curated prose that may enumerate the board
+   experts; the checker does not verify either, so read both by hand, add the new expert where the
+   others are listed, and keep the two consistent with each other.
    `python3 utilities/check-skill-registration.py` confirms the two READMEs and CI runs it on every
    push. CI's checker step and the README's Tests block use `--stubs-from`, which finds every stub
    whose description says "stub over", so they need no edit. No skill description may enumerate
