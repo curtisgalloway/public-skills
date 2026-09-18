@@ -19,8 +19,8 @@ Antigravity and other harnesses that read skill directories: link the skill you 
 | The reference driver is yours, or you may copy from it, and you want a spec whose every fact points back at the code | `anchored-peripheral-spec` |
 | A driver exists and you want it checked against the upstream, vendor, or original implementation | `reference-driver-review` |
 | You are the agent writing code from a clean-room spec | `cleanroom-implementer` |
-| You need memory maps, boot chains, clocks, or interrupt details for a specific board | `rpi-expert`, `rpi4-expert`, `indiedroid-nova-expert` |
-| You need a board expert for a board that does not have one yet | `board-expert-scaffold` |
+| You need memory maps, boot chains, clocks, or interrupt details for a specific board | `rpi-expert`, `rpi4-expert`, `indiedroid-nova-expert`, or `board-expert` for any board with a spec |
+| You need a board expert for a board that does not have one yet | `board-spec-scaffold` writes the spec and stub; `board-expert` does its best without one |
 
 ## Clean-room driver porting
 
@@ -77,13 +77,26 @@ They are not this repo's own configuration.
 
 ## Board experts
 
-Board experts are dirty-side roles that `os-investigator` calls into. They supply the per-SoC
-map and the sources and datasheets to cite; the method and the no-source-code rule come from
-`os-investigator`.
+Board experts are dirty-side roles that `os-investigator` calls into. They supply the per-board map
+and the sources and datasheets to cite; the method and the no-source-code rule come from
+`os-investigator`. The map itself lives in **board specs**: one Markdown-with-frontmatter file per
+board, SoC, or companion chip, composed (a board names its SoC and chips as `parts`) and overlaid
+(vendor and bench-local material sits in separate roots and merges in a fixed layer order). A spec
+is the clean-side artifact, so it may live in the target OS tree next to the board code it
+describes; the reference source stays in the expert's out-of-tree cache.
+`board-expert/SPEC-FORMAT.md` is the contract. `rpi4-expert` and `indiedroid-nova-expert` are still
+self-contained and convert next.
 
-- **`rpi-expert`** — Raspberry Pi 5 and Compute Module 5 (BCM2712 plus the RP1 southbridge):
-  memory map and MMIO addresses, device tree, boot chain and exception-level hand-off,
-  PSCI/SMP, interrupts, timers, clocks and power, UART/GPIO, PCIe and the RP1.
+- **`board-expert`** — the reader. Resolves a spec by id or by the board/SoC names in the question
+  across every spec root it can see (its own `specs/`, roots declared by project or vendor skills, a
+  root at the checkout, the user's local root), composes and overlays it, clones the sources it
+  names into the cache, and answers with `os-investigator`'s method. Best-effort when no spec
+  exists, with a suggestion to scaffold one. Ships `specs/`, the public root: today the `rpi5`
+  board spec with its `bcm2712` SoC and `rp1` chip specs.
+- **`rpi-expert`** — Raspberry Pi 5 and Compute Module 5 (BCM2712 plus the RP1 southbridge), a
+  stub over the `rpi5` spec: memory map and MMIO addresses, device tree, boot chain and
+  exception-level hand-off, PSCI/SMP, interrupts, timers, clocks and power, UART/GPIO, PCIe and the
+  RP1.
 - **`rpi4-expert`** — Raspberry Pi 4 Model B and the BCM2711 (family includes the Pi 400 and
   Compute Module 4/4S): the low- versus high-peripheral memory map, device tree, the boot chain
   from BootROM through the SPI-EEPROM bootloader and `start4.elf` to the armstub, PSCI/SMP across
@@ -94,13 +107,13 @@ map and the sources and datasheets to cite; the method and the no-source-code ru
   V2.0) and Rockchip RK3588S/RK3588 bring-up generally (Radxa ROCK 5, Orange Pi 5, …): memory
   map, device tree, boot chain, PSCI/SMP, GIC-600, timers, clocks and power (CRU, SCMI, RK806),
   debug UART, GPIO and pinmux via the GRF, PCIe/USB/eMMC.
-- **`board-expert-scaffold`** — write a new board expert in the same shape as the two above: an
-  interview for the board's identity, sources, citations, cache name, and quick-facts (addressing
-  model, boot chain and entry exception level, GIC, debug UART, timers, clocks, pinmux), an
-  optional research-fill by an `os-investigator` subagent, and `template.md`, the SKILL.md
-  skeleton with the fixed clean-room sections (delegate-don't-inline, the `os-investigator`
-  deferral, the report) that every board expert must keep intact. Authoring only; it reads no
-  source and answers no hardware questions itself.
+- **`board-spec-scaffold`** — write a new board spec (board, SoC, or chip) in the format
+  `board-expert` reads, optionally with a thin `<board>-expert` stub, a vendor overlay, a
+  `<vendor>-board-tools` skill for a vendor's internal resources, or a new spec root in a source
+  tree: an interview for the hardware's identity, root, sources, citations, cache name, and
+  quick-facts, an optional research-fill by an `os-investigator` subagent, and a template for every
+  artifact under `templates/`. Authoring only; it reads no source and answers no hardware questions
+  itself.
 
 The Fuchsia-specific skills that consume this pipeline live in
 [curtisgalloway/fuchsia-skills](https://github.com/curtisgalloway/fuchsia-skills) and hand
