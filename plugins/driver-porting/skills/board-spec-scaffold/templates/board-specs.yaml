@@ -1,0 +1,7 @@
+# <license header per the repo's convention>
+#
+# Board-spec root marker: every *.spec.md below this directory is a spec.
+# See board-expert/SPEC-FORMAT.md.
+layer: <public | ip-vendor | soc-vendor | product | local>
+name: <short name shown in reports>
+# roots: [<further roots, relative to this file or absolute>]
