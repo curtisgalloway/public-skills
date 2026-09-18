@@ -55,9 +55,9 @@ until PCIe is up.
 
 - **Boot media and chain.** The BCM2712 VPU boot ROM runs the bootloader held in the on-board SPI
   EEPROM, which loads the armstub (TF-A BL31), the DTB, and the OS image from the boot partition;
-  `config.txt` on that partition selects images and options. `[doc]` (Raspberry Pi documentation,
-  config.txt page; TF-A rpi5 platform page for the BL31 role). Entry state and secondary-core release
-  are SoC facts: see `bcm2712`.
+  `config.txt` on that partition selects images and options. Entry state and secondary-core
+  release are SoC facts: see `bcm2712`. `[doc]` (Raspberry Pi documentation, config.txt page; TF-A
+  rpi5 platform page for the BL31 role)
 - **Debug console.** The 3-pin debug connector is the on-SoC PL011 `uart10` at `0x10_7D00_1000`,
   which firmware leaves enabled; `earlycon=pl011,0x107d001000,115200n8`. `[DT]`
   (`bcm2712-rpi-5-b.dts`, `aliases { serial0 }`), `[doc]` (Raspberry Pi documentation).

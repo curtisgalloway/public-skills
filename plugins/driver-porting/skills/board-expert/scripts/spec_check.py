@@ -13,23 +13,39 @@ What fails (exit 1):
 
   * frontmatter that does not parse, or is missing a key its kind requires
   * an unknown ``kind`` or root ``layer``; a duplicate ``id``
-  * a ``parts`` entry, an ``instances[].ip``, or an ``overlays`` target that
-    resolves to nothing across the given roots
+  * a ``parts`` entry, an ``instances[].ip``, an ``overlays`` target, or a
+    ``variant_of`` that resolves to nothing across the given roots
+  * an ``instances[]`` row whose ``reg`` is not an integer or null, or whose
+    ``irq`` is not null or a mapping with ``kind`` (SPI | PPI | extended)
+    and an integer ``number``
+  * a ``variants[]`` entry without a ``name``
+  * a ``resources.series`` entry with ``cite: true``; a ``fetch:`` value
+    other than ok | blocked | truncated; a ``status:`` other than
+    unmerged | merged | superseded
   * under a ``public`` root: any ``access: internal`` entry, or a ``via:``
     naming a skill not passed with ``--public-skill``
   * an ``ip`` spec with no ``docs`` entry marked ``cite: true``
-  * a fact bullet in a fact section with no provenance tag (a bullet that is
-    only a ``TODO (verify on hardware)`` gap is exempt), or a
-    ``[source-observed]`` bullet without that TODO marker
-  * a stub (``--stub PATH``) whose ``spec: <id>`` does not resolve
+  * a fact bullet that does not END with its tag clause (one or more
+    ``[tag]``, each optionally followed by a parenthetical citation, then at
+    most one closing ``TODO (verify on hardware)`` sentence); a tag in the
+    middle of the prose does not count.  A bullet whose text, after an
+    optional bold lead-in, starts with ``TODO (verify on hardware)`` is a gap
+    and needs no tag
+  * a ``[source-observed]`` or ``[press]`` bullet without
+    ``TODO (verify on hardware)``; a ``[doc]`` not followed by a
+    parenthetical naming its source
+  * a stub (``--stub PATH``, or every stub found by ``--stubs-from DIR``: a
+    ``*/SKILL.md`` whose frontmatter says "stub over") whose ``spec: <id>``
+    does not resolve
 
 What warns (reported, exit stays 0):
 
   * two overlays for the same id in the same layer
+  * a part whose ``cache`` differs from its board's
 
 Stdlib only.  PyYAML is used when importable; otherwise a parser for the
-YAML subset the format uses (block mappings and lists, flow lists, folded
-and literal scalars, comments) reads the frontmatter.  ``--no-pyyaml``
+YAML subset the format uses (block mappings and lists, flow lists, one-level
+flow mappings, folded and literal scalars, comments) reads the frontmatter.  ``--no-pyyaml``
 forces the subset parser, which is what the tests exercise so the fallback
 never rots.
 
@@ -58,6 +74,9 @@ REQUIRED = {
     "chip": ("kind", "id", "name", "triggers"),
     "ip": ("kind", "id", "name", "triggers", "resources"),
 }
+IRQ_KINDS = ("SPI", "PPI", "extended")
+FETCH_VALUES = ("ok", "blocked", "truncated")
+STATUS_VALUES = ("unmerged", "merged", "superseded")
 FACT_SECTIONS = {
     "Quick-facts",
     "Gotchas",
@@ -65,8 +84,18 @@ FACT_SECTIONS = {
     "Programming model",
     "Known variants and quirks",
 }
-TAG_RE = re.compile(r"\[(databook|standard|DT|source-observed|doc|hardware)\]")
-TODO_RE = re.compile(r"TODO \(verify")
+TAG_NAMES = "databook|standard|DT|source-observed|doc|hardware|press"
+TAG_RE = re.compile(rf"\[({TAG_NAMES})\]")
+TODO_RE = re.compile(r"TODO \(verify on hardware\)")
+# One tag with an optional parenthetical citation (one level of nesting allowed).
+_TAG_CLAUSE = rf"`?\[(?:{TAG_NAMES})\]`?(?:\s*\((?:[^()]|\([^()]*\))*\))?"
+# The tail a fact bullet must end with: tag clauses, then at most one TODO sentence.
+TAIL_RE = re.compile(
+    rf"(?:{_TAG_CLAUSE})(?:\s*[,;]?\s*{_TAG_CLAUSE})*\.?"
+    rf"(?:\s*`?TODO \(verify on hardware\)`?[^\[\]]*)?\s*$"
+)
+GAP_RE = re.compile(r"^- (?:\*\*[^*]+\*\*\s*)?`?TODO \(verify on hardware\)")
+DOC_UNNAMED_RE = re.compile(r"\[doc\](?:`|(?!`))(?!\s*\()")
 FRONTMATTER_RE = re.compile(r"\A---\n(.*?)\n---\n(.*)\Z", re.S)
 
 
@@ -94,6 +123,17 @@ def _scalar(text: str):
             raise YamlError(f"unterminated flow sequence: {text!r}")
         inner = text[1:-1].strip()
         return [_scalar(p) for p in _split_flow(inner)] if inner else []
+    if text.startswith("{"):
+        if not text.endswith("}"):
+            raise YamlError(f"unterminated flow mapping: {text!r}")
+        inner = text[1:-1].strip()
+        result = {}
+        for part in _split_flow(inner) if inner else []:
+            key, sep, value = part.partition(":")
+            if not sep:
+                raise YamlError(f"flow mapping entry without a colon: {part!r}")
+            result[key.strip()] = _scalar(value)
+        return result
     if (text[0] == text[-1]) and text[0] in "\"'" and len(text) >= 2:
         return text[1:-1]
     if re.fullmatch(r"-?\d+", text):
@@ -254,12 +294,25 @@ def parse_yaml_subset(text: str):
     return result
 
 
+def _dates_to_strings(node):
+    """PyYAML turns ``verified: 2026-09-18`` into a date; the subset parser keeps the string."""
+    import datetime
+
+    if isinstance(node, dict):
+        return {k: _dates_to_strings(v) for k, v in node.items()}
+    if isinstance(node, list):
+        return [_dates_to_strings(v) for v in node]
+    if isinstance(node, datetime.date):
+        return node.isoformat()
+    return node
+
+
 def load_yaml(text: str, use_pyyaml: bool):
     if use_pyyaml:
         try:
             import yaml  # type: ignore
 
-            return yaml.safe_load(text)
+            return _dates_to_strings(yaml.safe_load(text))
         except ImportError:
             pass
     return parse_yaml_subset(text)
@@ -346,6 +399,7 @@ def load_specs(
 
 def check_frontmatter(spec: Spec, findings: list[Finding]) -> None:
     p = str(spec.path)
+    check_resources(spec, findings)
     if spec.is_overlay:
         if not isinstance(spec.meta.get("overlays"), str):
             findings.append(Finding("error", p, "overlays: must name one spec id"))
@@ -364,6 +418,68 @@ def check_frontmatter(spec: Spec, findings: list[Finding]) -> None:
         docs = (spec.meta.get("resources") or {}).get("docs") or []
         if not any(isinstance(d, dict) and d.get("cite") is True for d in docs):
             findings.append(Finding("error", p, "ip spec has no docs entry with cite: true"))
+    for row in spec.meta.get("instances") or []:
+        check_instance_shape(p, row, findings)
+    for variant in spec.meta.get("variants") or []:
+        if not isinstance(variant, dict) or not variant.get("name"):
+            findings.append(Finding("error", p, "variants: entry without a name"))
+    if "variant_of" in spec.meta and kind != "board":
+        findings.append(Finding("error", p, "variant_of is only valid on a board spec"))
+
+
+def check_instance_shape(p: str, row, findings: list[Finding]) -> None:
+    if not isinstance(row, dict):
+        findings.append(Finding("error", p, "instances: row is not a mapping"))
+        return
+    name = row.get("name")
+    reg = row.get("reg")
+    if reg is not None and (not isinstance(reg, int) or isinstance(reg, bool)):
+        findings.append(
+            Finding("error", p, f"instance {name!r}: reg must be an integer or null, not {reg!r}")
+        )
+    irq = row.get("irq")
+    if irq is None:
+        return
+    if not isinstance(irq, dict):
+        findings.append(
+            Finding("error", p, f"instance {name!r}: irq must be null or a mapping, not {irq!r}")
+        )
+        return
+    if irq.get("kind") not in IRQ_KINDS:
+        findings.append(
+            Finding("error", p, f"instance {name!r}: irq.kind must be one of {IRQ_KINDS}")
+        )
+    number = irq.get("number")
+    if not isinstance(number, int) or isinstance(number, bool):
+        findings.append(Finding("error", p, f"instance {name!r}: irq.number must be an integer"))
+    intid = irq.get("intid")
+    if intid is not None and (not isinstance(intid, int) or isinstance(intid, bool)):
+        findings.append(Finding("error", p, f"instance {name!r}: irq.intid must be an integer"))
+
+
+def check_resources(spec: Spec, findings: list[Finding]) -> None:
+    p = str(spec.path)
+    for group, entry in iter_resources(spec.meta):
+        label = entry.get("name") or entry.get("title") or entry.get("url") or "?"
+        if group == "series" and entry.get("cite") is True:
+            findings.append(
+                Finding("error", p, f"series entry {label!r}: a series is a map, never cite: true")
+            )
+        fetch = entry.get("fetch")
+        if fetch is not None and fetch not in FETCH_VALUES:
+            findings.append(
+                Finding("error", p, f"{group} entry {label!r}: fetch must be one of {FETCH_VALUES}")
+            )
+        verified = entry.get("verified")
+        if verified is not None and not re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(verified)):
+            findings.append(
+                Finding("error", p, f"{group} entry {label!r}: verified must be an ISO date (YYYY-MM-DD)")
+            )
+        status = entry.get("status")
+        if status is not None and status not in STATUS_VALUES:
+            findings.append(
+                Finding("error", p, f"{group} entry {label!r}: status must be one of {STATUS_VALUES}")
+            )
 
 
 def iter_resources(meta: dict):
@@ -420,12 +536,27 @@ def check_references(specs: list[Spec], findings: list[Finding]) -> None:
                 findings.append(Finding("error", p, f"overlays {target!r} resolves to nothing"))
             overlays_seen.setdefault((str(target), spec.layer), []).append(spec)
             continue
+        base = spec.meta.get("variant_of")
+        if base is not None:
+            if base not in by_id:
+                findings.append(Finding("error", p, f"variant_of {base!r} resolves to nothing"))
+            elif by_id[base][0].meta.get("kind") != "board":
+                findings.append(Finding("error", p, f"variant_of {base!r} is not a board spec"))
         for part in spec.meta.get("parts") or []:
             if part not in by_id:
                 findings.append(Finding("error", p, f"parts entry {part!r} resolves to nothing"))
+                continue
+            part_cache = by_id[part][0].meta.get("cache")
+            if part_cache and spec.meta.get("cache") and part_cache != spec.meta.get("cache"):
+                findings.append(
+                    Finding(
+                        "warning",
+                        p,
+                        f"part {part!r} names cache {part_cache!r}, this board {spec.meta.get('cache')!r}",
+                    )
+                )
         for row in spec.meta.get("instances") or []:
             if not isinstance(row, dict):
-                findings.append(Finding("error", p, "instances: row is not a mapping"))
                 continue
             ip = row.get("ip")
             if ip not in by_id:
@@ -479,24 +610,47 @@ def iter_fact_bullets(body: str):
 
 def check_tags(spec: Spec, findings: list[Finding]) -> None:
     p = str(spec.path)
-    for line_no, bullet in iter_fact_bullets(spec.body):
+    for line_no, raw in iter_fact_bullets(spec.body):
+        where = f"{p}:{line_no}"
+        if GAP_RE.match(raw):
+            continue  # a gap-only bullet: "- **Topic.** TODO (verify on hardware) ..."
+        bullet = " ".join(line.strip() for line in raw.splitlines())
         tags = TAG_RE.findall(bullet)
         has_todo = bool(TODO_RE.search(bullet))
         if not tags:
-            if has_todo and len(bullet) < 400 and bullet.count("**") <= 2:
-                continue  # a gap-only bullet
-            findings.append(Finding("error", f"{p}:{line_no}", "fact bullet has no provenance tag"))
-        elif "source-observed" in tags and not has_todo:
+            findings.append(Finding("error", where, "fact bullet has no provenance tag"))
+            continue
+        if not TAIL_RE.search(bullet):
             findings.append(
                 Finding(
                     "error",
-                    f"{p}:{line_no}",
-                    "[source-observed] fact without 'TODO (verify on hardware)'",
+                    where,
+                    "fact bullet does not end with its tag clause "
+                    "(tags, each with an optional parenthetical, then at most one TODO sentence)",
                 )
+            )
+        for needs_todo in ("source-observed", "press"):
+            if needs_todo in tags and not has_todo:
+                findings.append(
+                    Finding("error", where, f"[{needs_todo}] fact without 'TODO (verify on hardware)'")
+                )
+        if DOC_UNNAMED_RE.search(bullet):
+            findings.append(
+                Finding("error", where, "[doc] must be followed by a parenthetical naming its source")
             )
 
 
 STUB_RE = re.compile(r"`spec:\s*([a-z0-9][a-z0-9\-]*)`")
+
+
+def find_stubs(skills_dir: Path) -> list[Path]:
+    """Every */SKILL.md under skills_dir whose frontmatter calls itself a stub."""
+    stubs = []
+    for path in sorted(skills_dir.glob("*/SKILL.md")):
+        m = FRONTMATTER_RE.match(path.read_text())
+        if m and "stub over" in m.group(1):
+            stubs.append(path)
+    return stubs
 
 
 def check_stub(path: Path, ids: set[str], findings: list[Finding]) -> None:
@@ -524,6 +678,13 @@ def main(argv: list[str] | None = None) -> int:
         "--stub", action="append", default=[], type=Path, help="a stub SKILL.md to check"
     )
     parser.add_argument(
+        "--stubs-from",
+        action="append",
+        default=[],
+        type=Path,
+        help="a plugin skills directory; every */SKILL.md whose frontmatter says 'stub over' is checked",
+    )
+    parser.add_argument(
         "--public-skill",
         action="append",
         default=[],
@@ -547,14 +708,20 @@ def main(argv: list[str] | None = None) -> int:
         check_tags(spec, findings)
     check_references(specs, findings)
     ids = {s.id for s in specs if not s.is_overlay and isinstance(s.id, str)}
-    for stub in args.stub:
+    stubs = list(args.stub)
+    for skills_dir in args.stubs_from:
+        if not skills_dir.is_dir():
+            print(f"missing precondition: {skills_dir} is not a directory", file=sys.stderr)
+            return 3
+        stubs += find_stubs(skills_dir)
+    for stub in stubs:
         check_stub(stub, ids, findings)
 
     errors = [f for f in findings if f.level == "error"]
     warnings = [f for f in findings if f.level == "warning"]
     if args.json:
         json.dump(
-            {"specs": len(specs), "findings": [asdict(f) for f in findings]},
+            {"specs": len(specs), "stubs": len(stubs), "findings": [asdict(f) for f in findings]},
             sys.stdout,
             indent=2,
         )

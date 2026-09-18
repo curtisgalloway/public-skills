@@ -88,8 +88,8 @@ instance facts and live in the SoC's `instances:` table, not here.
 - **The busy quirk is DesignWare-specific.** A driver written for a plain 16550 that writes `LCR`
   during traffic will have the write silently dropped on this block. `[databook]` (DW_apb_uart
   databook)
-- **Baud clock is an instance fact.** The reference clock and therefore the divisor for a given baud
-  come from the SoC's clock tree: `TODO (verify on hardware)` per instance.
+- **Baud clock is an instance fact.** `TODO (verify on hardware)` per instance: the reference clock,
+  and therefore the divisor for a given baud, comes from the SoC's clock tree.
 
 ## Gotchas
 
