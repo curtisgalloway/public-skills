@@ -3,10 +3,17 @@ kind: board
 id: <id>
 name: <Board display name>
 triggers: [<keyword1>, <keyword2>, <keyword3>]
-aliases: []
+not_triggers: []              # optional: names that extend a trigger but are another product (pixel 10a)
+aliases: []                   # codenames, normalized like ids
 parts: [<soc-id>, <chip-id>]
 cache: <id>-resources         # the board id; parts inherit it
 variants: []                  # optional: sibling models sharing these facts; see SPEC-FORMAT § Variants
+#  - name: <Board display name> Pro
+#    triggers: [<keyword> pro]
+#    shares: [soc, parts, console]
+#    differs: <one line>
+#    tag: doc                 # the class the row rests on: doc (default) | press | source-observed
+#    source: <vendor page, or the prebuilt tree README that names it>
 # variant_of: <base-id>       # instead of variants, when THIS spec is a variant with differing facts
 resources:
   repos:
@@ -73,6 +80,9 @@ that do not apply; use the set that fits the device.>
 - **Physical console access.** <How to reach a serial console at all: debug cable, test points,
   a bootloader command that enables the UART; baud.> `[doc]` (<page>), `[DT]` (<chosen node>)
 - **Per-revision device trees.** <Board id / revision ids and the overlay each selects.> `[DT]` (<node>)
+- **Device-tree selection by the bootloader.** <The DTBO table and its entry order, the board-id /
+  board-revision scheme the bootloader matches on, and any policy overlays it applies by build
+  type (eng / user / userdebug).> `[DT]` (<dtbo entries>), `[doc]` (<page>)
 - **Kernel family and branch.** <Which public kernel tree and branch carry this device, and which
   device-tree files.> `[DT]` (<files>)
 

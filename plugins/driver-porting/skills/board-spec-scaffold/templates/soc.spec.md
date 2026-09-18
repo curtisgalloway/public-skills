@@ -3,7 +3,17 @@ kind: soc
 id: <soc-id>
 name: <SoC vendor and part number>
 triggers: [<part number>, <family alias>]
+not_triggers: []              # optional: names that extend a trigger but are another part
+aliases: []                   # codenames, normalized like ids
 cache: <board-id>-resources   # inherit the board's cache; name your own only for a shared SoC
+instances: []                 # required, may be empty: one row per IP-block placement whose ip spec exists
+#  - name: <instance label as the DT names it>
+#    ip: <ip-id>
+#    reg: <base address as an integer>
+#    irq: {kind: SPI, number: <n>, intid: <32 + n>, trigger: level-high, note: "<quoted>"}
+#    clocks: [<clock-names values>]   # [] when the DT gives only clock-frequency; say so in note
+#    role: <what it is for>
+#    note: "<quirks, or TODO (verify on hardware): what is missing>"
 resources:
   repos:
     - name: <linux repo short name>
@@ -81,8 +91,14 @@ then at most one `TODO (verify on hardware)` sentence; `[doc]` always names its 
 that don't apply, but cover at least these dimensions. When the platform's firmware is closed, say
 so in Boot chain and cite what the vendor publishes.>
 
+<A `[DT]` parenthetical names the file. When the map is a series file AND a shipped blob, cite each
+where it was read; the two names can differ by one letter, so spell them out:
+`[DT]` (`lga.dtsi`, series v4) for the mailing-list source, `[DT]` (`lga-b0.dtb`, <prebuilt repo
+name>) for the decompiled production blob, where the origin is the `name` of the repos entry.>
+
 - **Addressing model.** <Flat versus high window; `#address-cells`/`#size-cells` at the root and on
-  the peripheral bus; any `ranges` translation trap; a worked example address (the debug UART).> `[DT]`
+  the peripheral bus; any `ranges` translation trap; a worked example address (the debug UART).>
+  `[DT]` (`<soc>.dtsi`, series v<n>), `[DT]` (`<soc>-b0.dtb`, <prebuilt repo name>)
 - **Boot chain and entry state.** <Public firmware: BootROM → … → OS image; the entry exception
   level, MMU/cache state, DTB-pointer register; resident firmware regions to avoid. Closed firmware
   and handsets: boot ROM → the vendor's closed stages (name what the DT reserves for them) → the

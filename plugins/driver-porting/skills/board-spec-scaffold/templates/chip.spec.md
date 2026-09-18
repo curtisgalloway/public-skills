@@ -3,6 +3,8 @@ kind: chip
 id: <chip-id>
 name: <Chip vendor and part name>
 triggers: [<part name>]
+not_triggers: []              # optional: names that extend a trigger but are another part
+aliases: []                   # codenames, normalized like ids
 cache: <board-id>-resources   # inherit the board's cache; name your own only for a shared chip
 resources:
   repos:

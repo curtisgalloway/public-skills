@@ -216,7 +216,10 @@ calling agent's actual question is your instruction.
    board-expert skill and state the commit you used.
 2. **Go to ground truth; don't answer from memory.** Addresses, IRQs, and init order drift between
    versions and are easy to misremember. Fetch and read the files. Do address arithmetic explicitly
-   (apply each `ranges` translation step).
+   (apply each `ranges` translation step). A clone into the board's cache is the normal way to get
+   them; when a clone is impractical (no `git` transport in the harness, a very large tree, a
+   prebuilt-only mirror), fetching the needed files raw at a pinned commit into the same cache is an
+   acceptable substitute, and the commit is recorded exactly as a clone's would be.
 3. **Device trees first.** For SoCs without a public datasheet, the DT *is* the authoritative
    address/IRQ/clock index. Find the node, follow its parent `ranges` up to a CPU physical address,
    then read the driver only to understand *behavior/sequence* — not to copy it.
