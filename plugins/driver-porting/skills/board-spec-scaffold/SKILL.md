@@ -108,9 +108,11 @@ The worked example to mirror is the `rpi5` set under `board-expert/specs/`: `rpi
    `README.md` (the `driver-porting` row) and the "Board experts" list in
    `plugins/driver-porting/README.md`; `python3 utilities/check-skill-registration.py` confirms both
    and CI runs it on every push. A spec in a source tree follows that tree's review process.
-6. **Check.** Review the new files against `SPEC-FORMAT.md` § *What the checker enforces* (the
-   checker script is not shipped yet): required keys per kind, every `parts` and `overlays` reference
-   resolving, a tag on every fact, nothing internal under a public root.
+6. **Check.** Run `python3 <board-expert>/scripts/spec_check.py <root>... --stub <stub SKILL.md>`
+   over every root the new spec references (a vendor root needs the public root beside it, or its
+   overlay targets do not resolve). It enforces `SPEC-FORMAT.md` § *What the checker enforces*:
+   required keys per kind, every `parts`, `instances[].ip`, and `overlays` reference resolving, a
+   tag on every fact, nothing internal under a public root, and the stub's id resolving.
 7. **Remind to sync.** If the user's machines link skills from a checkout with a sync tool, tell them
    to re-run it so a new stub is linked; a plugin install picks it up on the next update. Specs in a
    source tree need nothing.

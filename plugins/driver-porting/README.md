@@ -84,8 +84,9 @@ board, SoC, or companion chip, composed (a board names its SoC and chips as `par
 (vendor and bench-local material sits in separate roots and merges in a fixed layer order). A spec
 is the clean-side artifact, so it may live in the target OS tree next to the board code it
 describes; the reference source stays in the expert's out-of-tree cache.
-`board-expert/SPEC-FORMAT.md` is the contract. `rpi4-expert` and `indiedroid-nova-expert` are still
-self-contained and convert next.
+`board-expert/SPEC-FORMAT.md` is the contract, and `scripts/spec_check.py` (stdlib-only, tests
+under `tests/`) enforces it: required keys per kind, every reference resolving, a provenance tag on
+every fact, nothing internal under a public root.
 
 - **`board-expert`** — the reader. Resolves a spec by id or by the board/SoC names in the question
   across every spec root it can see (its own `specs/`, roots declared by project or vendor skills, a
@@ -93,8 +94,9 @@ self-contained and convert next.
   names into the cache, and answers with `os-investigator`'s method. Best-effort when no spec
   exists, with a suggestion to scaffold one. An IP block (`dwc3`, `pl011`) resolves *anchored*
   through a board's `instances:` table and kernel tree, or *generic* from mainline at head plus the
-  public standards. Ships `specs/`, the public root: today the `rpi5` board spec with its `bcm2712`
-  SoC and `rp1` chip specs and the `pl011` IP spec they place; `QUESTIONS.md`, the structured
+  public standards. Ships `specs/`, the public root: the `rpi5`, `rpi4`, and `indiedroid-nova`
+  board specs, the `bcm2712`, `bcm2711`, and `rk3588s` SoC specs, the `rp1` chip spec, and the
+  `pl011` and `dw-apb-uart` IP specs their instance tables place; `QUESTIONS.md`, the structured
   question catalog and the `Needs decision` protocol every skill here follows instead of guessing;
   and `VENDOR-GUIDE.md`, how a vendor adds overlay roots, wraps internal tools as skills, and keeps
   internal material out of public roots.
@@ -103,13 +105,14 @@ self-contained and convert next.
   exception-level hand-off, PSCI/SMP, interrupts, timers, clocks and power, UART/GPIO, PCIe and the
   RP1.
 - **`rpi4-expert`** — Raspberry Pi 4 Model B and the BCM2711 (family includes the Pi 400 and
-  Compute Module 4/4S): the low- versus high-peripheral memory map, device tree, the boot chain
+  Compute Module 4/4S), a stub over the `rpi4` spec: the low- versus high-peripheral memory map, device tree, the boot chain
   from BootROM through the SPI-EEPROM bootloader and `start4.elf` to the armstub, PSCI/SMP across
   4×Cortex-A72, the GIC-400, the PL011 debug UART and the mini-UART trap, GPIO and the BCM2711
   pull registers, GENET Ethernet, EMMC2/SDHCI, and the VL805 USB bridge on PCIe. The BCM2711 ARM
   Peripherals datasheet is public, so it is the citation of record rather than the kernel.
 - **`indiedroid-nova-expert`** — the Indiedroid Nova (same hardware as the 9Tripod Pico PC
-  V2.0) and Rockchip RK3588S/RK3588 bring-up generally (Radxa ROCK 5, Orange Pi 5, …): memory
+  V2.0) and Rockchip RK3588S/RK3588 bring-up generally (Radxa ROCK 5, Orange Pi 5, …), a stub over
+  the `indiedroid-nova` spec and the `rk3588s` SoC spec it composes: memory
   map, device tree, boot chain, PSCI/SMP, GIC-600, timers, clocks and power (CRU, SCMI, RK806),
   debug UART, GPIO and pinmux via the GRF, PCIe/USB/eMMC.
 - **`board-spec-scaffold`** — write a new board spec (board, SoC, chip, or IP block) in the format
@@ -129,4 +132,10 @@ off to these by name.
 ```bash
 python3 -m unittest discover -s plugins/driver-porting/skills/os-investigator/tests -v
 python3 -m unittest discover -s plugins/driver-porting/skills/cleanroom-implementer/tests -v
+python3 -m unittest discover -s plugins/driver-porting/skills/board-expert/tests -v
+python3 plugins/driver-porting/skills/board-expert/scripts/spec_check.py \
+  plugins/driver-porting/skills/board-expert/specs \
+  --stub plugins/driver-porting/skills/rpi-expert/SKILL.md \
+  --stub plugins/driver-porting/skills/rpi4-expert/SKILL.md \
+  --stub plugins/driver-porting/skills/indiedroid-nova-expert/SKILL.md
 ```
