@@ -165,6 +165,12 @@ thinner spec: the source crowds out the output, and every fact competes with the
 from. Measured on a 2,400-line PHY driver, a single-context writer produced half the spec of a
 fanned-out one at the same token budget.
 
+Intake before fan-out: which repository and commit, which peripheral, and which instance when the
+SoC places the block more than once. If any of these is missing, ask them in one structured batch as
+`board-expert/QUESTIONS.md` prescribes, with a recommended default each, rather than picking one and
+anchoring a whole spec to it. Missing facts inside the source are gaps, not forks: they become
+TODOs.
+
 So the default shape for anything beyond a single-file driver is **fan-out, then draft**:
 
 1. The orchestrator spawns one **spec subagent** per peripheral (`templates/spec-subagent-prompt.md`,
