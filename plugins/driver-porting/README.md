@@ -91,8 +91,13 @@ self-contained and convert next.
   across every spec root it can see (its own `specs/`, roots declared by project or vendor skills, a
   root at the checkout, the user's local root), composes and overlays it, clones the sources it
   names into the cache, and answers with `os-investigator`'s method. Best-effort when no spec
-  exists, with a suggestion to scaffold one. Ships `specs/`, the public root: today the `rpi5`
-  board spec with its `bcm2712` SoC and `rp1` chip specs.
+  exists, with a suggestion to scaffold one. An IP block (`dwc3`, `pl011`) resolves *anchored*
+  through a board's `instances:` table and kernel tree, or *generic* from mainline at head plus the
+  public standards. Ships `specs/`, the public root: today the `rpi5` board spec with its `bcm2712`
+  SoC and `rp1` chip specs and the `pl011` IP spec they place; `QUESTIONS.md`, the structured
+  question catalog and the `Needs decision` protocol every skill here follows instead of guessing;
+  and `VENDOR-GUIDE.md`, how a vendor adds overlay roots, wraps internal tools as skills, and keeps
+  internal material out of public roots.
 - **`rpi-expert`** — Raspberry Pi 5 and Compute Module 5 (BCM2712 plus the RP1 southbridge), a
   stub over the `rpi5` spec: memory map and MMIO addresses, device tree, boot chain and
   exception-level hand-off, PSCI/SMP, interrupts, timers, clocks and power, UART/GPIO, PCIe and the
@@ -107,7 +112,7 @@ self-contained and convert next.
   V2.0) and Rockchip RK3588S/RK3588 bring-up generally (Radxa ROCK 5, Orange Pi 5, …): memory
   map, device tree, boot chain, PSCI/SMP, GIC-600, timers, clocks and power (CRU, SCMI, RK806),
   debug UART, GPIO and pinmux via the GRF, PCIe/USB/eMMC.
-- **`board-spec-scaffold`** — write a new board spec (board, SoC, or chip) in the format
+- **`board-spec-scaffold`** — write a new board spec (board, SoC, chip, or IP block) in the format
   `board-expert` reads, optionally with a thin `<board>-expert` stub, a vendor overlay, a
   `<vendor>-board-tools` skill for a vendor's internal resources, or a new spec root in a source
   tree: an interview for the hardware's identity, root, sources, citations, cache name, and

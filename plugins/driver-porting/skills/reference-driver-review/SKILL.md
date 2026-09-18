@@ -56,15 +56,20 @@ In order:
 
 1. **A board-expert skill.** Check the available-skills listing for a board expert covering the
    SoC/board you identified (they describe themselves as "Board expert for <board/SoC>", e.g.
-   `rpi-expert` for BCM2712/RP1). Spawn a subagent that loads it and ask one question: *what is
-   the authoritative reference driver source for <IP block / peripheral> on <board> — repository
+   `rpi-expert` for BCM2712/RP1), or use `board-expert` with `spec: <board>` / `ip: <block>` when
+   a board spec exists without a stub. Spawn a subagent that loads it and ask one question: *what
+   is the authoritative reference driver source for <IP block / peripheral> on <board> — repository
    or URL, branch/tag/release, driver file paths, and license?* Board experts maintain their own
-   resource caches; let the expert (or the investigators below) fetch into that cache.
+   resource caches; let the expert (or the investigators below) fetch into that cache. If the
+   expert returns a **Needs decision** block (which board variant, which instance, which tree),
+   ask those questions as `board-expert/QUESTIONS.md` prescribes and re-run it.
 2. **The user.** If no board expert matches, or the expert does not know, ask the user which
-   reference to compare against. Accept anything resolvable: a local checkout path, a repo URL and
-   tag, or a description like "the Pixel 10 USB PHY driver from the public kernel source release"
-   — in that case find the source release, fetch it, and locate the driver files yourself, then
-   confirm the paths with the user if the match is ambiguous.
+   reference to compare against, in the structured form `board-expert/QUESTIONS.md` prescribes:
+   the candidates you can see as options, a recommended default, one batch. Accept anything
+   resolvable: a local checkout path, a repo URL and tag, or a description like "the Pixel 10 USB
+   PHY driver from the public kernel source release" — in that case find the source release, fetch
+   it, and locate the driver files yourself, then confirm the paths with the user if the match is
+   ambiguous ("which Pixel 10: 10, 10 Pro, or 10 Pro Fold?" is a fork, not a guess).
 
 Check the reference out **outside the implementation repo** (a board-expert's cache or a scratch
 directory), pin the commit, and never copy reference files into the implementation tree. Record in

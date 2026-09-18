@@ -4,6 +4,16 @@ id: rp1
 name: Raspberry Pi RP1 I/O southbridge
 triggers: [rp1]
 cache: rpi5-resources
+instances:
+  - name: uart0
+    ip: pl011
+    reg: null
+    irq: null
+    clocks: []
+    role: 40-pin header console
+    note: >-
+      PL011 inside RP1, reached only through PCIe. Offset within the RP1 window, IRQ routing, and
+      clock TODO (verify on hardware); the other RP1 UART instances TODO (verify on hardware).
 resources:
   repos:
     - name: linux-rpi

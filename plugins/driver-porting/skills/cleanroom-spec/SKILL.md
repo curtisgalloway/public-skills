@@ -125,6 +125,17 @@ the hardware uses, then cite the datasheet. Every fact retagged from `[source-ob
 
 ## How to run it (delegate; don't inline)
 
+**Intake first: settle the forks before spawning anything.** Which board (and which variant or
+revision), which instance when the SoC places the IP more than once, which tree (anchored to the
+board's kernel at its ref, or generic from mainline head plus the public standards), and how far
+to go. Ask them in one structured batch as `board-expert/QUESTIONS.md` prescribes, with the
+options the specs offer and a recommended default each; `spec: <board>` and `ip: <block>` are
+then passed to the subagent. A generic request ("a dwc3 spec") is legitimate: the IP spec, mainline
+at head, and the xHCI / USB standards are the inputs, and the resulting driver spec says it carries
+no instance facts. When the subagent returns a **Needs decision** block instead of an answer, turn
+each item into a question, ask the batch, and re-run it with `decisions:` lines. Gaps that only
+affect completeness are not forks: they become TODOs in the spec, not questions.
+
 **Delegation here is a clean-room requirement, not just a context-saving nicety.** `os-investigator`
 and the board-expert skills are *subagent roles*: their bodies fetch and read GPL/encumbered source.
 The main/orchestrating agent — the one that will write the differently-licensed target-OS code — must
@@ -135,7 +146,8 @@ The main/orchestrating agent — the one that will write the differently-license
   (`.agents/agents/spec-investigator.md`, `subagent: true`) and invoke it deliberately rather than
   hoping the primary agent delegates, or launch it as its own task in the Agent Manager so the work
   runs in a separate context and its artifacts stay separate too. Either way, instruct it to load
-  `os-investigator` + the board-expert skill and give it the spec subagent template filled in.
+  `os-investigator` + the board-expert skill (`board-expert` with `spec:`/`ip:`, or the board's
+  stub) and give it the spec subagent template filled in.
 - **A subagent's context is separate; its *credentials and environment* are not.** Delegation buys
   you a clean orchestrator context, not enforcement — that's Tier 1 and 2 in
   `cleanroom-implementer`. If the dirty side must be *authorized* to read source (role scoping), it
