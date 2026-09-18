@@ -73,9 +73,11 @@ orchestrator route it through the dirty side and the verify-and-land loop.
 
 ## Using a board-expert skill
 
-If a board-expert skill is available for the target hardware (e.g. `rpi-expert`), **read its SKILL.md
-first.** It supplies the board-specific map: which repos/branches to read, the canonical file paths,
-addressing model, boot/hand-off facts, and known gotchas. Then apply the method here to turn that map
+If a board-expert skill is available for the target hardware (e.g. `rpi-expert`, or `board-expert`
+with a spec id), **read its SKILL.md first.** It supplies the board-specific map: which
+repos/branches to read, the canonical file paths, addressing model, boot/hand-off facts, and known
+gotchas; with `board-expert` the map is the composed board spec, and an IP block's register model
+comes from its `ip` spec while its placement comes from the SoC's `instances:` row. Then apply the method here to turn that map
 into a clean-room answer. This skill owns the *how*; the board-expert owns the *where* and *what*.
 
 **Caching rule:** content cached *into* a board-expert skill is itself a wall-crossing that replays
@@ -273,11 +275,15 @@ No source code reproduced; facts and mechanism only.
 
 Adapt length to the question — a narrow factual query gets a short report.
 
-### Clarifying questions (only if genuinely blocked)
+### Forks you cannot resolve: the `Needs decision` block
 
-If ambiguity changes the answer, ask one focused question: which SoC/board revision, which kernel
-branch/version, which of several same-named instances, or what they'll do with it. Otherwise proceed
-with stated assumptions.
+You run in a subagent and cannot ask the user. If ambiguity changes the answer — which SoC/board
+revision, which kernel branch/version, which of several same-named instances, anchored to a board or
+generic from mainline — finish everything that does not depend on it and add the **Needs decision**
+block defined in `board-expert/QUESTIONS.md` before the provenance section: each fork as one
+numbered item with the options you can see, a recommended one with the reason, and what it blocks.
+The orchestrator asks and re-runs you with `decisions:` lines. A gap that only makes the answer less
+complete is not a fork: proceed, and state the assumption in the report.
 
 ### Mini-example (shape, not a full report)
 

@@ -1,7 +1,7 @@
 ---
 name: board-spec-scaffold
 description: >-
-  Scaffold a new board spec (board, SoC, or companion chip) in the format board-expert reads,
+  Scaffold a new board spec (board, SoC, companion chip, or IP block) in the format board-expert reads,
   optionally with a thin <board>-expert stub skill, a vendor overlay, a <vendor>-board-tools skill,
   or a new spec root in a source tree. Use when the user asks to scaffold, create, or generate a
   board spec, a board expert, or a bring-up reference for a specific board, SoC, or chip family, or
@@ -18,7 +18,8 @@ SPDX-License-Identifier: Apache-2.0
 # Board-spec scaffold (write a new board spec)
 
 You produce **board specs**: the per-hardware files that `board-expert` reads to answer bring-up
-questions. One spec per piece of hardware — a board composes an SoC and companion chips — plus, when
+questions. One spec per piece of hardware — a board composes an SoC and companion chips, and an SoC's
+`instances:` table names the IP blocks it places — plus, when
 wanted, a thin `<board>-expert` stub so the harness finds the board by name, a vendor overlay for
 private resources, a `<vendor>-board-tools` skill for a vendor's internal tools, or a new spec root in
 a source tree. The format, the layers, and the clean-room rules are in `board-expert/SPEC-FORMAT.md`;
@@ -32,6 +33,7 @@ The worked example to mirror is the `rpi5` set under `board-expert/specs/`: `rpi
 | Artifact | When | Template |
 | --- | --- | --- |
 | `<id>.spec.md`, kind `board` / `soc` / `chip` | always; one per piece of hardware that has no spec yet | `templates/board.spec.md`, `soc.spec.md`, `chip.spec.md` |
+| `<id>.spec.md`, kind `ip` | an SoC's `instances:` row names an IP block with no spec, or a generic IP spec is asked for | `templates/ip.spec.md` |
 | `board-specs.yaml` | the chosen root does not exist yet | `templates/board-specs.yaml` |
 | `<board>-expert/SKILL.md` stub | the user wants the board findable by name and callable by consumers | `templates/stub-SKILL.md` |
 | `<id>.spec.md` with `overlays:` | private resources for this hardware, vendor or bench-local | `templates/overlay.spec.md` |
@@ -59,7 +61,10 @@ The worked example to mirror is the `rpi5` set under `board-expert/specs/`: `rpi
 
 ## Steps
 
-1. **Interview for the inputs** (ask only for what you don't already have; one concise batch):
+1. **Interview for the inputs** (ask only for what you don't already have; one concise batch,
+   structured as `board-expert/QUESTIONS.md` prescribes — that catalog is this interview's
+   checklist, and a spec that leaves one of its questions unanswered is the spec that will make the
+   reader ask later):
    - **Identity:** the kind(s) needed, marketing/board name(s), SoC part number, core topology,
      notable variants and aliases, companion chips, and the **trigger keywords** a question would
      contain.
@@ -79,7 +84,10 @@ The worked example to mirror is the `rpi5` set under `board-expert/specs/`: `rpi
      reg-shift/io-width, baud, earlycon, pinmux), timers (freq + PPIs), clocks/power (firmware-owned
      vs OS-managed), GPIO/pinmux banks + syscon, DTB runtime patching. Board: boot media and
      configuration, debug connector and which UART, PMIC, headers. Chip: how it is reached, its
-     address window, what it carries.
+     address window, what it carries. SoC and chip: the `instances:` rows (name, `ip` id, base
+     address, interrupt, clocks, role). IP: the standards it implements, the databook or public
+     proxy, the programming model at the databook's level, public variants and errata; never an
+     instance fact.
    - **Stub, overlay, vendor skill:** wanted or not, and where the stub lives (the skills repo that
      serves this project).
 2. **(Optional) Offer to research-fill the facts.** If the user wants the quick-facts populated rather
@@ -88,9 +96,11 @@ The worked example to mirror is the `rpi5` set under `board-expert/specs/`: `rpi
    addressing model / boot hand-off / GIC / UART / timer / clock facts as a clean-room report, each
    fact tagged. Drop the returned facts into the templates. Do **not** read the source yourself.
 3. **Write the spec(s)** from the templates, substituting every `<...>` placeholder. Split facts by
-   kind: entry state, the GIC, and the on-SoC UART are SoC facts; boot media, the debug connector, and
-   the PMIC are board facts; a companion chip's window and contents are chip facts. Tag every fact;
-   mark anything unverified `TODO (verify on hardware)` rather than guessing.
+   kind: entry state, the GIC, and the on-SoC UART placement are SoC facts; boot media, the debug
+   connector, and the PMIC are board facts; a companion chip's window and contents are chip facts;
+   a block's register model and sequences are IP facts, written once and referenced from every
+   `instances:` row that places it. Tag every fact; mark anything unverified
+   `TODO (verify on hardware)` rather than guessing.
 4. **Write the root marker, stub, overlay, and vendor skill** if wanted, from their templates.
    Placeholders only in the vendor templates: the real names belong in the vendor's private repo.
 5. **Register.** A spec needs no registration; a stub does. In this repo a stub goes under

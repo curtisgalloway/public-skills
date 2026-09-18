@@ -12,9 +12,21 @@ stated here; the skills point at this file instead of restating it.
 ## Terms
 
 - **Board spec** — a Markdown file with YAML frontmatter describing one piece of hardware: a board, an
-  SoC, or a companion chip. Cited facts plus pointers to sources, documents, and tools; never source
-  code. Distinct from a *driver spec* (`cleanroom-spec`, `anchored-peripheral-spec`), which describes
-  one peripheral's programming model for an implementer.
+  SoC, a companion chip, or an IP block. Cited facts plus pointers to sources, documents, and tools;
+  never source code. Distinct from a *driver spec* (`cleanroom-spec`, `anchored-peripheral-spec`),
+  which describes one peripheral's programming model for an implementer.
+- **IP spec** — a spec of kind `ip`: one silicon IP block (a PL011 UART, a DesignWare `dwc3` USB
+  controller, a GIC-400) independent of any SoC. Its authorities are the IP databook and the public
+  standards the block implements; its map is the mainline Linux driver.
+- **Instance** — a row in an SoC or chip spec's `instances:` table: one placement of an IP block at
+  an address, with its interrupt, clocks, and per-SoC quirks. The IP spec is the binding; the
+  instance is the node.
+- **Anchored / generic** — the two ways an IP spec resolves. *Anchored*: through a board, so the
+  Linux tree is the board's repository at its ref and the instance facts apply. *Generic*: the IP
+  spec alone, from mainline Linux at head plus the public standards, with no instance facts.
+- **Needs decision** — the report block a subagent-role skill returns when a fork it cannot resolve
+  blocks the work. Subagents never ask the user; the orchestrator turns this block into structured
+  questions. See `QUESTIONS.md`.
 - **Root** — a directory holding a `board-specs.yaml` marker. Every `*.spec.md` below it is a spec.
 - **Layer** — a root's position in the merge order: `public`, `ip-vendor`, `soc-vendor`, `product`,
   `local`. Declared in the root marker.
@@ -66,7 +78,7 @@ a central directory. The filename is a convention; the frontmatter `id` is what 
 
 ```yaml
 ---
-kind: board                   # board | soc | chip
+kind: board                   # board | soc | chip | ip
 id: rpi5                      # kebab-case; unique across every root the reader sees
 name: Raspberry Pi 5 / Compute Module 5
 triggers: [pi 5, raspberry pi 5, rpi5, cm5, compute module 5]
@@ -91,15 +103,29 @@ resources:
 ---
 ```
 
+An SoC or chip spec also carries an `instances:` table, one row per placement of an IP block:
+
+```yaml
+instances:
+  - name: uart10              # the instance name as the device tree or datasheet calls it
+    ip: pl011                 # id of the IP spec (the binding)
+    reg: 0x107d001000         # CPU-physical base, or null with a TODO in `note`
+    irq: null                 # INTID or DT tuple, or null
+    clocks: [clk_uart]        # names as the SoC spec's clocks section uses them
+    role: debug console       # optional: what this instance is for
+    note: <quirks, or TODO (verify on hardware)>
+```
+
 Keys by kind:
 
-| Key | board | soc | chip | overlay |
-| --- | --- | --- | --- | --- |
-| `kind`, `id`, `name`, `triggers` | required | required | required | not used |
-| `parts` | required | not yet (IP specs come later) | optional | no |
-| `cache` | required | recommended | optional | no; inherited |
-| `resources` | optional | optional | optional | optional |
-| `overlays` | no | no | no | required |
+| Key | board | soc | chip | ip | overlay |
+| --- | --- | --- | --- | --- | --- |
+| `kind`, `id`, `name`, `triggers` | required | required | required | required | not used |
+| `parts` | required | no | optional | no | no |
+| `instances` | no | required (may be empty) | recommended | no | optional |
+| `cache` | required | recommended | optional | recommended | no; inherited |
+| `resources` | optional | optional | optional | required | optional |
+| `overlays` | no | no | no | no | required |
 
 Body: fixed `##` headings per kind. The templates under `board-spec-scaffold/templates/` carry the
 exact list; in short:
@@ -112,6 +138,12 @@ exact list; in short:
   `Gotchas`.
 - **chip** — `Orientation`; `Quick-facts` covering how the chip is reached, its address window, and
   what it carries; `Gotchas`.
+- **ip** — `Orientation`; `Standards and databook` (which public standards the block implements and
+  which databook or public proxy documents its registers); `Programming model` (register map
+  organization, the init / reset / teardown sequences at the level of the databook, DMA and
+  interrupt model); `Known variants and quirks` (IP versions, configuration options an SoC may set,
+  errata that are public); `Gotchas`. No instance facts: those belong in the SoC spec's
+  `instances:` row.
 
 Every fact in `Quick-facts` and `Gotchas` carries a provenance tag. A fact with no public authority is
 `[source-observed]` and must also say `TODO (verify on hardware)`. A bullet that records only a gap
@@ -171,12 +203,29 @@ Merge rules:
 
 Given a question, the reader finds the spec by:
 
-1. A spec id handed to it by a stub or by the orchestrator (`spec: rpi5`).
-2. Otherwise, matching the board, SoC, and chip names in the question against `triggers` and
+1. A spec id handed to it by a stub or by the orchestrator (`spec: rpi5`, `ip: dwc3`, or both).
+2. Otherwise, matching the board, SoC, chip, and IP names in the question against `triggers` and
    `aliases` across every root. A match on an SoC or chip without a board is still a hit; the report
    says the board-level facts are absent.
 3. Otherwise, no spec: `board-expert` does its best from public sources, labels the report spec-less,
    and suggests `board-spec-scaffold`.
+
+An IP spec resolves in one of two modes, and the report names which:
+
+- **Anchored** (`spec: <board>` and `ip: <id>`, or an IP named in a question about a board): the
+  reader composes the board, finds the `instances:` rows whose `ip` matches, and uses the board's
+  Linux repository at its `ref` as the map. If several instances match and the question does not
+  say which, that is a `Needs decision`. Mainline is still read for provenance; both commits go in
+  the report. A fact present only in the board's tree is tagged `[source-observed]` with the tree
+  named, because it may be a vendor addition rather than the IP's behavior.
+- **Generic** (`ip: <id>` alone): the IP spec's own repository entry is the map, by default
+  `torvalds/linux` at head with the commit actually read recorded in the report. A caller may pin
+  `ref:`. The public standards and databook in the IP spec's `docs` are the authority. The report
+  carries no instance facts and says so.
+
+When the question is under-specified in a way that changes the answer (which board variant, which
+instance, which tree, anchored or generic), the reader does not guess. It returns a `Needs decision`
+block per `QUESTIONS.md`, and the orchestrator asks.
 
 ## Paths and URLs
 
@@ -214,9 +263,18 @@ These are `os-investigator`'s caching rule applied to a file that may sit in the
 - frontmatter missing a key its kind requires, an unknown `kind` or `layer`, or a duplicate `id`;
 - a `parts` or `overlays` reference that resolves to nothing across the given roots;
 - `access: internal`, or a `via:` naming a skill outside the public set, under a `public` root;
+- an `instances:` row whose `ip` resolves to nothing, or an `ip` spec with no `docs` entry marked
+  `cite: true`;
 - a `Quick-facts` or `Gotchas` bullet without a provenance tag (a bullet that is only a
   `TODO (verify on hardware)` gap is exempt), or `[source-observed]` without
   `TODO (verify on hardware)`;
 - a stub whose spec id does not resolve.
 
 Until then, review a new spec against this list by hand.
+
+## Related documents
+
+- `QUESTIONS.md` — the question catalog and the `Needs decision` protocol shared by every skill
+  that produces or consumes specs.
+- `VENDOR-GUIDE.md` — how a vendor sets up overlay roots, wraps internal tools as skills, and keeps
+  internal material out of public roots.
