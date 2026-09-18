@@ -258,7 +258,7 @@ These are `os-investigator`'s caching rule applied to a file that may sit in the
 
 ## What the checker enforces
 
-`board-expert/scripts/spec_check.py <root>...` is not shipped yet. When it is, it fails on:
+`board-expert/scripts/spec_check.py <root>... [--stub SKILL.md] [--public-skill NAME]` fails on:
 
 - frontmatter missing a key its kind requires, an unknown `kind` or `layer`, or a duplicate `id`;
 - a `parts` or `overlays` reference that resolves to nothing across the given roots;
@@ -270,7 +270,9 @@ These are `os-investigator`'s caching rule applied to a file that may sit in the
   `TODO (verify on hardware)`;
 - a stub whose spec id does not resolve.
 
-Until then, review a new spec against this list by hand.
+It is stdlib-only, reads the frontmatter with PyYAML when available and with its own parser for the
+format's YAML subset otherwise, and warns (without failing) on two overlays for one id in one layer.
+CI runs it on the public root with every stub in this repository.
 
 ## Related documents
 
