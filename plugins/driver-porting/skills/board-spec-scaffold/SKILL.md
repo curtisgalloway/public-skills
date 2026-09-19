@@ -25,8 +25,14 @@ private resources, a `<vendor>-board-tools` skill for a vendor's internal tools,
 a source tree. The format, the layers, and the clean-room rules are in `board-expert/SPEC-FORMAT.md`;
 read it before writing anything, and do not restate it in what you write.
 
-The worked example to mirror is the `rpi5` set under `board-expert/specs/`: `rpi5.spec.md` (board),
-`bcm2712.spec.md` (SoC), `rp1.spec.md` (chip), and the `rpi-expert` stub that points at it.
+The worked examples are every spec under `board-expert/specs/` and the stubs beside this skill.
+Pick the closest: for a single-board computer with public firmware, `rpi5.spec.md` + `bcm2712.spec.md`
++ `rp1.spec.md` and the `rpi-expert` stub; for an SoC whose firmware tree is not public, `rk3588s.spec.md`
+(vendor blobs named, TF-A cited where it exists) with `indiedroid-nova.spec.md`; for a board with a
+public datasheet as the citation of record, `rpi4.spec.md` + `bcm2711.spec.md`; for an IP block,
+`ip/pl011.spec.md` and `ip/dw-apb-uart.spec.md`. A handset or other closed device has no shipped
+example: use the board template's second bullet set and the soc template's closed-firmware phrasing
+of the Boot chain bullet.
 
 ## What you produce
 
@@ -38,6 +44,7 @@ The worked example to mirror is the `rpi5` set under `board-expert/specs/`: `rpi
 | `<board>-expert/SKILL.md` stub | the user wants the board findable by name and callable by consumers | `templates/stub-SKILL.md` |
 | `<id>.spec.md` with `overlays:` | private resources for this hardware, vendor or bench-local | `templates/overlay.spec.md` |
 | `<vendor>-board-tools/SKILL.md` | a vendor has no generic skill yet for its internal tools | `templates/vendor-board-tools-SKILL.md` |
+| `<root>/resources/<id>.verify.md` | always, as the last step: the verification record | none; `spec-verifier` writes it |
 
 ## Conventions to honor
 
@@ -47,15 +54,22 @@ The worked example to mirror is the `rpi5` set under `board-expert/specs/`: `rpi
 - **Reuse before writing.** If an SoC or chip spec already resolves in any root the user can see,
   reference it in `parts` rather than writing another. Two boards on the same SoC share one SoC spec.
 - **Agent-neutral prose.** Refer to "the agent", not to any one product's name.
-- **License header: match the target repo's convention.** In this repo a spec or SKILL.md carries a
-  two-line SPDX comment immediately *after* the frontmatter, never above it — a comment before the
-  frontmatter stops it parsing. A source tree carries whatever header its neighbors do.
-- **Cache convention.** A board spec names `cache: <short>-resources`; the expert clones under
-  `~/src/<short>-resources/`. Pick a short, unambiguous `<short>`. Parts inherit the board's cache
-  unless they name their own.
-- **Clean-room first.** Every fact carries a provenance tag; anything unverified is `TODO (verify on
-  hardware)`; no source excerpts, ever. A spec may end up in the target OS tree, so it must already
-  be safe there.
+- **License header: match the target repo's convention.** In this repo every spec, stub, and
+  SKILL.md carries exactly `SPDX-FileCopyrightText: 2026 contributors` and
+  `SPDX-License-Identifier: Apache-2.0` in an HTML comment immediately *after* the frontmatter,
+  never above it — a comment before the frontmatter stops it parsing. A source tree carries whatever
+  header its neighbors do.
+- **Cache convention.** A board spec names `cache: <board-id>-resources` (`rpi5-resources`); the
+  expert clones under `~/src/<board-id>-resources/`. SoC, chip, and IP parts inherit the board's
+  cache unless they name their own; a generic IP spec names `<ip-id>-resources`.
+- **Clean-room first.** Every fact carries a provenance tag, at the end of its bullet; anything
+  unverified is `TODO (verify on hardware)`; no source excerpts, ever. A spec may end up in the
+  target OS tree, so it must already be safe there. Device trees are hardware description, not
+  source: you may read them and copy node names, compatibles, and values into a spec as `[DT]`
+  facts. Driver and firmware code is source: only the research-fill subagent reads it. To decide
+  which files matter before that subagent exists, you may list a directory, check that a path
+  exists at a ref, and grep a driver file for a `compatible` string, a symbol, or a register name;
+  you may not read a driver's body, and a grep hit is a pointer, not a fact.
 - **Public root, public content.** A spec under a `public` root names nothing private: no internal
   hosts, tools, codenames, or NDA documents. Those go in an overlay under a vendor or local root.
 
@@ -76,7 +90,7 @@ The worked example to mirror is the `rpi5` set under `board-expert/specs/`: `rpi
      highest-value files per repo (board `.dts`, SoC `.dtsi`, console UART driver, irqchip).
    - **Citations:** the authoritative datasheet / TRM / programmer's guide URLs (and public *proxy*
      parts when the exact one is NDA), plus the relevant ARM specs (GIC, PSCI, SCMI, ARM ARM).
-   - **Cache:** the `<short>-resources` name.
+   - **Cache:** `<board-id>-resources` unless the user has a convention.
    - **Quick-facts** (fill what's known; the rest is TODO for the expert or user to confirm on
      hardware). SoC: addressing model, boot chain + entry EL + MMU/cache state + DTB-pointer register
      + secondary-core release, SMP/MPIDR mapping, interrupt controller (version, GICD/GICR/GICC
@@ -90,33 +104,59 @@ The worked example to mirror is the `rpi5` set under `board-expert/specs/`: `rpi
      instance fact.
    - **Stub, overlay, vendor skill:** wanted or not, and where the stub lives (the skills repo that
      serves this project).
-2. **(Optional) Offer to research-fill the facts.** If the user wants the quick-facts populated rather
-   than stubbed, spawn a subagent with the harness's delegation tool, have it load `os-investigator`
-   plus `board-expert` (so a sibling SoC spec is available to it), and ask it to return the
-   addressing model / boot hand-off / GIC / UART / timer / clock facts as a clean-room report, each
-   fact tagged. Drop the returned facts into the templates. Do **not** read the source yourself.
+2. **Research-fill the facts (the default when the sources are public).** Spawn a subagent with
+   the harness's delegation tool, have it load `os-investigator` plus `board-expert` (so a sibling
+   SoC or IP spec is available to it), and ask it to return the addressing model / boot hand-off /
+   GIC / UART / timer / clock facts as a clean-room report, each fact tagged, plus ready-to-paste
+   `instances:` rows in the format's shape. It may clone into `~/src/<cache>/` as `os-investigator`
+   directs; when a clone is impractical (no `git` transport, a huge tree, a prebuilt-only mirror),
+   fetching the needed files raw at a pinned commit into the same cache is an acceptable
+   substitute, with that commit recorded in the report and the spec. Drop the returned facts into
+   the templates. Driver and firmware code is read only by
+   that subagent; you may read device trees yourself (see Conventions). Write TODO stubs instead
+   only when the user asks for a skeleton or no public source exists.
 3. **Write the spec(s)** from the templates, substituting every `<...>` placeholder. Split facts by
    kind: entry state, the GIC, and the on-SoC UART placement are SoC facts; boot media, the debug
    connector, and the PMIC are board facts; a companion chip's window and contents are chip facts;
    a block's register model and sequences are IP facts, written once and referenced from every
    `instances:` row that places it. Tag every fact; mark anything unverified
-   `TODO (verify on hardware)` rather than guessing.
+   `TODO (verify on hardware)` rather than guessing. Put the tag clause at the end of every bullet
+   (`SPEC-FORMAT.md` § Tag rules); a `[doc]` names its page; `[press]` and `[source-observed]`
+   carry the TODO. Sibling models go in `variants:` or their own `variant_of` spec
+   (`QUESTIONS.md` item 6).
 4. **Write the root marker, stub, overlay, and vendor skill** if wanted, from their templates.
    Placeholders only in the vendor templates: the real names belong in the vendor's private repo.
 5. **Register.** A spec needs no registration; a stub does. In this repo a stub goes under
-   `plugins/driver-porting/skills/<board>-expert/` and must appear in the Themes table of the root
-   `README.md` (the `driver-porting` row) and the "Board experts" list in
-   `plugins/driver-porting/README.md`; `python3 utilities/check-skill-registration.py` confirms both
-   and CI runs it on every push. A spec in a source tree follows that tree's review process.
-6. **Check.** Run `python3 <board-expert>/scripts/spec_check.py <root>... --stub <stub SKILL.md>`
+   `plugins/driver-porting/skills/<board>-expert/` and its name must appear, backtick-quoted, in:
+   the Themes table of the root `README.md` (the `driver-porting` row); the "Which one do I want?"
+   table and the "Board experts" list in `plugins/driver-porting/README.md`; and the `board-expert`
+   bullet's list of shipped specs in that README, for the new spec ids. The `plugin.json` and
+   `.claude-plugin/marketplace.json` descriptions are curated prose that may enumerate the board
+   experts; the checker does not verify either, so read both by hand, add the new expert where the
+   others are listed, and keep the two consistent with each other.
+   `python3 utilities/check-skill-registration.py` confirms the two READMEs and CI runs it on every
+   push. CI's checker step and the README's Tests block use `--stubs-from`, which finds every stub
+   whose description says "stub over", so they need no edit. No skill description may enumerate
+   the stubs by name (`board-expert`'s says "when no board-specific stub matches"), so adding a stub
+   never stales another skill. A spec in a source tree follows that tree's review process.
+6. **Check.** Run `python3 <board-expert>/scripts/spec_check.py <root>... --stubs-from <skills dir>`
    over every root the new spec references (a vendor root needs the public root beside it, or its
    overlay targets do not resolve). It enforces `SPEC-FORMAT.md` § *What the checker enforces*:
-   required keys per kind, every `parts`, `instances[].ip`, and `overlays` reference resolving, a
-   tag on every fact, nothing internal under a public root, and the stub's id resolving.
-7. **Remind to sync.** If the user's machines link skills from a checkout with a sync tool, tell them
+   required keys per kind, every `parts`, `instances[].ip`, `variant_of`, and `overlays` reference
+   resolving, instance `reg`/`irq` shapes, the tag clause at the end of every fact, nothing internal
+   under a public root, and every stub's id resolving.
+7. **Verify.** A spec is not done until a fresh verifier has re-derived every fact from the source
+   it cites and the record has zero `FAIL`. Run the verification phase as `spec-verifier` § Board
+   specs defines it: spawn the verifier subagent with the spec and nothing of this session, two
+   independent verifiers for the addressing model, entry state, and debug UART, and write
+   `<root>/resources/<id>.verify.md` (the record lives outside the spec so the reader never loads
+   it). Fix every `FAIL` the record proposes, then re-run until it is clean; the checker reports a
+   missing record as "unverified" and a record older than the spec as "stale". The same phase runs
+   again on demand through `spec-verifier`.
+8. **Remind to sync.** If the user's machines link skills from a checkout with a sync tool, tell them
    to re-run it so a new stub is linked; a plugin install picks it up on the next update. Specs in a
    source tree need nothing.
-8. **Don't push unprompted.** Stage/commit if asked; follow the repo's push rules.
+9. **Don't push unprompted.** Stage/commit if asked; follow the repo's push rules.
 
 ## Filling guidance
 
@@ -138,6 +178,9 @@ The worked example to mirror is the `rpi5` set under `board-expert/specs/`: `rpi
 - Every quick-fact and gotcha tagged; unverified items flagged, not guessed; no source excerpts.
 - Sources name obtainable repos and refs *and* citable datasheets/specs, not just the kernel.
 - Nothing internal under a public root.
-- A stub, if written, keeps the phrase "Board expert for <board>" in its description (consumers such
-  as `reference-driver-review` search for it), names its spec id, and is registered where its repo
-  requires.
+- A verification record exists for every spec written, its `spec_sha256` matches the file, and its
+  summary has zero `FAIL`.
+- A stub, if written, starts its description with the prefix "Board expert for" (the article is
+  free: "Board expert for the Raspberry Pi 5" is fine; consumers such as `reference-driver-review`
+  match the prefix), says "A stub over the `<id>` board spec" (which is how `--stubs-from` finds
+  it), names its spec id in a `` `spec: <id>` `` line, and is registered where its repo requires.

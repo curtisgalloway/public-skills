@@ -55,9 +55,9 @@ until PCIe is up.
 
 - **Boot media and chain.** The BCM2712 VPU boot ROM runs the bootloader held in the on-board SPI
   EEPROM, which loads the armstub (TF-A BL31), the DTB, and the OS image from the boot partition;
-  `config.txt` on that partition selects images and options. `[doc]` (Raspberry Pi documentation,
-  config.txt page; TF-A rpi5 platform page for the BL31 role). Entry state and secondary-core release
-  are SoC facts: see `bcm2712`.
+  `config.txt` on that partition selects images and options. Entry state and secondary-core
+  release are SoC facts: see `bcm2712`. `[doc]` (Raspberry Pi documentation, config.txt page; TF-A
+  rpi5 platform page for the BL31 role)
 - **Debug console.** The 3-pin debug connector is the on-SoC PL011 `uart10` at `0x10_7D00_1000`,
   which firmware leaves enabled; `earlycon=pl011,0x107d001000,115200n8`. `[DT]`
   (`bcm2712-rpi-5-b.dts`, `aliases { serial0 }`), `[doc]` (Raspberry Pi documentation).
@@ -73,7 +73,8 @@ until PCIe is up.
 
 - The "console" on the 40-pin header is RP1 `uart0`, behind PCIe. The early console is the debug
   connector, on-SoC `uart10`. Mixing these up is the most common Pi 5 bring-up dead end. `[DT]`
+  (`bcm2712-rpi-5-b.dts`, `aliases`)
 - Nothing on RP1 is reachable until PCIe is up; early bring-up uses on-SoC blocks only.
-  `[databook]` (RP1 datasheet §2.3.1), `[DT]`
+  `[databook]` (RP1 datasheet §2.3.1), `[DT]` (`rp1.dtsi`)
 - Older Pi bring-up guides that poke per-core release addresses do not apply: secondary cores start
   via PSCI `CPU_ON` (see `bcm2712`). `[DT]` (`psci { method = "smc" }`)
