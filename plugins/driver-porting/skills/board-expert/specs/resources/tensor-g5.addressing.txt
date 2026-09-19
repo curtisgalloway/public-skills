@@ -1,0 +1,1077 @@
+====================================================================================================
+Google Tensor G5 (muzel / lga-b0) production device tree -- address translation extraction
+====================================================================================================
+
+Blob:    lga-b0.dtb
+sha256:  f238c200f7cf7ae14265047af6a62fdc54ab39f58a4042e844564e39cfbca030
+Date:    2026-09-18
+Nodes:   2774
+
+Produced by, and recomputable with:
+    python3 addr.py  <blob>          # raw extraction dump
+    python3 render.py <blob> <out>   # this file
+
+Both scripts are reproduced verbatim at the end of this file: addr.py in Appendix A (all
+parsing and arithmetic) and render.py in Appendix B (formatting only). Both are stdlib-only
+Python 3, sit in the same directory, and read nothing but the blob named on the command
+line. Re-running them on a blob with the sha256 above reproduces this file exactly, except
+for the Date line.
+
+Question settled here: which nodes in this blob translate addresses, and which `reg`
+values are therefore bus offsets rather than CPU-physical addresses?
+
+====================================================================================================
+1. ROOT CELL COUNTS
+====================================================================================================
+
+/#address-cells = <2>   (declared: True)
+/#size-cells    = <2>   (declared: True)
+
+So a `reg` on a direct child of / is two cells of address followed by two cells of size,
+and that address is already CPU-physical: / has no `ranges` and needs none.
+
+====================================================================================================
+2. EVERY NODE DECLARING A `ranges` PROPERTY (20)
+====================================================================================================
+
+Categories:  empty       -- `ranges;` with no entries; 1:1 pass-through (identity)
+             identity    -- entries present, every child address equals its parent address
+             translating -- at least one entry where child address != parent address
+
+----------------------------------------------------------------------------------------------------
+/reserved-memory
+    category    : EMPTY
+    compatible  : (none)
+    self        : #address-cells=2 #size-cells=2
+    parent      : /  #address-cells=2 #size-cells=2
+    raw ranges  :
+        <>
+    entries     : (none -- empty `ranges;`, identity)
+----------------------------------------------------------------------------------------------------
+/sswrp_dpu@ec00000
+    category    : TRANSLATING
+    compatible  : simple-bus
+    self        : #address-cells=1 #size-cells=1
+    parent      : /  #address-cells=2 #size-cells=2
+    raw ranges  :
+        <0x00000000 0x00000000 0x0ec00000 0x00400000>
+    entry       : child 0x000000000000  ->  parent 0x00000ec00000   size 0x400000
+                  offset applied to a child address in this window: +0xec00000
+----------------------------------------------------------------------------------------------------
+/sswrp_g2d@3f200000
+    category    : TRANSLATING
+    compatible  : simple-bus
+    self        : #address-cells=1 #size-cells=1
+    parent      : /  #address-cells=2 #size-cells=2
+    raw ranges  :
+        <0x00000000 0x00000000 0x3f200000 0x001d7000>
+    entry       : child 0x000000000000  ->  parent 0x00003f200000   size 0x1d7000
+                  offset applied to a child address in this window: +0x3f200000
+----------------------------------------------------------------------------------------------------
+/sswrp_aur@38000000
+    category    : TRANSLATING
+    compatible  : simple-bus
+    self        : #address-cells=1 #size-cells=1
+    parent      : /  #address-cells=2 #size-cells=2
+    raw ranges  :
+        <0x00000000 0x00000000 0x38000000 0x00af1000>
+    entry       : child 0x000000000000  ->  parent 0x000038000000   size 0xaf1000
+                  offset applied to a child address in this window: +0x38000000
+----------------------------------------------------------------------------------------------------
+/sswrp_ispfe@F000000
+    category    : TRANSLATING
+    compatible  : simple-bus
+    self        : #address-cells=2 #size-cells=1
+    parent      : /  #address-cells=2 #size-cells=2
+    raw ranges  :
+        <0x00000000 0x00000000 0x00000000 0x0f000000 0x01000000>
+    entry       : child 0x000000000000  ->  parent 0x00000f000000   size 0x1000000
+                  offset applied to a child address in this window: +0xf000000
+----------------------------------------------------------------------------------------------------
+/sswrp_ispbe@3E400000
+    category    : TRANSLATING
+    compatible  : simple-bus
+    self        : #address-cells=2 #size-cells=1
+    parent      : /  #address-cells=2 #size-cells=2
+    raw ranges  :
+        <0x00000000 0x00000000 0x00000000 0x3e400000 0x003f8030>
+    entry       : child 0x000000000000  ->  parent 0x00003e400000   size 0x3f8030
+                  offset applied to a child address in this window: +0x3e400000
+----------------------------------------------------------------------------------------------------
+/sswrp_gsw@3EC00000
+    category    : TRANSLATING
+    compatible  : simple-bus
+    self        : #address-cells=2 #size-cells=1
+    parent      : /  #address-cells=2 #size-cells=2
+    raw ranges  :
+        <0x00000000 0x00000000 0x00000000 0x3ec00000 0x0024d100>
+    entry       : child 0x000000000000  ->  parent 0x00003ec00000   size 0x24d100
+                  offset applied to a child address in this window: +0x3ec00000
+----------------------------------------------------------------------------------------------------
+/sswrp_codec3p@3f000000
+    category    : TRANSLATING
+    compatible  : simple-bus
+    self        : #address-cells=1 #size-cells=1
+    parent      : /  #address-cells=2 #size-cells=2
+    raw ranges  :
+        <0x00000000 0x00000000 0x3f000000 0x00200000>
+    entry       : child 0x000000000000  ->  parent 0x00003f000000   size 0x200000
+                  offset applied to a child address in this window: +0x3f000000
+----------------------------------------------------------------------------------------------------
+/simple_usb_bus
+    category    : EMPTY
+    compatible  : simple-bus
+    self        : #address-cells=2 #size-cells=2
+    parent      : /  #address-cells=2 #size-cells=2
+    raw ranges  :
+        <>
+    entries     : (none -- empty `ranges;`, identity)
+----------------------------------------------------------------------------------------------------
+/simple_usb_bus/usb3@c450000
+    category    : EMPTY
+    compatible  : google,dwc3-lga
+    self        : #address-cells=2 #size-cells=2
+    parent      : /simple_usb_bus  #address-cells=2 #size-cells=2
+    raw ranges  :
+        <>
+    entries     : (none -- empty `ranges;`, identity)
+----------------------------------------------------------------------------------------------------
+/pcie@c500000
+    category    : IDENTITY
+    compatible  : google,lga-pcie
+    self        : #address-cells=3 #size-cells=2
+    parent      : /  #address-cells=2 #size-cells=2
+    raw ranges  :
+        <0x01000000 0x00000000 0x40100000 0x00000000 0x40100000 0x00000000 0x00100000 0x02000000
+        0x00000000 0x40200000 0x00000000 0x40200000 0x00000000 0x1fe00000>
+    entry       : child 0x000040100000 [phys.hi 0x01000000]  ->  parent 0x000040100000   size 0x100000
+                  offset applied to a child address in this window: +0x0
+    entry       : child 0x000040200000 [phys.hi 0x02000000]  ->  parent 0x000040200000   size 0x1fe00000
+                  offset applied to a child address in this window: +0x0
+----------------------------------------------------------------------------------------------------
+/pcie@3c500000
+    category    : IDENTITY
+    compatible  : google,lga-pcie
+    self        : #address-cells=3 #size-cells=2
+    parent      : /  #address-cells=2 #size-cells=2
+    raw ranges  :
+        <0x01000000 0x00000000 0x60100000 0x00000000 0x60100000 0x00000000 0x00100000 0x02000000
+        0x00000000 0x60200000 0x00000000 0x60200000 0x00000000 0x1fe00000>
+    entry       : child 0x000060100000 [phys.hi 0x01000000]  ->  parent 0x000060100000   size 0x100000
+                  offset applied to a child address in this window: +0x0
+    entry       : child 0x000060200000 [phys.hi 0x02000000]  ->  parent 0x000060200000   size 0x1fe00000
+                  offset applied to a child address in this window: +0x0
+----------------------------------------------------------------------------------------------------
+/interrupt-controller@5880000
+    category    : EMPTY
+    compatible  : arm,gic-v3
+    self        : #address-cells=2 #size-cells=2
+    parent      : /  #address-cells=2 #size-cells=2
+    raw ranges  :
+        <>
+    entries     : (none -- empty `ranges;`, identity)
+----------------------------------------------------------------------------------------------------
+/gpdma_wrapper@3b990000
+    category    : EMPTY
+    compatible  : google,gpdma
+    self        : #address-cells=2 #size-cells=2
+    parent      : /  #address-cells=2 #size-cells=2
+    raw ranges  :
+        <>
+    entries     : (none -- empty `ranges;`, identity)
+----------------------------------------------------------------------------------------------------
+/gpdma_wrapper@3b9a0000
+    category    : EMPTY
+    compatible  : google,gpdma
+    self        : #address-cells=2 #size-cells=2
+    parent      : /  #address-cells=2 #size-cells=2
+    raw ranges  :
+        <>
+    entries     : (none -- empty `ranges;`, identity)
+----------------------------------------------------------------------------------------------------
+/gpdma_wrapper@3b9b0000
+    category    : EMPTY
+    compatible  : google,gpdma
+    self        : #address-cells=2 #size-cells=2
+    parent      : /  #address-cells=2 #size-cells=2
+    raw ranges  :
+        <>
+    entries     : (none -- empty `ranges;`, identity)
+----------------------------------------------------------------------------------------------------
+/gpdma_wrapper@3b9c0000
+    category    : EMPTY
+    compatible  : google,gpdma
+    self        : #address-cells=2 #size-cells=2
+    parent      : /  #address-cells=2 #size-cells=2
+    raw ranges  :
+        <>
+    entries     : (none -- empty `ranges;`, identity)
+----------------------------------------------------------------------------------------------------
+/power_controller
+    category    : EMPTY
+    compatible  : google,lga-power-controller
+    self        : #address-cells=2 #size-cells=2
+    parent      : /  #address-cells=2 #size-cells=2
+    raw ranges  :
+        <>
+    entries     : (none -- empty `ranges;`, identity)
+----------------------------------------------------------------------------------------------------
+/odm
+    category    : EMPTY
+    compatible  : simple-bus
+    self        : #address-cells=2 #size-cells=1  [one or both defaulted]
+    parent      : /  #address-cells=2 #size-cells=2
+    raw ranges  :
+        <>
+    entries     : (none -- empty `ranges;`, identity)
+----------------------------------------------------------------------------------------------------
+/sswrp_tpu@36000000
+    category    : TRANSLATING
+    compatible  : simple-bus
+    self        : #address-cells=1 #size-cells=1
+    parent      : /  #address-cells=2 #size-cells=2
+    raw ranges  :
+        <0x00000000 0x00000000 0x36000000 0x00ac1000>
+    entry       : child 0x000000000000  ->  parent 0x000036000000   size 0xac1000
+                  offset applied to a child address in this window: +0x36000000
+----------------------------------------------------------------------------------------------------
+
+Note on the two /pcie nodes: their #address-cells is 3, so the first cell of each child
+address is the PCI phys.hi space/flags tag, not part of the numeric address. With the tag
+separated out, both windows map 1:1 (0x40100000->0x40100000, 0x40200000->0x40200000 and the
+0x6010_0000/0x6020_0000 pair), so they are IDENTITY, not translating. Treating phys.hi as
+address bits would misclassify them as translating; this script does not.
+
+====================================================================================================
+3. EVERY NODE WHOSE `compatible` INCLUDES `simple-bus` (10)
+====================================================================================================
+
+PATH                                   CATEGORY     COMPATIBLE
+/sswrp_dpu@ec00000                     TRANSLATING  simple-bus
+/sswrp_g2d@3f200000                    TRANSLATING  simple-bus
+/sswrp_aur@38000000                    TRANSLATING  simple-bus
+/sswrp_ispfe@F000000                   TRANSLATING  simple-bus
+/sswrp_ispbe@3E400000                  TRANSLATING  simple-bus
+/sswrp_gsw@3EC00000                    TRANSLATING  simple-bus
+/sswrp_codec3p@3f000000                TRANSLATING  simple-bus
+/simple_usb_bus                        EMPTY        simple-bus
+/odm                                   EMPTY        simple-bus
+/sswrp_tpu@36000000                    TRANSLATING  simple-bus
+
+====================================================================================================
+4. DESCENDANTS OF TRANSLATING NODES THAT CARRY `reg`
+====================================================================================================
+
+For each translating node, every descendant with a `reg` property. `reg` is decoded with
+the DESCENDANT'S PARENT'S cell counts, then walked up through each ancestor's `ranges`.
+
+Two kinds of `reg` appear below and they must not be conflated:
+  MMIO      -- a bus offset that resolves to a CPU-physical address through the chain.
+  GRAPH     -- a `reg` on a port@N / endpoint@N node under a `ports` container. `ports`
+               declares no `ranges`, so the value is a port index, not an address at all;
+               it is unmappable by construction and is NOT a bus offset for MMIO purposes.
+
+----------------------------------------------------------------------------------------------------
+/sswrp_dpu@ec00000   [26 descendant(s) with reg: 5 MMIO, 21 GRAPH]
+   translation: child [0x0, 0x400000) -> parent 0xec00000   (add 0xec00000)
+
+   [MMIO] /sswrp_dpu@ec00000/dc9x00@200000
+          raw reg = <0x00200000 0x00120000>
+          offset 0x200000     size 0x120000    -> CPU-physical 0x0ee00000
+   [GRAPH] /sswrp_dpu@ec00000/dc9x00@200000/ports/port@0
+          raw reg = <0x00000000>
+          offset 0x0          size 0x0         -> NOT TRANSLATABLE (port index)
+   [GRAPH] /sswrp_dpu@ec00000/dc9x00@200000/ports/port@0/endpoint@0
+          raw reg = <0x00000000>
+          offset 0x0          size 0x0         -> NOT TRANSLATABLE (port index)
+   [GRAPH] /sswrp_dpu@ec00000/dc9x00@200000/ports/port@0/endpoint@1
+          raw reg = <0x00000001>
+          offset 0x1          size 0x0         -> NOT TRANSLATABLE (port index)
+   [GRAPH] /sswrp_dpu@ec00000/dc9x00@200000/ports/port@1
+          raw reg = <0x00000001>
+          offset 0x1          size 0x0         -> NOT TRANSLATABLE (port index)
+   [GRAPH] /sswrp_dpu@ec00000/dc9x00@200000/ports/port@1/endpoint@0
+          raw reg = <0x00000000>
+          offset 0x0          size 0x0         -> NOT TRANSLATABLE (port index)
+   [GRAPH] /sswrp_dpu@ec00000/dc9x00@200000/ports/port@1/endpoint@1
+          raw reg = <0x00000001>
+          offset 0x1          size 0x0         -> NOT TRANSLATABLE (port index)
+   [GRAPH] /sswrp_dpu@ec00000/dc9x00@200000/ports/port@1/endpoint@2
+          raw reg = <0x00000002>
+          offset 0x2          size 0x0         -> NOT TRANSLATABLE (port index)
+   [GRAPH] /sswrp_dpu@ec00000/dc9x00@200000/ports/port@2
+          raw reg = <0x00000002>
+          offset 0x2          size 0x0         -> NOT TRANSLATABLE (port index)
+   [GRAPH] /sswrp_dpu@ec00000/dc9x00@200000/ports/port@4
+          raw reg = <0x00000004>
+          offset 0x4          size 0x0         -> NOT TRANSLATABLE (port index)
+   [MMIO] /sswrp_dpu@ec00000/dw_mipi_cdphy@3c0000
+          raw reg = <0x003c0000 0x00018000 0x003d8800 0x00000800>
+          offset 0x3c0000     size 0x18000     -> CPU-physical 0x0efc0000
+          offset 0x3d8800     size 0x800       -> CPU-physical 0x0efd8800
+   [MMIO] /sswrp_dpu@ec00000/dsi2host@3d8000
+          raw reg = <0x003d8000 0x00000800>
+          offset 0x3d8000     size 0x800       -> CPU-physical 0x0efd8000
+   [GRAPH] /sswrp_dpu@ec00000/dsi2host@3d8000/ports/port@0
+          raw reg = <0x00000000>
+          offset 0x0          size 0x0         -> NOT TRANSLATABLE (port index)
+   [GRAPH] /sswrp_dpu@ec00000/dsi2host@3d8000/ports/port@0/endpoint@0
+          raw reg = <0x00000000>
+          offset 0x0          size 0x0         -> NOT TRANSLATABLE (port index)
+   [GRAPH] /sswrp_dpu@ec00000/dsi2host@3d8000/ports/port@0/endpoint@1
+          raw reg = <0x00000001>
+          offset 0x1          size 0x0         -> NOT TRANSLATABLE (port index)
+   [GRAPH] /sswrp_dpu@ec00000/dsi2host@3d8000/ports/port@1
+          raw reg = <0x00000001>
+          offset 0x1          size 0x0         -> NOT TRANSLATABLE (port index)
+   [MMIO] /sswrp_dpu@ec00000/dw_mipi_cdphy@3e0000
+          raw reg = <0x003e0000 0x00018000 0x003f8800 0x00000800>
+          offset 0x3e0000     size 0x18000     -> CPU-physical 0x0efe0000
+          offset 0x3f8800     size 0x800       -> CPU-physical 0x0eff8800
+   [MMIO] /sswrp_dpu@ec00000/dsi2host@3f8000
+          raw reg = <0x003f8000 0x00000800>
+          offset 0x3f8000     size 0x800       -> CPU-physical 0x0eff8000
+   [GRAPH] /sswrp_dpu@ec00000/dsi2host@3f8000/ports/port@0
+          raw reg = <0x00000000>
+          offset 0x0          size 0x0         -> NOT TRANSLATABLE (port index)
+   [GRAPH] /sswrp_dpu@ec00000/dsi2host@3f8000/ports/port@0/endpoint@0
+          raw reg = <0x00000000>
+          offset 0x0          size 0x0         -> NOT TRANSLATABLE (port index)
+   [GRAPH] /sswrp_dpu@ec00000/dsi2host@3f8000/ports/port@0/endpoint@1
+          raw reg = <0x00000001>
+          offset 0x1          size 0x0         -> NOT TRANSLATABLE (port index)
+   [GRAPH] /sswrp_dpu@ec00000/dsi2host@3f8000/ports/port@1
+          raw reg = <0x00000001>
+          offset 0x1          size 0x0         -> NOT TRANSLATABLE (port index)
+   [GRAPH] /sswrp_dpu@ec00000/dp-encoder/ports/port@0
+          raw reg = <0x00000000>
+          offset 0x0          size 0x0         -> NOT TRANSLATABLE (port index)
+   [GRAPH] /sswrp_dpu@ec00000/dp-encoder/ports/port@0/endpoint@0
+          raw reg = <0x00000000>
+          offset 0x0          size 0x0         -> NOT TRANSLATABLE (port index)
+   [GRAPH] /sswrp_dpu@ec00000/dp-encoder/ports/port@0/endpoint@1
+          raw reg = <0x00000001>
+          offset 0x1          size 0x0         -> NOT TRANSLATABLE (port index)
+   [GRAPH] /sswrp_dpu@ec00000/dp-encoder/ports/port@1
+          raw reg = <0x00000001>
+          offset 0x1          size 0x0         -> NOT TRANSLATABLE (port index)
+----------------------------------------------------------------------------------------------------
+/sswrp_g2d@3f200000   [1 descendant(s) with reg: 1 MMIO, 0 GRAPH]
+   translation: child [0x0, 0x1d7000) -> parent 0x3f200000   (add 0x3f200000)
+
+   [MMIO] /sswrp_g2d@3f200000/g2d_core@150000
+          raw reg = <0x00150000 0x00020000>
+          offset 0x150000     size 0x20000     -> CPU-physical 0x3f350000
+----------------------------------------------------------------------------------------------------
+/sswrp_aur@38000000   [1 descendant(s) with reg: 1 MMIO, 0 GRAPH]
+   translation: child [0x0, 0xaf1000) -> parent 0x38000000   (add 0x38000000)
+
+   [MMIO] /sswrp_aur@38000000/gxp@880000
+          raw reg = <0x00880000 0x00260000 0x004c0000 0x00001000 0x004e3000 0x00001000 0x00506000
+                    0x00001000 0x00440000 0x00001000 0x00441000 0x00001000 0x00442000 0x00001000
+                    0x00000000 0x00040000>
+          offset 0x880000     size 0x260000    -> CPU-physical 0x38880000
+          offset 0x4c0000     size 0x1000      -> CPU-physical 0x384c0000
+          offset 0x4e3000     size 0x1000      -> CPU-physical 0x384e3000
+          offset 0x506000     size 0x1000      -> CPU-physical 0x38506000
+          offset 0x440000     size 0x1000      -> CPU-physical 0x38440000
+          offset 0x441000     size 0x1000      -> CPU-physical 0x38441000
+          offset 0x442000     size 0x1000      -> CPU-physical 0x38442000
+          offset 0x0          size 0x40000     -> CPU-physical 0x38000000
+----------------------------------------------------------------------------------------------------
+/sswrp_ispfe@F000000   [1 descendant(s) with reg: 1 MMIO, 0 GRAPH]
+   translation: child [0x0, 0x1000000) -> parent 0xf000000   (add 0xf000000)
+
+   [MMIO] /sswrp_ispfe@F000000/lwis_isp_fe@0
+          raw reg = <0x00000000 0x00000000 0x01000000 0x00000000 0x00800000 0x00200000>
+          offset 0x0          size 0x1000000   -> CPU-physical 0x0f000000
+          offset 0x800000     size 0x200000    -> CPU-physical 0x0f800000
+----------------------------------------------------------------------------------------------------
+/sswrp_ispbe@3E400000   [4 descendant(s) with reg: 4 MMIO, 0 GRAPH]
+   translation: child [0x0, 0x3f8030) -> parent 0x3e400000   (add 0x3e400000)
+
+   [MMIO] /sswrp_ispbe@3E400000/lwis_be_btr@3D0000
+          raw reg = <0x00000000 0x00000000 0x003f8030>
+          offset 0x0          size 0x3f8030    -> CPU-physical 0x3e400000
+   [MMIO] /sswrp_ispbe@3E400000/lwis_be_yuv@380000
+          raw reg = <0x00000000 0x00000000 0x003f8030>
+          offset 0x0          size 0x3f8030    -> CPU-physical 0x3e400000
+   [MMIO] /sswrp_ispbe@3E400000/lwis_be_msa@350000
+          raw reg = <0x00000000 0x00000000 0x003f8030>
+          offset 0x0          size 0x3f8030    -> CPU-physical 0x3e400000
+   [MMIO] /sswrp_ispbe@3E400000/lwis_ispbe_pdma@310000
+          raw reg = <0x00000000 0x00000000 0x003f8030>
+          offset 0x0          size 0x3f8030    -> CPU-physical 0x3e400000
+----------------------------------------------------------------------------------------------------
+/sswrp_gsw@3EC00000   [3 descendant(s) with reg: 3 MMIO, 0 GRAPH]
+   translation: child [0x0, 0x24d100) -> parent 0x3ec00000   (add 0x3ec00000)
+
+   [MMIO] /sswrp_gsw@3EC00000/lwis_gsw_gwe@1E0000
+          raw reg = <0x00000000 0x00000000 0x0024d100>
+          offset 0x0          size 0x24d100    -> CPU-physical 0x3ec00000
+   [MMIO] /sswrp_gsw@3EC00000/lwis_gsw_gse@200000
+          raw reg = <0x00000000 0x00000000 0x0024d100>
+          offset 0x0          size 0x24d100    -> CPU-physical 0x3ec00000
+   [MMIO] /sswrp_gsw@3EC00000/lwis_gsw_pdma@230000
+          raw reg = <0x00000000 0x00000000 0x0024d100>
+          offset 0x0          size 0x24d100    -> CPU-physical 0x3ec00000
+----------------------------------------------------------------------------------------------------
+/sswrp_codec3p@3f000000   [3 descendant(s) with reg: 3 MMIO, 0 GRAPH]
+   translation: child [0x0, 0x200000) -> parent 0x3f000000   (add 0x3f000000)
+
+   [MMIO] /sswrp_codec3p@3f000000/vpu@140000
+          raw reg = <0x00140000 0x00008000 0x00171000 0x00000050>
+          offset 0x140000     size 0x8000      -> CPU-physical 0x3f140000
+          offset 0x171000     size 0x50        -> CPU-physical 0x3f171000
+   [MMIO] /sswrp_codec3p@3f000000/ra@80000
+          raw reg = <0x00080000 0x00001000>
+          offset 0x80000      size 0x1000      -> CPU-physical 0x3f080000
+   [MMIO] /sswrp_codec3p@3f000000/ra@90000
+          raw reg = <0x00090000 0x00001000>
+          offset 0x90000      size 0x1000      -> CPU-physical 0x3f090000
+----------------------------------------------------------------------------------------------------
+/sswrp_tpu@36000000   [1 descendant(s) with reg: 1 MMIO, 0 GRAPH]
+   translation: child [0x0, 0xac1000) -> parent 0x36000000   (add 0x36000000)
+
+   [MMIO] /sswrp_tpu@36000000/buenos@500000
+          raw reg = <0x00500000 0x00541000 0x00009000 0x0000b2e4>
+          offset 0x500000     size 0x541000    -> CPU-physical 0x36500000
+          offset 0x9000       size 0xb2e4      -> CPU-physical 0x36009000
+----------------------------------------------------------------------------------------------------
+
+====================================================================================================
+5. TOTALS
+====================================================================================================
+
+  nodes in tree ................................................. 2774
+  nodes declaring `ranges` ......................................   20
+  nodes compatible with `simple-bus` ............................   10
+  simple-bus nodes that TRANSLATE ...............................    8
+  simple-bus nodes that do NOT translate (empty `ranges;`) ......    2
+  translating nodes of ANY compatible ...........................    8
+  descendants of translating nodes carrying `reg` ...............   40
+      of those, MMIO offsets that resolve to CPU-physical .......   19
+      of those, port/endpoint graph indices (not addresses) .....   21
+
+Every translating node in this blob is a simple-bus node; there are no translating buses
+of any other compatible. The two /pcie nodes are the only non-simple-bus nodes with
+non-empty `ranges`, and both are identity.
+
+====================================================================================================
+6. BRING-UP-CRITICAL NODES: TRANSLATED OR NOT?
+====================================================================================================
+
+Every node in this section is a DIRECT CHILD OF `/`. `/` declares no `ranges`, so none of
+their `reg` values pass through any translation: each is already CPU-physical, exactly as
+written in the blob.
+
+Console UART (reg 0x0DB6_2000):
+   /uart@db61000                                    reg 0x0db62000 size 0x100      -> CPU 0x0db62000
+
+   Note: the node name says @db61000 while its `reg` says 0x0DB6_2000. The unit-address in
+   the name is not authoritative; the `reg` is. No translation is involved either way --
+   the parent is `/`. The console base is 0x0DB6_2000.
+
+GIC (arm,gic-v3) -- distributor at 0x0588_0000:
+   /interrupt-controller@5880000                    reg 0x05880000 size 0x10000    -> CPU 0x05880000
+                                                    reg 0x05900000 size 0x200000   -> CPU 0x05900000
+                                                    reg 0x00000000 size 0x0        -> CPU 0x00000000
+                                                    reg 0x00000000 size 0x0        -> CPU 0x00000000
+                                                    reg 0x00000000 size 0x0        -> CPU 0x00000000
+
+   The GIC node has five `reg` entries; entries 3-5 are all-zero placeholder slots
+   (GICC/GICH/GICV, unused on a GICv3 that uses the system-register interface). The node
+   itself declares an empty `ranges;` so it is an identity parent for anything beneath it;
+   it has no children with `reg`.
+
+google,level-gia aggregators: 90 node(s) found in this blob.
+   (The claim under adjudication mentions three; the blob has 90. All are direct children
+   of `/`, all untranslated. The first eight, and the count, are given here; the full set
+   appears in the raw addr.py dump.)
+   /aurdsp-level-aggr-0-intr@38060000               reg 0x38060000 size 0x10       -> CPU 0x38060000
+   /cpuacc-level-aggr-0-intr@5cd2028                reg 0x05cd2028 size 0x10       -> CPU 0x05cd2028
+   /g2d-level-aggr-2-intr@3f3d0000                  reg 0x3f3d0000 size 0x10       -> CPU 0x3f3d0000
+   /gpdma-multicast-aggr-5-intr@3b952000            reg 0x3b952000 size 0x10       -> CPU 0x3b952000
+   /gpdma-multicast-aggr-6-intr@3b953000            reg 0x3b953000 size 0x10       -> CPU 0x3b953000
+   /gpdma-multicast-aggr-7-intr@3b954000            reg 0x3b954000 size 0x10       -> CPU 0x3b954000
+   /gpdma-multicast-aggr-8-intr@3b955000            reg 0x3b955000 size 0x10       -> CPU 0x3b955000
+   /gpdma-multicast-aggr-9-intr@3b956020            reg 0x3b956020 size 0x10       -> CPU 0x3b956020
+   ... and 82 more, all direct children of `/`, all identity.
+
+arm,smmu-v3 instances (7):
+   /amb_smmu                                        reg 0x05b80000 size 0x40000    -> CPU 0x05b80000
+   /dpu_smmu                                        reg 0x0ed80000 size 0x40000    -> CPU 0x0ed80000
+   /ispfe_smmu                                      reg 0x0fd00000 size 0x40000    -> CPU 0x0fd00000
+   /gpu_smmu                                        reg 0x34c00000 size 0x40000    -> CPU 0x34c00000
+   /inf_smmu                                        reg 0x35100000 size 0x40000    -> CPU 0x35100000
+   /tpu_smmu                                        reg 0x36200000 size 0x40000    -> CPU 0x36200000
+   /aur_smmu                                        reg 0x385c0000 size 0x40000    -> CPU 0x385c0000
+
+reserved-memory:
+   /reserved-memory                                 empty `ranges;` -> identity, child of `/`
+   #address-cells=2 #size-cells=2; its children's `reg` values are CPU-physical.
+   40 child region(s) with `reg`; none are translated.
+
+====================================================================================================
+APPENDIX A -- addr.py, verbatim
+====================================================================================================
+
+#!/usr/bin/env python3
+"""Extract address-translation facts from a flattened device tree blob.
+
+Usage: python3 addr.py <file.dtb>
+
+Walks the DTB, finds every node with a `ranges` property, classifies each as
+identity / translating / empty, lists every `simple-bus` node, and for each
+translating node resolves the CPU-physical address of every descendant `reg`.
+Stdlib only; no external dtc.
+"""
+import hashlib
+import struct
+import sys
+
+FDT_BEGIN_NODE, FDT_END_NODE, FDT_PROP, FDT_NOP, FDT_END = 1, 2, 3, 4, 9
+
+
+class Node:
+    def __init__(self, name, parent):
+        self.name = name
+        self.parent = parent
+        self.children = []
+        self.props = {}
+        if parent is None:
+            self.path = "/"
+        elif parent.path == "/":
+            self.path = "/" + name
+        else:
+            self.path = parent.path + "/" + name
+
+    def u32(self, prop, default=None):
+        d = self.props.get(prop)
+        if d is None or len(d) != 4:
+            return default
+        return struct.unpack(">I", d)[0]
+
+    # Cell counts this node declares for its *children*.
+    def ac(self):
+        return self.u32("#address-cells", 2)   # DT spec default
+
+    def sc(self):
+        return self.u32("#size-cells", 1)      # DT spec default
+
+    def ac_declared(self):
+        return self.u32("#address-cells") is not None
+
+    def sc_declared(self):
+        return self.u32("#size-cells") is not None
+
+    def compatible(self):
+        d = self.props.get("compatible")
+        if d is None:
+            return []
+        return [s.decode(errors="replace") for s in d.rstrip(b"\x00").split(b"\x00") if s]
+
+
+def parse(blob):
+    magic, _ts, off_struct, off_strings = struct.unpack(">4I", blob[:16])
+    if magic != 0xD00DFEED:
+        raise SystemExit("bad magic 0x%x" % magic)
+    p = off_struct
+    root = None
+    cur = None
+    while True:
+        tok = struct.unpack(">I", blob[p:p + 4])[0]
+        p += 4
+        if tok == FDT_BEGIN_NODE:
+            end = blob.index(b"\x00", p)
+            name = blob[p:end].decode(errors="replace")
+            p = (end + 1 + 3) & ~3
+            n = Node(name, cur)
+            if root is None:
+                root = n
+            else:
+                cur.children.append(n)
+            cur = n
+        elif tok == FDT_END_NODE:
+            cur = cur.parent
+        elif tok == FDT_PROP:
+            ln, noff = struct.unpack(">II", blob[p:p + 8])
+            p += 8
+            data = blob[p:p + ln]
+            p = (p + ln + 3) & ~3
+            end = blob.index(b"\x00", off_strings + noff)
+            cur.props[blob[off_strings + noff:end].decode(errors="replace")] = data
+        elif tok == FDT_NOP:
+            continue
+        elif tok == FDT_END:
+            break
+        else:
+            raise SystemExit("bad token %d" % tok)
+    return root
+
+
+def cells(data, off, n):
+    """Read n big-endian 32-bit cells starting at cell index off."""
+    v = 0
+    for i in range(n):
+        v = (v << 32) | struct.unpack(">I", data[(off + i) * 4:(off + i + 1) * 4])[0]
+    return v
+
+
+def walk(n, out=None):
+    out = [] if out is None else out
+    out.append(n)
+    for c in n.children:
+        walk(c, out)
+    return out
+
+
+def decode_ranges(node):
+    """Return (kind, entries). entries = [(child_addr, parent_addr, size)]."""
+    d = node.props.get("ranges")
+    if d is None:
+        return None, []
+    if len(d) == 0:
+        return "empty", []
+    nac, nsc = node.ac(), node.sc()
+    pac = node.parent.ac() if node.parent else 2
+    step = nac + pac + nsc
+    if step == 0 or len(d) % (step * 4) != 0:
+        return "unparsable", []
+    ents = []
+    for i in range(len(d) // (step * 4)):
+        b = i * step
+        ca = cells(d, b, nac)
+        tag = None
+        if nac == 3:
+            # PCI: the high cell is a phys.hi space/flags tag, not an address.
+            tag = ca >> 64
+            ca &= (1 << 64) - 1
+        ents.append((ca, cells(d, b + nac, pac), cells(d, b + nac + pac, nsc), tag))
+    kind = "identity" if all(c == pa for c, pa, _, _ in ents) else "translating"
+    return kind, ents
+
+
+def xlate_one(addr, node):
+    """Map one address from node's child address space to node's parent space."""
+    kind, ents = decode_ranges(node)
+    if kind is None:
+        return None, "parent %s has no ranges (non-translatable)" % node.path
+    if kind == "empty":
+        return addr, "identity (empty ranges)"
+    for c, pa, sz, _tag in ents:
+        if c <= addr < c + sz:
+            return addr - c + pa, "0x%x -> 0x%x via [0x%x,0x%x)+0x%x" % (
+                addr, addr - c + pa, c, c + sz, pa)
+    return None, "0x%x outside all ranges of %s" % (addr, node.path)
+
+
+def to_cpu(node, addr):
+    """Translate a reg address of `node` (in its parent's space) up to the root."""
+    steps = []
+    cur = node.parent
+    a = addr
+    while cur is not None and cur.parent is not None:
+        a2, why = xlate_one(a, cur)
+        steps.append((cur.path, why))
+        if a2 is None:
+            return None, steps
+        a = a2
+        cur = cur.parent
+    return a, steps
+
+
+def regs(node):
+    """Return [(addr, size)] for node's reg, decoded with parent's cell counts."""
+    d = node.props.get("reg")
+    if d is None or node.parent is None:
+        return []
+    ac, sc = node.parent.ac(), node.parent.sc()
+    step = ac + sc
+    if step == 0 or len(d) % (step * 4) != 0:
+        return []
+    return [(cells(d, i * step, ac), cells(d, i * step + ac, sc) if sc else 0)
+            for i in range(len(d) // (step * 4))]
+
+
+def rawhex(node, prop):
+    d = node.props.get(prop, b"")
+    return "<" + " ".join("0x%08x" % w for w in
+                          struct.unpack(">%dI" % (len(d) // 4), d)) + ">" if d else "<>"
+
+
+def main():
+    path = sys.argv[1]
+    blob = open(path, "rb").read()
+    print("sha256 %s" % hashlib.sha256(blob).hexdigest())
+    root = parse(blob)
+    nodes = walk(root)
+    print("nodes %d" % len(nodes))
+    print("root #address-cells=%d #size-cells=%d (declared: %s/%s)" % (
+        root.ac(), root.sc(), root.ac_declared(), root.sc_declared()))
+
+    ranged = [n for n in nodes if "ranges" in n.props]
+    print("\n=== NODES WITH ranges (%d) ===" % len(ranged))
+    for n in ranged:
+        kind, ents = decode_ranges(n)
+        p = n.parent
+        print("%s|%s|self ac=%d sc=%d|parent %s ac=%d sc=%d|compat=%s|raw=%s" % (
+            n.path, kind, n.ac(), n.sc(),
+            p.path if p else "(none)", p.ac() if p else -1, p.sc() if p else -1,
+            ",".join(n.compatible()), rawhex(n, "ranges")))
+        for c, pa, sz, tag in ents:
+            print("    child=0x%x%s parent=0x%x size=0x%x delta=%+d" % (
+                c, "" if tag is None else " (phys.hi=0x%08x)" % tag, pa, sz, pa - c))
+
+    sb = [n for n in nodes if "simple-bus" in n.compatible()]
+    print("\n=== simple-bus NODES (%d) ===" % len(sb))
+    for n in sb:
+        kind, _ = decode_ranges(n)
+        print("%s|%s|compat=%s" % (n.path, kind if kind else "NO-ranges",
+                                   ",".join(n.compatible())))
+
+    xl = [n for n in ranged if decode_ranges(n)[0] == "translating"]
+    print("\n=== DESCENDANTS OF TRANSLATING NODES WITH reg ===")
+    total = 0
+    gmm = [0]
+    for n in xl:
+        kids = [k for k in walk(n)[1:] if "reg" in k.props]
+        total += len(kids)
+        mm = sum(1 for k in kids if all(to_cpu(k, a)[0] is not None for a, _ in regs(k)) and regs(k))
+        gmm[0] += mm
+        print("-- %s : %d descendant(s) with reg (%d translatable MMIO, %d non-translatable"
+              " graph/index nodes)" % (n.path, len(kids), mm, len(kids) - mm))
+        for k in kids:
+            rs = regs(k)
+            outs = []
+            for a, s in rs:
+                cpu, steps = to_cpu(k, a)
+                outs.append("reg=0x%x sz=0x%x -> cpu=%s [%s]" % (
+                    a, s, ("0x%x" % cpu) if cpu is not None else "UNMAPPED",
+                    "; ".join(w for _, w in steps)))
+            print("   %s | raw reg=%s | %s" % (k.path, rawhex(k, "reg"), " ; ".join(outs)))
+
+    print("\n=== TOTALS ===")
+    print("simple-bus nodes: %d" % len(sb))
+    print("nodes with ranges: %d" % len(ranged))
+    print("translating (any node): %d" % len(xl))
+    print("translating simple-bus: %d" % len([n for n in sb if decode_ranges(n)[0] == "translating"]))
+    print("descendants-with-reg under translating nodes: %d" % total)
+    print("  of which translatable MMIO: %d" % gmm[0])
+    print("  of which non-translatable (ports/endpoint graph indices): %d" % (total - gmm[0]))
+
+    print("\n=== SPOTLIGHT NODES ===")
+    want = []
+    for n in nodes:
+        c = n.compatible()
+        if ("google,level-gia" in c or "arm,smmu-v3" in c or n.name == "reserved-memory"
+                or "arm,gic-v3" in c):
+            want.append(n)
+        elif "reg" in n.props:
+            for a, _ in regs(n):
+                if a in (0x0DB62000, 0x05880000):
+                    want.append(n)
+                    break
+    for n in want:
+        anc = []
+        cur = n.parent
+        while cur is not None:
+            k, _ = decode_ranges(cur)
+            anc.append("%s(%s)" % (cur.path, k if k else "no-ranges"))
+            cur = cur.parent
+        for a, s in regs(n):
+            cpu, _ = to_cpu(n, a)
+            print("%s | compat=%s | reg=0x%x sz=0x%x | cpu=%s | parent-chain=%s" % (
+                n.path, ",".join(n.compatible()), a, s,
+                ("0x%x" % cpu) if cpu is not None else "UNMAPPED", " <- ".join(anc)))
+        if not regs(n):
+            print("%s | compat=%s | (no reg) | parent-chain=%s" % (
+                n.path, ",".join(n.compatible()), " <- ".join(anc)))
+
+
+main()
+
+====================================================================================================
+APPENDIX B -- render.py, verbatim (formatting only; all numbers come from addr.py)
+====================================================================================================
+
+#!/usr/bin/env python3
+"""Render the tensor-g5.addressing.txt evidence artifact.
+
+Usage: python3 render.py <file.dtb> <out.txt>
+
+Imports the extraction primitives from addr.py, formats them wrapped to ~100
+columns, and appends addr.py verbatim so every number can be recomputed.
+"""
+import datetime
+import hashlib
+import sys
+import textwrap
+
+SRC = "addr.py"
+src_text = open(SRC).read()
+ns = {"__name__": "addrlib"}
+exec(compile(src_text.replace("\nmain()\n", "\n"), SRC, "exec"), ns)
+
+parse, walk, decode_ranges, regs, to_cpu, rawhex = (
+    ns["parse"], ns["walk"], ns["decode_ranges"], ns["regs"], ns["to_cpu"], ns["rawhex"])
+
+dtb, outp = sys.argv[1], sys.argv[2]
+blob = open(dtb, "rb").read()
+sha = hashlib.sha256(blob).hexdigest()
+root = parse(blob)
+nodes = walk(root)
+L = []
+W = 100
+
+
+def p(s=""):
+    L.append(s)
+
+
+def wrap(s, indent="      "):
+    for line in textwrap.wrap(s, width=W, initial_indent="", subsequent_indent=indent,
+                              break_long_words=False, break_on_hyphens=False):
+        L.append(line)
+
+
+def rule(c="="):
+    L.append(c * W)
+
+
+rule()
+p("Google Tensor G5 (muzel / lga-b0) production device tree -- address translation extraction")
+rule()
+p()
+p("Blob:    lga-b0.dtb")
+p("sha256:  %s" % sha)
+p("Date:    %s" % datetime.date.today().isoformat())
+p("Nodes:   %d" % len(nodes))
+p()
+p("Produced by, and recomputable with:")
+p("    python3 addr.py  <blob>          # raw extraction dump")
+p("    python3 render.py <blob> <out>   # this file")
+p()
+p("Both scripts are reproduced verbatim at the end of this file: addr.py in Appendix A (all")
+p("parsing and arithmetic) and render.py in Appendix B (formatting only). Both are stdlib-only")
+p("Python 3, sit in the same directory, and read nothing but the blob named on the command")
+p("line. Re-running them on a blob with the sha256 above reproduces this file exactly, except")
+p("for the Date line.")
+p()
+p("Question settled here: which nodes in this blob translate addresses, and which `reg`")
+p("values are therefore bus offsets rather than CPU-physical addresses?")
+p()
+
+rule()
+p("1. ROOT CELL COUNTS")
+rule()
+p()
+p("/#address-cells = <%d>   (declared: %s)" % (root.ac(), root.ac_declared()))
+p("/#size-cells    = <%d>   (declared: %s)" % (root.sc(), root.sc_declared()))
+p()
+p("So a `reg` on a direct child of / is two cells of address followed by two cells of size,")
+p("and that address is already CPU-physical: / has no `ranges` and needs none.")
+p()
+
+ranged = [n for n in nodes if "ranges" in n.props]
+rule()
+p("2. EVERY NODE DECLARING A `ranges` PROPERTY (%d)" % len(ranged))
+rule()
+p()
+p("Categories:  empty       -- `ranges;` with no entries; 1:1 pass-through (identity)")
+p("             identity    -- entries present, every child address equals its parent address")
+p("             translating -- at least one entry where child address != parent address")
+p()
+for n in ranged:
+    kind, ents = decode_ranges(n)
+    par = n.parent
+    p("-" * W)
+    p("%s" % n.path)
+    p("    category    : %s" % kind.upper())
+    p("    compatible  : %s" % (", ".join(n.compatible()) or "(none)"))
+    p("    self        : #address-cells=%d #size-cells=%d%s" % (
+        n.ac(), n.sc(),
+        "" if (n.ac_declared() and n.sc_declared()) else "  [one or both defaulted]"))
+    p("    parent      : %s  #address-cells=%d #size-cells=%d" % (
+        par.path, par.ac(), par.sc()))
+    p("    raw ranges  :")
+    wrap("        %s" % rawhex(n, "ranges"), indent="        ")
+    if not ents:
+        p("    entries     : (none -- empty `ranges;`, identity)")
+    for c, pa, sz, tag in ents:
+        p("    entry       : child 0x%012x%s  ->  parent 0x%012x   size 0x%x" % (
+            c, ("" if tag is None else " [phys.hi 0x%08x]" % tag), pa, sz))
+        p("                  offset applied to a child address in this window: %+#x" % (pa - c))
+p("-" * W)
+p()
+p("Note on the two /pcie nodes: their #address-cells is 3, so the first cell of each child")
+p("address is the PCI phys.hi space/flags tag, not part of the numeric address. With the tag")
+p("separated out, both windows map 1:1 (0x40100000->0x40100000, 0x40200000->0x40200000 and the")
+p("0x6010_0000/0x6020_0000 pair), so they are IDENTITY, not translating. Treating phys.hi as")
+p("address bits would misclassify them as translating; this script does not.")
+p()
+
+sb = [n for n in nodes if "simple-bus" in n.compatible()]
+rule()
+p("3. EVERY NODE WHOSE `compatible` INCLUDES `simple-bus` (%d)" % len(sb))
+rule()
+p()
+p("%-38s %-12s %s" % ("PATH", "CATEGORY", "COMPATIBLE"))
+for n in sb:
+    k, _ = decode_ranges(n)
+    p("%-38s %-12s %s" % (n.path, (k or "NO-ranges").upper(), ", ".join(n.compatible())))
+p()
+
+xl = [n for n in ranged if decode_ranges(n)[0] == "translating"]
+rule()
+p("4. DESCENDANTS OF TRANSLATING NODES THAT CARRY `reg`")
+rule()
+p()
+p("For each translating node, every descendant with a `reg` property. `reg` is decoded with")
+p("the DESCENDANT'S PARENT'S cell counts, then walked up through each ancestor's `ranges`.")
+p()
+p("Two kinds of `reg` appear below and they must not be conflated:")
+p("  MMIO      -- a bus offset that resolves to a CPU-physical address through the chain.")
+p("  GRAPH     -- a `reg` on a port@N / endpoint@N node under a `ports` container. `ports`")
+p("               declares no `ranges`, so the value is a port index, not an address at all;")
+p("               it is unmappable by construction and is NOT a bus offset for MMIO purposes.")
+p()
+total = 0
+mmio_total = 0
+for n in xl:
+    kids = [k for k in walk(n)[1:] if "reg" in k.props]
+    total += len(kids)
+    mm = [k for k in kids
+          if regs(k) and all(to_cpu(k, a)[0] is not None for a, _ in regs(k))]
+    mmio_total += len(mm)
+    p("-" * W)
+    p("%s   [%d descendant(s) with reg: %d MMIO, %d GRAPH]" % (
+        n.path, len(kids), len(mm), len(kids) - len(mm)))
+    _k, ents = decode_ranges(n)
+    c0, pa0, sz0, _t = ents[0]
+    p("   translation: child [0x%x, 0x%x) -> parent 0x%x   (add %#x)" % (
+        c0, c0 + sz0, pa0, pa0 - c0))
+    p("")
+    for k in kids:
+        rs = regs(k)
+        kind = "MMIO" if (rs and all(to_cpu(k, a)[0] is not None for a, _ in rs)) else "GRAPH"
+        wrap("   [%s] %s" % (kind, k.path), indent="          ")
+        wrap("          raw reg = %s" % rawhex(k, "reg"), indent="                    ")
+        for a, s in rs:
+            cpu, _st = to_cpu(k, a)
+            if cpu is None:
+                p("          offset 0x%-10x size 0x%-9x -> NOT TRANSLATABLE (port index)" % (a, s))
+            else:
+                p("          offset 0x%-10x size 0x%-9x -> CPU-physical 0x%08x" % (a, s, cpu))
+p("-" * W)
+p()
+
+rule()
+p("5. TOTALS")
+rule()
+p()
+p("  nodes in tree ................................................. %4d" % len(nodes))
+p("  nodes declaring `ranges` ...................................... %4d" % len(ranged))
+p("  nodes compatible with `simple-bus` ............................ %4d" % len(sb))
+p("  simple-bus nodes that TRANSLATE ............................... %4d" % len(
+    [n for n in sb if decode_ranges(n)[0] == "translating"]))
+p("  simple-bus nodes that do NOT translate (empty `ranges;`) ...... %4d" % len(
+    [n for n in sb if decode_ranges(n)[0] == "empty"]))
+p("  translating nodes of ANY compatible ........................... %4d" % len(xl))
+p("  descendants of translating nodes carrying `reg` ............... %4d" % total)
+p("      of those, MMIO offsets that resolve to CPU-physical ....... %4d" % mmio_total)
+p("      of those, port/endpoint graph indices (not addresses) ..... %4d" % (total - mmio_total))
+p()
+p("Every translating node in this blob is a simple-bus node; there are no translating buses")
+p("of any other compatible. The two /pcie nodes are the only non-simple-bus nodes with")
+p("non-empty `ranges`, and both are identity.")
+p()
+
+rule()
+p("6. BRING-UP-CRITICAL NODES: TRANSLATED OR NOT?")
+rule()
+p()
+p("Every node in this section is a DIRECT CHILD OF `/`. `/` declares no `ranges`, so none of")
+p("their `reg` values pass through any translation: each is already CPU-physical, exactly as")
+p("written in the blob.")
+p()
+
+
+def show(sel, title):
+    p(title)
+    for n in sel:
+        rs = regs(n)
+        if not rs:
+            p("   %-48s (no reg)" % n.path)
+            continue
+        first = True
+        for a, s in rs:
+            cpu, _ = to_cpu(n, a)
+            tag = n.path if first else ""
+            first = False
+            p("   %-48s reg 0x%08x size 0x%-8x -> CPU 0x%08x" % (
+                tag, a, s, cpu if cpu is not None else 0))
+    p()
+
+
+uart = [n for n in nodes if any(a == 0x0DB62000 for a, _ in regs(n))]
+show(uart, "Console UART (reg 0x0DB6_2000):")
+p("   Note: the node name says @db61000 while its `reg` says 0x0DB6_2000. The unit-address in")
+p("   the name is not authoritative; the `reg` is. No translation is involved either way --")
+p("   the parent is `/`. The console base is 0x0DB6_2000.")
+p()
+gic = [n for n in nodes if "arm,gic-v3" in n.compatible()]
+show(gic, "GIC (arm,gic-v3) -- distributor at 0x0588_0000:")
+p("   The GIC node has five `reg` entries; entries 3-5 are all-zero placeholder slots")
+p("   (GICC/GICH/GICV, unused on a GICv3 that uses the system-register interface). The node")
+p("   itself declares an empty `ranges;` so it is an identity parent for anything beneath it;")
+p("   it has no children with `reg`.")
+p()
+gia = [n for n in nodes if "google,level-gia" in n.compatible()]
+p("google,level-gia aggregators: %d node(s) found in this blob." % len(gia))
+p("   (The claim under adjudication mentions three; the blob has %d. All are direct children" % len(gia))
+p("   of `/`, all untranslated. The first eight, and the count, are given here; the full set")
+p("   appears in the raw addr.py dump.)")
+for n in gia[:8]:
+    for a, s in regs(n):
+        cpu, _ = to_cpu(n, a)
+        p("   %-48s reg 0x%08x size 0x%-8x -> CPU 0x%08x" % (n.path, a, s, cpu))
+p("   ... and %d more, all direct children of `/`, all identity." % max(0, len(gia) - 8))
+p()
+smmu = [n for n in nodes if "arm,smmu-v3" in n.compatible()]
+show(smmu, "arm,smmu-v3 instances (%d):" % len(smmu))
+rm = [n for n in nodes if n.name == "reserved-memory"]
+for n in rm:
+    k, _ = decode_ranges(n)
+    p("reserved-memory:")
+    p("   %-48s %s" % (n.path, "empty `ranges;` -> identity, child of `/`"))
+    p("   #address-cells=%d #size-cells=%d; its children's `reg` values are CPU-physical." % (
+        n.ac(), n.sc()))
+    kids = [c for c in n.children if "reg" in c.props]
+    p("   %d child region(s) with `reg`; none are translated." % len(kids))
+p()
+
+rule()
+p("APPENDIX A -- addr.py, verbatim")
+rule()
+p()
+for line in src_text.rstrip("\n").split("\n"):
+    p(line)
+p()
+rule()
+p("APPENDIX B -- render.py, verbatim (formatting only; all numbers come from addr.py)")
+rule()
+p()
+for line in open(__file__).read().rstrip("\n").split("\n"):
+    p(line)
+p()
+rule()
+p("end of artifact")
+rule()
+
+open(outp, "w").write("\n".join(L) + "\n")
+print("wrote %s  (%d lines, max col %d)" % (outp, len(L), max(len(x) for x in L)))
+
+====================================================================================================
+end of artifact
+====================================================================================================
