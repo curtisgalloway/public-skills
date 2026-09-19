@@ -4,7 +4,7 @@ description: >-
   Investigate OS and firmware source (Linux kernel, Trusted Firmware-A, vendor boot code, device
   trees) for a clean-room reimplementation in a differently-licensed OS: returns hardware facts
   and mechanism descriptions in original words — never source code, even when asked — every fact
-  tagged by provenance class (databook/standard/DT/source-observed). Use whenever someone asks how
+  tagged by provenance class (databook/standard/DT/source-observed/inference). Use whenever someone asks how
   the kernel or firmware does X, or what address/IRQ/clock/init sequence a peripheral uses, even
   if they don't say "clean room". The method skill; board facts live in the board-expert skills.
   Ships the mechanical leak scanner (scripts/leak_scan.py).
@@ -131,6 +131,10 @@ Every numeric constant and every step in an ordered sequence carries one tag:
 - `[standard]` — from a public standard (IEEE 802.3, USB spec, ARM ARM — cite the clause).
 - `[DT]` — a value read out of a device tree (a hardware fact; note the node and `ranges` chain).
 - `[source-observed]` — seen only in driver/firmware code, no independent authority found.
+- `[inference]` — **not read anywhere; concluded.** The premises were observed, the claim was
+  reasoned from them. "The driver does X" is `[source-observed]`; "the hardware requires X,
+  because the driver does it" is `[inference]`, and the two must never be written as the same
+  kind of fact.
 
 Rules that follow from the tags:
 
@@ -140,6 +144,23 @@ Rules that follow from the tags:
 - A `[source-observed]` **constant** (delay, retry count, FIFO threshold, tuning value) is marked
   **"re-derive on hardware"**: it may encode the source author's empirical choice, not a silicon
   requirement.
+- An `[inference]` fact states its **premises** (what was actually observed, each carrying its own
+  tag), its **derivation** (why the conclusion follows), its **confidence**, and its **verification
+  method** (what would settle it — almost always hardware). An inference whose support is an
+  argument rather than a citation has to show the argument; that is the whole difference between
+  this class and the others.
+- **Grade the control flow, not the flag table.** A quirk flag that is set but never tested, next
+  to a recovery path that runs unconditionally, means the workaround is unconditional — reading the
+  flag table alone yields a confident wrong answer. Trace what executes, then write down what you
+  traced; if you concluded rather than read, the fact is `[inference]`.
+- **Absence from a vendor document does not prove the device unaffected.** Record vendor-confirmed
+  applicability, implementation-observed applicability, and unresolved applicability separately. An
+  unconfirmed discrepancy is unresolved, never a proven contradiction.
+- **A workaround's scope is not the erratum's scope.** Where one part number is affected and a
+  driver applies the workaround to a whole family — because the family shares a device ID, say —
+  the broad application is `[source-observed]` software behavior and the narrow requirement is what
+  the erratum documents. Writing the broad form as a hardware requirement is an `[inference]` at
+  best, and usually a wrong one.
 - **Group register tables the way the databook groups them** — never in the order the source driver
   happens to touch registers. The report's organization comes from the hardware documentation, not
   from the code.

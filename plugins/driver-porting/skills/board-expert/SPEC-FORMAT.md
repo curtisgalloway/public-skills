@@ -62,6 +62,14 @@ stated here; the skills point at this file instead of restating it.
   - `[source-observed]` — established only by code or by the shape of a tree: a driver's behavior,
     a module file name, a kernel version string, a third-party prebuilt tree's file listing. Always
     with `TODO (verify on hardware)`.
+  - `[inference]` — concluded rather than read: no authority states it, and the fact follows from
+    premises that do. "The driver programs this register before releasing reset" is
+    `[source-observed]`; "the hardware requires this ordering" is `[inference]`. Always followed by
+    a parenthetical giving the **premises and the derivation** — what was observed, each premise
+    carrying its own class, and why the conclusion follows — and always with `TODO (verify on
+    hardware)`, which names the verification method. State the confidence in the bullet where it is
+    not obvious. An inference is the one class whose support is an argument rather than a citation,
+    so the argument has to be on the page.
 - **Series** — a patch series on a mailing list that adds or changes device trees or drivers before
   it is merged. A `resources.series` entry; a map (`[DT]`, `[source-observed]`), never an authority.
 - **Variant** — a model of a board that shares the SoC and most facts with a base model (a "Pro"
@@ -272,7 +280,9 @@ tag token inside it would be read as a tag.
   (`bcm2712.dtsi`), `[databook]` (DDI 0183). `TODO (verify on hardware)`: the IRQ number.
 ```
 
-- `[source-observed]` and `[press]` facts must carry `TODO (verify on hardware)`.
+- `[source-observed]`, `[press]`, and `[inference]` facts must carry `TODO (verify on hardware)`.
+- `[inference]` is always followed by a parenthetical giving its premises and derivation, so a
+  reader can check the reasoning without re-reading the source it was reasoned from.
 - `[doc]` is always followed by a parenthetical naming the page or document, so a store page, a
   platform guide, and a cover letter cannot be confused.
 - `[DT]` is always followed by a parenthetical naming the file the value came from (`bcm2712.dtsi`,

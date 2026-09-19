@@ -38,11 +38,14 @@ What fails (exit 1):
     ignored by every rule below.  A bullet whose text, after an optional
     bold lead-in, starts with ``TODO (verify on hardware)`` is a gap and
     needs no tag
-  * a tail clause with ``[source-observed]`` or ``[press]`` but no
-    ``TODO (verify on hardware)``; a ``[doc]`` or ``[DT]`` in the tail not
-    followed by a parenthetical naming its source (for ``[DT]``: the file,
-    and its origin when it is a decompiled blob rather than a source
-    ``.dts``; the origin may be the ``name`` of a ``resources.repos`` entry)
+  * a tail clause with ``[source-observed]``, ``[press]`` or ``[inference]``
+    but no ``TODO (verify on hardware)``; a ``[doc]``, ``[DT]`` or
+    ``[inference]`` in the tail not followed by a parenthetical naming its
+    source (for ``[DT]``: the file, and its origin when it is a decompiled
+    blob rather than a source ``.dts``; the origin may be the ``name`` of a
+    ``resources.repos`` entry -- for ``[inference]``: its premises and the
+    derivation, since an inference is supported by an argument rather than
+    by a citation)
   * an unsubstituted template placeholder (``<...>`` starting with a letter,
     outside backtick code spans, not a URL or a message id) in a spec's
     frontmatter or body, or in a stub
@@ -110,7 +113,7 @@ FACT_SECTIONS = {
     "Programming model",
     "Known variants and quirks",
 }
-TAG_NAMES = "databook|standard|DT|source-observed|doc|hardware|press"
+TAG_NAMES = "databook|standard|DT|source-observed|doc|hardware|press|inference"
 TAG_CLASSES = tuple(TAG_NAMES.split("|"))
 TAG_RE = re.compile(rf"\[({TAG_NAMES})\]")
 TODO_RE = re.compile(r"TODO \(verify on hardware\)")
@@ -123,7 +126,7 @@ TAIL_RE = re.compile(
 )
 GAP_RE = re.compile(r"^- (?:\*\*[^*]+\*\*\s*)?`?TODO \(verify on hardware\)")
 # Tags that must be followed by a parenthetical naming their source.
-NAMED_TAGS = ("doc", "DT")
+NAMED_TAGS = ("doc", "DT", "inference")
 UNNAMED_RES = {
     tag: re.compile(rf"\[{tag}\](?:`|(?!`))(?!\s*\()") for tag in NAMED_TAGS
 }
@@ -777,14 +780,18 @@ def check_tags(spec: Spec, findings: list[Finding]) -> None:
         tail = tail_match.group(0)
         tags = TAG_RE.findall(tail)
         has_todo = bool(TODO_RE.search(tail))
-        for needs_todo in ("source-observed", "press"):
+        for needs_todo in ("source-observed", "press", "inference"):
             if needs_todo in tags and not has_todo:
                 findings.append(
                     Finding("error", where, f"[{needs_todo}] fact without 'TODO (verify on hardware)'")
                 )
         for tag, unnamed_re in UNNAMED_RES.items():
             if unnamed_re.search(tail):
-                what = "its source" if tag == "doc" else "the file (and its origin, for a blob)"
+                what = {
+                    "doc": "its source",
+                    "DT": "the file (and its origin, for a blob)",
+                    "inference": "its premises and derivation",
+                }[tag]
                 findings.append(
                     Finding("error", where, f"[{tag}] must be followed by a parenthetical naming {what}")
                 )
@@ -792,6 +799,9 @@ def check_tags(spec: Spec, findings: list[Finding]) -> None:
 
 RECORD_KEYS = ("spec", "spec_file", "spec_sha256", "verified", "verifier", "sources", "summary")
 SUMMARY_KEYS = ("pass", "fail", "unverifiable", "gap")
+# Optional because a record written before adjudication existed is still valid, and most
+# records have nothing to adjudicate. Validated when present; never a failure on its own.
+OPTIONAL_SUMMARY_KEYS = ("adjudicate",)
 
 
 def record_path(spec: Spec) -> Path:
@@ -862,6 +872,15 @@ def check_verification(
         else:
             for key in SUMMARY_KEYS:
                 value = summary.get(key)
+                if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+                    findings.append(
+                        Finding("error", rp, f"verification record: summary.{key} must be a non-negative integer")
+                    )
+                    malformed = True
+            for key in OPTIONAL_SUMMARY_KEYS:
+                if key not in summary:
+                    continue
+                value = summary[key]
                 if not isinstance(value, int) or isinstance(value, bool) or value < 0:
                     findings.append(
                         Finding("error", rp, f"verification record: summary.{key} must be a non-negative integer")

@@ -28,11 +28,14 @@ specs, `anchored-peripheral-spec` and `reference-driver-review` for anchored spe
 
 - **Claim** — the unit that gets a verdict. For a board spec, one fact bullet. For an anchored
   spec or review, one anchor (`[src:]`, `[tgt:]`, `[impl:]`, `[ref:]`) and the claim it is attached
-  to. For a clean-room driver spec, one tagged fact (`[databook]`, `[standard]`, `[DT]`) in the
-  register tables and sequences.
+  to. For a clean-room driver spec, one tagged fact (`[databook]`, `[standard]`, `[DT]`,
+  `[inference]`) in the register tables and sequences.
 - **Source** — what a claim cites: a repository at a commit, a patch series, a document at a URL, a
   device tree file, a databook section.
-- **Verdict** — `PASS`, `FAIL`, `UNVERIFIABLE`, or `GAP`, per claim.
+- **Verdict** — `PASS`, `FAIL`, `UNVERIFIABLE`, `GAP`, or `ADJUDICATE`, per claim.
+- **Adjudication** — a decision only a person can make, because two independent readers of the same
+  authority reached different answers. An `ADJUDICATE` claim is excluded from the pass/fail counts
+  and carried in its own `summary.adjudicate` bucket; it is neither credit nor blame until settled.
 - **Verification record** — the file that holds the verdicts, in a `resources/` directory beside
   the spec's root or the spec itself. Not a spec; never loaded by a reader.
 - **Verifier** — the subagent that produces the verdicts. A fresh context: the spec, its declared
@@ -61,7 +64,7 @@ sources:                            # every repo, series, and doc actually consu
   - name: TF-A Raspberry Pi 5 platform page
     url: https://trustedfirmware-a.readthedocs.io/en/latest/plat/rpi5.html
     fetch: blocked
-summary: {pass: 9, fail: 0, unverifiable: 1, gap: 1}
+summary: {pass: 9, fail: 0, unverifiable: 1, gap: 1, adjudicate: 0}
 ---
 
 # Verification of `rpi5`
@@ -79,7 +82,8 @@ summary: {pass: 9, fail: 0, unverifiable: 1, gap: 1}
 Rules that hold for every kind:
 
 - **One line per claim, every claim.** Gaps get `GAP`; claims whose authority could not be reached
-  get `UNVERIFIABLE` with the reason (fetch blocked, NDA, no public authority named).
+  get `UNVERIFIABLE` with the reason (fetch blocked, NDA, no public authority named); claims two
+  independent verifiers read differently get `ADJUDICATE` with both readings.
 - **A citation that cannot be located is a `FAIL`**, not `UNVERIFIABLE`: a file that does not exist
   at the recorded ref, a line range that no longer holds the symbol, a page that does not say what
   the claim says, a databook section that does not cover the register.
@@ -90,8 +94,9 @@ Rules that hold for every kind:
   applies in full, and the record must pass `os-investigator/scripts/leak_scan.py`.
 - **Keys survive edits.** Claims are keyed by something stable (section and ordinal, the anchor
   text), never by line number.
-- `summary` counts equal the verdict lines; `spec_sha256` is the spec file's hash at write time, so
-  any later edit makes the record visibly stale.
+- `summary` counts equal the verdict lines, `adjudicate` included (omit the key only when it is
+  zero); `spec_sha256` is the spec file's hash at write time, so any later edit makes the record
+  visibly stale.
 
 ## The procedure
 
@@ -116,8 +121,15 @@ Rules that hold for every kind:
    size, interrupt number, cell count, clock name, frequency, ordering, register bit, exception
    level, line range, symbol) with what the authority says, and write the verdict line.
 6. **Independent second verifier** where the kind says so (bring-up-critical facts of a board spec;
-   the register-map tables of an anchored spec). Same brief, no shared context; a disagreement is
-   a `FAIL` with both readings recorded until a person resolves it.
+   the register-map tables of an anchored spec). Same brief, no shared context. **A disagreement is
+   an `ADJUDICATE` item, not a `FAIL`**: the two readers could not settle the question between
+   them, which says nothing yet about whether the spec is wrong. Record both readings, and leave
+   the claim **out of the pass/fail counts** — it is reported separately and waits for a person.
+   Two things follow. If adjudication finds the spec wrong, that is a `FAIL` on the merits, and the
+   record is rewritten with the resolved verdict. If adjudication finds the spec stated something
+   more definitely than its evidence supports — a claim true of one tree written as true of both,
+   an `[inference]` written as though it were read — that is also a `FAIL`, on the definiteness
+   rather than on the disagreement. What is never a `FAIL` is the disagreement itself.
 7. **Write the record.** Compute `spec_sha256`, fill `verified` and `verifier`, check the summary
    against the body, write the file at the kind's location, replacing any earlier record, and run
    the kind's checker so it is accepted.
@@ -136,7 +148,9 @@ verification procedure, and `SPEC-FORMAT.md` § Verification points here.
 - **Sources** are the bullet's tag clause: `[DT] (file)` names a device tree in a `repos` or
   `series` entry at its `ref`; `[databook]`, `[standard]`, `[doc]` name a `docs` entry or a document
   id; `[hardware]` names a board and a method; `[press]` and `[source-observed]` name a page or a
-  tree and are compared against it like any other claim, TODO or not. `instances:` rows are claims
+  tree and are compared against it like any other claim, TODO or not; `[inference]` names its
+  premises and derivation in its parenthetical, and is verified on whether those premises hold and
+  whether the conclusion follows from them. `instances:` rows are claims
   too: each `reg`, `irq`, and `clocks` value against the device tree it came from, keyed
   `instances/<name>`.
 - **Composition.** The verifier may read the specs a board composes through `parts`, so "see
@@ -202,7 +216,12 @@ The kind produced by `cleanroom-spec`. Two passes, and the first is not this ski
    cited document section or device tree the way a board spec's facts are. `[source-observed]`
    facts are checked for their required markers ("order not known to be required", "re-derive on
    hardware") and against the source commit named in the provenance ledger; the verifier reads
-   that source under `os-investigator`'s rule and quotes none of it.
+   that source under `os-investigator`'s rule and quotes none of it. An `[inference]` fact is
+   verified on its **argument**, not on a citation: do the stated premises hold at the pinned
+   source, and does the conclusion actually follow from them? A premise that does not hold is a
+   `FAIL`; premises that hold under a conclusion they do not support is also a `FAIL`, with the
+   gap in the reasoning named. The commonest form is a workaround a driver applies to a whole
+   family being written as a hardware requirement, when the erratum scopes it to one part.
 
 - **Claims** are keyed by section and ordinal (tables: `<Section>/<table>/<row name>`; sequences:
   `<Section>/<step number>`).
