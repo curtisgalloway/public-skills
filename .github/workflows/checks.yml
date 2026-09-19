@@ -24,6 +24,9 @@ jobs:
       - name: agent-agnostic-skills tests
         run: python3 -m unittest discover -s plugins/agent-workflow/skills/agent-agnostic-skills/tests -v
 
+      - name: consult tests
+        run: python3 -m unittest discover -s plugins/agent-workflow/skills/consult/tests -v
+
       - name: os-investigator tests
         run: python3 -m unittest discover -s plugins/driver-porting/skills/os-investigator/tests -v
 
