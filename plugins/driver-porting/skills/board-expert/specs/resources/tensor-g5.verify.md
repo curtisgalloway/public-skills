@@ -49,7 +49,7 @@ sources:
   - name: "Arm architecture documents (IHI 0069, IHI 0070, DEN 0022, DDI 0487, 102484, 107652, 102517)"
     url: https://developer.arm.com/documentation/
     fetch: blocked
-summary: {pass: 41, fail: 5, unverifiable: 0, gap: 0}
+summary: {pass: 41, fail: 4, unverifiable: 0, gap: 0, adjudicate: 1}
 ---
 
 # Verification of `tensor-g5`
@@ -59,8 +59,12 @@ First end-to-end run of `spec-verifier` against this spec. 46 claims: 15 Quick-f
 files and confirmed their sha256 values against the spec's `resources` note; the full verifier also
 confirmed that the GrapheneOS ref `17` resolves to the commit the note names.
 
-- Quick-facts/1 "Addressing model": FAIL — **the two verifiers disagree; both readings recorded, per
-  the two-verifier rule, until a person resolves it.**
+- Quick-facts/1 "Addressing model": ADJUDICATE — **the two verifiers disagree; both readings are
+  recorded and the claim is excluded from the pass/fail counts until a person settles it.** A
+  disagreement means the two readers could not settle the question between them; it does not
+  establish that the spec is wrong. If adjudication finds the spec wrong, or finds it stated more
+  definitely than its evidence supports, that becomes a FAIL on the merits and this line is
+  rewritten.
   Agreed and passing in both readings: root 2/2 cells; the `soc@0` identity `ranges`/`dma-ranges`
   spanning `0x0`–`0x10_0000_0000`; the debug UART base `0x0DB6_2000`; the GIC distributor base
   `0x0588_0000`; the production memory placeholder at `0x8000_0000`, `0x1000_0000` long; and the

@@ -11,13 +11,13 @@ variants:
   - name: Google Pixel 10 Pro
     triggers: [pixel 10 pro, blazer]
     shares: [soc, parts, boot, console]
-    differs: "display, cameras, RAM; its own lga-blazer.dts that differs from lga-frankel.dts only in model and compatible; dtbo board ids 0x0704xx (MP = 0x070406)"
+    differs: "display, cameras; its own lga-blazer.dts that differs from lga-frankel.dts only in model and compatible; dtbo board ids 0x0704xx (MP = 0x070406)"
     tag: DT
     source: "series v4 patch 3/4; dtbo.img entry 20, laguna-kernel-prebuilts"
   - name: Google Pixel 10 Pro XL
     triggers: [pixel 10 pro xl, mustang]
     shares: [soc, parts, boot, console]
-    differs: "display size, cameras, RAM; its own lga-mustang.dts that differs from lga-frankel.dts only in model and compatible; dtbo board ids 0x0705xx (MP = 0x070506)"
+    differs: "display size, cameras; its own lga-mustang.dts that differs from lga-frankel.dts only in model and compatible; dtbo board ids 0x0705xx (MP = 0x070506)"
     tag: DT
     source: "series v4 patch 3/4; dtbo.img entry 30, laguna-kernel-prebuilts"
   - name: Google Pixel 10 Pro Fold
@@ -62,6 +62,17 @@ resources:
         per-board overlays (muzel dtbo.img sha256
         b61cf25b95eada6ae1dd64b05191d316ec166a1c00bdbb97c90a61d300cb09a7, 34 entries), the
         kernel image, and the module lists. Values from it are tagged with this name.
+    - name: laguna-kernel-source
+      url: https://gitlab.com/grapheneos/kernel_pixel_6.6
+      ref: "17"
+      license: "see the repository"
+      verified: 2026-09-18
+      fetch: ok
+      fetch_via: "project metadata and root listing only; no file contents read"
+      note: >-
+        The monolithic kernel source repository for 10th-generation Pixel devices, linked from
+        the GrapheneOS source page as what the laguna prebuilts are built from. Its root carries
+        a per-device build script for each prebuilt directory.
     - name: pixelscripts
       url: https://gitlab.com/LinaroLtd/googlelt/pixelscripts
       ref: clo/main
@@ -133,7 +144,9 @@ resources:
       cite: true
       verified: 2026-09-18
       fetch: ok
-      note: "lists the laguna kernel prebuilt repository and no laguna kernel source repository"
+      note: >-
+        lists the laguna kernel prebuilt repository, and in the following section the kernel
+        source repository those prebuilts are built from (kernel_pixel_6.6)
   tools: []
 ---
 
@@ -150,12 +163,13 @@ The Pixel 10 (board codename `frankel`, model GLBW0 in the US) is a handset buil
 **Google Tensor G5** (see the `tensor-g5` spec) with a Titan M2 security coprocessor, 12 GB of
 RAM, 128 or 256 GB of UFS storage, a Samsung Exynos modem on PCIe, Wi-Fi 6E, and a USB-C 3.2
 port that also carries the debug UART. The Pixel 10 Pro (`blazer`) and Pro XL (`mustang`) share
-the SoC, the boot chain, and the console and differ in size, display, cameras, and memory; the
+the SoC, the boot chain, and the console and differ in size, display, and cameras; the
 Pro Fold (`rango`) shares the SoC and the production SoC blob and has no public device-tree
 source. Everything an early bring-up can reach is on the SoC: the debug UART, the GIC, and the
 timers; every clock, reset, and regulator is a firmware mailbox request. The bootloader is closed
-and locked by default, the vendor kernel source is not published, and the only public device
-trees are the unmerged mainline series and the production blobs in a kernel prebuilt repository.
+and locked by default, the kernel source for this generation is published as a single monolithic
+repository while the shipped binaries come from a separate prebuilt repository, and the only public
+device trees are the unmerged mainline series and the production blobs in that prebuilt repository.
 The SoC spec carries the addressing model, hand-off facts, GIC, UART, and timers; this spec
 carries what the handset decides on top: partitions and images, unlock policy, console access,
 the per-board device-tree selection, and the companion parts.
@@ -187,10 +201,10 @@ the per-board device-tree selection, and the companion parts.
   flashing lock` reverses it. Google publishes factory images for the Pixel 10, and the May 2026
   update raised the bootloader anti-rollback version, so a bootloader older than that no longer
   boots after it is applied. A missing `ufs0` alias in the DTB is a fatal error on shipped
-  bootloaders. The upstream flow also runs `fastboot oem disable-verity` and
-  `disable-verification`, and `fastboot oem watchdog disable` and `ramdump disable` on frankel
-  and blazer. `[doc]` (Android locking and unlocking page; factory images page; series v4 cover
-  letter; pixelscripts Makefile)
+  bootloaders. The upstream flow also runs `fastboot oem disable-verity`,
+  `disable-verification` and `ramdump disable` on every target, and `fastboot oem watchdog
+  disable` only on frankel and blazer. `[doc]` (Android locking and unlocking page; factory
+  images page; series v4 cover letter; pixelscripts Makefile)
 - **Physical console access.** The console is the SoC's DesignWare UART `serial@db62000`
   (see `tensor-g5`, instance `lsion_cli16_uart`), brought out on the USB-C connector and split
   from USB data by a "USB-Cereal" debug dongle set to 1.8 V (no orientation detection: flip the
@@ -222,22 +236,27 @@ the per-board device-tree selection, and the companion parts.
   has 34 entries (magic `0xd7b7ab1e`, 32-byte entries, page size 4096, all `custom` fields 0):
   frankel Proto/EVT/DVT/PVT at ids `0x070302`–`0x070305`, **frankel MP at id `0x070306`, rev
   `0x010000` (entry 12)**, blazer at `0x0704xx` (MP entry 20), mustang at `0x0705xx` (MP entry
-  30), a socketed "deepspace" development board at `0x070101`, an `0x078000` pair that only
-  disables coresight nodes, and three id-0 build-variant overlays (`eng`, `user`, `userdebug`)
+  30), a "deepspace" development board at `0x070101`, a pair of pre-silicon emulator board
+  overlays at `0x078000` (`EMULATOR board based on LGA` and `SoC Hybrid emulator board based on
+  LGA`), which besides disabling the CoreSight trace path and several interrupt aggregators carry
+  the full pinctrl line-name tables, a virtual or emulated GPU marker and, for the hybrid entry,
+  virtio devices, and three id-0 build-variant overlays (`eng`, `user`, `userdebug`)
   that set security and dump policy. Frankel PVT and MP overlays differ only in id and model;
-  frankel and blazer MP differ in panels, touch, and display PMIC. `[DT]` (`dtbo.img` entries
-  0–33, laguna-kernel-prebuilts), `[doc]` (series v1 patch 1/4 message, for the encoding and the
-  matching rule; Android DTB/DTBO partitions page). `TODO (verify on hardware)`: the meaning of
-  the `0x078000` overlay.
+  frankel and blazer MP differ in panels, touch, and display PMIC, among other things. `[DT]`
+  (`dtbo.img` entries 0–33, laguna-kernel-prebuilts), `[doc]` (series v1 patch 1/4 message, for
+  the encoding and the matching rule; Android DTB/DTBO partitions page).
 - **Kernel family and branch.** Public: the unmerged mainline series (v4, 2026-09-18, on
   next-20260918) adds `arch/arm64/boot/dts/google/lga-frankel.dts` and boots to an initramfs
-  shell. Production: a 6.6-based Android kernel published only as prebuilts, whose image reports
-  `6.6.143-android15-8-gcf06d8aff8ae-4k` (built 2026-09-14) and whose module set is loaded per
-  board from `init.insmod.frankel.cfg` (a Broadcom Wi-Fi driver, a Cirrus haptics driver, and a
-  FocalTech touch driver on top of the common set; the Pro models load a Synaptics touch driver
-  instead). `[DT]` (`lga-frankel.dts`, series v4), `[doc]` (series v4 cover letter; GrapheneOS
-  source page), `[source-observed]` (the prebuilt image's version string and the module lists).
-  `TODO (verify on hardware)`: the version string of a shipped build.
+  shell. Production: a 6.6-based Android kernel whose *source* for this generation is published
+  as a monolithic repository (`kernel_pixel_6.6`, GitLab, default branch `17`, with a per-device
+  build script for each prebuilt directory) while the shipped *binaries* come from the laguna
+  prebuilts repository; the prebuilt image reports `6.6.143-android15-8-gcf06d8aff8ae-4k`
+  (built 2026-09-14) and its module set is loaded per board from `init.insmod.frankel.cfg` (a
+  Broadcom Wi-Fi driver, a Cirrus haptics driver, and a FocalTech touch driver on top of the
+  common set; the Pro models load a Synaptics touch driver instead). `[DT]`
+  (`lga-frankel.dts`, series v4), `[doc]` (series v4 cover letter; GrapheneOS source page),
+  `[source-observed]` (the prebuilt image's version string, the module lists, and the source
+  repository's root listing). `TODO (verify on hardware)`: the version string of a shipped build.
 - **Companion parts.** From the frankel MP overlay: Maxim MAX77779 PMIC, charger, fuel gauge,
   and voltage monitor over SPMI; MAX77759 Type-C port controller; NXP PCA9468 direct charger;
   CPS4041 wireless charging; Richtek RT6160 and TI TPS628600 regulators; Dialog SLG51002;

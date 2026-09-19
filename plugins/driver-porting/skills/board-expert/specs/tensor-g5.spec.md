@@ -311,7 +311,28 @@ resources:
       cite: true
       verified: 2026-09-18
       fetch: ok
-      note: "the fastboot oem commands that enable the console UART, the earlycon it passes, and how the DTB is packed into vendor_boot"
+      note: "the fastboot oem commands that enable the console UART, the earlycon it passes, how the DTB is packed into vendor_boot, and the ufs0 placeholder overlay it applies"
+    - title: Build Pixel kernels (source.android.com)
+      url: https://source.android.com/docs/setup/build/building-pixel-kernels
+      access: public
+      cite: true
+      verified: 2026-09-18
+      fetch: ok
+      note: "the per-device kernel build table, which ends at the previous generation and lists no Pixel 10 row"
+    - title: GrapheneOS source page
+      url: https://grapheneos.org/source
+      access: public
+      cite: true
+      verified: 2026-09-18
+      fetch: ok
+      note: "the laguna kernel prebuilt repository and, in the following section, the kernel source repository those prebuilts are built from"
+    - title: android.googlesource.com project list
+      url: https://android.googlesource.com/
+      access: public
+      cite: true
+      verified: 2026-09-18
+      fetch: ok
+      note: "the public per-device kernel repositories: the list runs akita to zumapro and has no laguna entry"
     - title: ARM GICv3 and GICv4 architecture specification (IHI 0069)
       url: https://developer.arm.com/documentation/ihi0069/latest
       access: public
@@ -409,8 +430,11 @@ DXT-48-1536 GPU and a Samsung Exynos 5400 modem; treat those as unverified.
   upstream device tree targets; A0 silicon shipped on EVT devices, and the same device tree boots
   on them so far. The bootloader identifies the SoC by a 16-bit product id `0x0005` plus a major
   and minor nibble: A0 = `0x000500`, B0 = `0x000510`. The two production blobs differ only in
-  DVFS and energy-model tables and in chip-info compatibles (`google,lga_a0_dvfs` versus
-  `google,lga_b0_dvfs`); no address, interrupt, clock, or topology value differs. `[doc]` (series
+  DVFS and energy-model tables, in chip-info compatibles (`google,lga_a0_dvfs` versus
+  `google,lga_b0_dvfs`) and the chip-info `major` field (0 versus 1), and in the
+  hardlockup-detector node, which B0 restructures into child nodes and gives an extra register
+  window at `0x200C_0504` (`0x24` bytes) and a clock input that A0 has no counterpart for; no
+  peripheral address, interrupt or clock differs. `[doc]` (series
   v4 cover letter and patch 3/4 message; series v1 patch 1/4 message), `[DT]` (`lga-a0.dtb` and
   `lga-b0.dtb`, laguna-kernel-prebuilts).
 - **SMP topology.** Eight cores in one `cpu-map` cluster: `cpu@0`, `cpu@100` = Cortex-A520
@@ -447,15 +471,17 @@ DXT-48-1536 GPU and a Samsung Exynos 5400 modem; treat those as unverified.
   mmio32; THR/RBR at `0x00`, LSR at `0x14`), `clock-frequency = 200000000` with no clock handle in
   the public tree. It is the only one of the 22 UARTs wired straight to the GIC, and it belongs to
   "CLI" (configurable low-speed interface) block 16 of the LSIO-N island: the CLI block sits at
-  `0x0DB6_0000`, its I2C/SPI/I3C personalities at `+0x1000`, the UART at `+0x2000`, and every
-  other CLI follows the same layout. The series leaves the node `status = "disabled"`: the
+  `0x0DB6_0000`, its I2C personality at `+0x1000`, the UART at `+0x2000`, SPI at `+0x3000` and
+  the I3C master at `+0x4000` (a `0x2A0` window); every personality node is named after the
+  `+0x1000` address rather than its own base, and every other CLI follows the same layout. The series leaves the node `status = "disabled"`: the
   bootloader enables the block when its console is on and programs the baud, so the DT never
   fixes one; `serial0` and `stdout-path` point at it. The production blob's node (`uart@db61000`,
   compatible `goog,goog-dw-apb-uart`, same `reg` and interrupt) names clocks `baudclk` (rates
   to 200 MHz) and `apb_pclk` from the CPM clock controller, a reset from the LSIO-N bank, a power
   domain, and a `cli16_uart` pin group. Console device `ttyS0`; `earlycon=uart8250,mmio32,0xdb62000`
-  is what the production command line and the upstream flow both pass; the production command
-  line sets 115200n8 and the upstream flow asks the bootloader for 3000000. Register model and
+  is what the production command line passes, at 115200n8; the upstream flow instead passes a
+  bare `earlycon` and lets `stdout-path` supply the console, and asks the bootloader for
+  3000000. Register model and
   the DesignWare busy quirk: see `dw-apb-uart`. `[DT]` (`lga.dtsi` and `lga-pixel-common.dtsi`,
   series v4), `[DT]` (`lga-b0.dtb`, laguna-kernel-prebuilts, `uart@db61000`, `aliases`, and
   `chosen`), `[standard]` (`snps-dw-apb-uart.yaml` binding at mainline head; 16550 register
@@ -565,11 +591,12 @@ DXT-48-1536 GPU and a Samsung Exynos 5400 modem; treat those as unverified.
 
 ## Gotchas
 
-- **The vendor kernel is not public.** No `laguna` repository exists on android.googlesource.com
-  and the Build Pixel kernels page lists no Pixel 10 row; only prebuilt kernels and DTBs are
-  published. The public map is an unmerged series plus decompiled production blobs, and a value
-  taken from a blob must say so. `[doc]` (GrapheneOS source page; Android Build Pixel kernels
-  page)
+- **Google publishes no kernel for this part.** No `laguna` repository exists on
+  android.googlesource.com (its per-device kernel list runs akita to zumapro and stops) and the
+  Build Pixel kernels page lists no Pixel 10 row; what exists publicly is a third-party source
+  repository and the prebuilt kernels and DTBs built from it. The public map is an unmerged
+  series plus decompiled production blobs, and a value taken from a blob must say so. `[doc]`
+  (Android Build Pixel kernels page; GrapheneOS source page)
 - **Clocks, resets, and regulators are mailbox requests to firmware, not MMIO.** The clock
   controller has no register window; a bare-metal bring-up cannot ungate a clock by poking a
   CRU, and the mailbox protocol is undocumented. Use what the bootloader leaves running (the
@@ -587,7 +614,8 @@ DXT-48-1536 GPU and a Samsung Exynos 5400 modem; treat those as unverified.
   does. `[DT]` (`lga.dtsi`, series v4, `serial@db62000`), `[doc]` (series v4 patch 3/4 message)
 - **Shipped bootloaders refuse a DTB without a `ufs0` alias**, and they add the memory node
   themselves; the upstream tree deliberately omits both, and the flashing scripts patch the alias
-  in. `[doc]` (series v4 cover letter; pixelscripts README)
+  in. `[doc]` (series v4 cover letter; pixelscripts Makefile, which applies the overlay, and
+  the `lga-ufs-placeholder.dtso` header in that repository)
 - **Entry exception level is not published.** Verify `CurrentEL`; do not assume EL2 from other
   Android phones or from the protected-KVM command line. `[standard]` (arm64 `booting.rst`, which
   only fixes what an Image expects). `TODO (verify on hardware)`: the level and the MMU/cache
