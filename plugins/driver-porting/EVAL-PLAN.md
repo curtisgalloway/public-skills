@@ -43,8 +43,8 @@ used these tools cannot follow the plan without them.
   writes a verdict per claim into a record outside the spec. Not the thing being evaluated; a tool
   used by the evaluation.
 - **Provenance tag** — the marker on each fact saying where it came from: `[databook]`,
-  `[standard]`, `[DT]`, `[source-observed]`. Defined in `skills/board-expert/SPEC-FORMAT.md` and
-  used by both spec kinds.
+  `[standard]`, `[DT]`, `[source-observed]`, and `[inference]` for a fact concluded rather than
+  read. Defined in `skills/board-expert/SPEC-FORMAT.md` and used by both spec kinds.
 - **Adjudication** — a human decision resolving a conflict two readers could not settle between
   themselves. An adjudication item is not a pass and not a failure; it is a question waiting for a
   person.
@@ -116,11 +116,14 @@ and its absence is recorded test by test rather than papered over.
 
 ## Three changes this requires in the existing skills
 
-Each is a change to shipped text, listed with what it breaks if left alone.
+Each is a change to shipped text, listed with what it breaks if left alone. **Changes 1 and 2
+landed with the verification phase** (PR #53); they are kept here because the reasoning is what
+justifies them, and a reader asking why the tag set has an `[inference]` class or why a
+disagreement is not a failure should find the answer in one place. Change 3 is still open.
 
-### 1. A verifier disagreement is an adjudication item, not a failure
+### 1. A verifier disagreement is an adjudication item, not a failure — *done*
 
-`skills/spec-verifier/SKILL.md` currently says, of the two-verifier rule, that "a disagreement is a
+`skills/spec-verifier/SKILL.md` used to say, of the two-verifier rule, that "a disagreement is a
 `FAIL` with both readings recorded until a person resolves it."
 
 That conflates two different things. A disagreement means the two readers could not settle the
@@ -133,16 +136,19 @@ merits, not on the disagreement.
 Left alone, every unresolved reading disagreement inflates the failure count and depresses
 precision for a reason that has nothing to do with the document's quality.
 
-Already affected: `specs/resources/tensor-g5.verify.md`, Quick-facts/1, where two verifiers read
-the production device tree's bus structure differently and the claim was recorded FAIL under the
-current rule. It is an adjudication item.
+First case in the wild: `specs/resources/tensor-g5.verify.md`, Quick-facts/1, where two verifiers
+read the production device tree's bus structure differently — one finding translating `simple-bus`
+wrappers between the root and several peripherals, the other finding every peripheral a direct
+child of the root. It was recorded `FAIL` under the old rule and is now recorded `ADJUDICATE`, with
+both readings kept and the claim excluded from the pass/fail counts. Nobody has settled it yet;
+that is the point of the bucket.
 
-### 2. An explicit `[inference]` provenance tag
+### 2. An explicit `[inference]` provenance tag — *done*
 
 The evaluation labels every ledger row as one of: documented hardware requirement, observed
 software behavior, inference, implementation choice, or unresolved conflict. Four of the five have
 homes in the existing tag set — `[databook]` and `[standard]`, `[source-observed]`, the target-OS
-mapping section, and (once change 1 lands) an adjudication item.
+mapping section, and an adjudication item.
 
 **Inference has no home.** Nothing currently distinguishes "the hardware requires this" from "the
 driver does this, and I concluded the hardware requires it." That distinction is the whole substance
@@ -156,7 +162,7 @@ An `[inference]` fact should carry: its **premises** (what was actually observed
 would settle it — usually hardware). This is strictly more than the other tags carry, because an
 inference is the one class whose support is an argument rather than a citation.
 
-### 3. Recall needs a denominator the candidate cannot influence
+### 3. Recall needs a denominator the candidate cannot influence — *open*
 
 No existing script computes recall, because nothing in the repository holds a requirement list
 independent of a spec. The ledger format is therefore new work, and its first constraint is that
