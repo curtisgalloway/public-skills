@@ -73,6 +73,22 @@ of last quarter's packaging ships last quarter's mistakes.
   hides nothing (closed issues and their edit history stay public): delete it. This was learned
   the hard way on 2026-09-16, when an arm's issue quoted two interfaces' addresses and the bench
   host's address verbatim from its failure output.
+- **Nobody writes a generated file's leak, which is why review misses it.** The rule above covers
+  what an agent composes. A private fact also arrives in content a *tool* emitted: a script that
+  prints the path it was handed writes the producing machine's home directory into the repository,
+  and the reviewer sees a wall of generated output rather than a sentence someone wrote. So a tool
+  that emits a file into the repo names the file, never where it sat on disk, and a run record
+  cites an input by name and hash rather than by path. Back it with a mechanical check over tracked
+  files, because this is precisely the class review does not catch: on 2026-09-19 an extraction
+  artifact shipped an absolute home-directory path twice -- once in its rendered header and once in
+  the copy of the generator reproduced inside it -- through a review that read the artifact and did
+  not see it. Two verifiers looking for something else found it.
+- **A history rewrite does not unpublish.** The issue rule has a commit analogue, and it is worse.
+  Force-pushing a scrubbed branch leaves the old commits reachable by their SHAs and through the
+  `refs/pull/<n>/head` refs a force-push cannot touch, and the diff views of the pull requests that
+  carried them keep rendering the old blob. Rewriting is the first step, not the fix; purging the
+  stale objects and cached views takes a request to the host's support. Say that plainly when
+  reporting a leak as handled, rather than letting a green tree imply the fact is gone.
 
 ## Mode `init`: construct the profile
 
