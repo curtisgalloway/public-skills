@@ -11,6 +11,11 @@ Produced by, and recomputable with:
     python3 addr.py  <blob>          # raw extraction dump
     python3 render.py <blob> <out>   # this file
 
+The Blob: line above names the file only. Both scripts printed the full path they were given when
+this file was produced, which put an absolute path from the producing machine into a public
+repository; the line and the two scripts below were amended to print the file name alone. Nothing
+else was changed, and the sha256 is of the blob's bytes, so it is unaffected.
+
 Both scripts are reproduced verbatim at the end of this file: addr.py in Appendix A (all
 parsing and arithmetic) and render.py in Appendix B (formatting only). Both are stdlib-only
 Python 3, sit in the same directory, and read nothing but the blob named on the command
