@@ -189,6 +189,39 @@ class TagRules(unittest.TestCase):
         self.assertIsNotNone(dt.search("`[DT]`"))
         self.assertIsNotNone(dt.search("`[DT]`, `[databook]` (DDI 0183)"))
 
+    def test_inference_needs_a_parenthetical(self):
+        inf = spec_check.UNNAMED_RES["inference"]
+        self.assertIsNone(inf.search("`[inference]` (the driver clears it before reset; ordering follows)"))
+        self.assertIsNone(inf.search("[inference] (premises: x; derivation: y)"))
+        self.assertIsNotNone(inf.search("`[inference]`"))
+        self.assertIsNotNone(inf.search("`[inference]`, `[databook]` (DDI 0183)"))
+
+    def test_inference_is_a_tag_in_the_tail(self):
+        self.assertTrue(
+            self.ok("- Fact. `[inference]` (premises: the driver does x; so the hardware requires x)"
+                    " TODO (verify on hardware)")
+        )
+
+    def test_inference_without_todo_is_an_error(self):
+        body = (
+            "## Gotchas\n\n"
+            "- The hardware requires this ordering. `[inference]` (the driver does it every time)\n"
+        )
+        self.assertIn(
+            "[inference] fact without 'TODO (verify on hardware)'",
+            "\n".join(self.tags_of(body)),
+        )
+
+    def test_inference_without_a_parenthetical_is_an_error(self):
+        body = (
+            "## Gotchas\n\n"
+            "- The hardware requires this ordering. `[inference]` TODO (verify on hardware)\n"
+        )
+        self.assertIn(
+            "[inference] must be followed by a parenthetical naming its premises and derivation",
+            "\n".join(self.tags_of(body)),
+        )
+
     def tags_of(self, body):
         spec = spec_check.Spec(pathlib.Path("x.spec.md"), pathlib.Path("."), "public", {}, body)
         findings = []
@@ -441,6 +474,48 @@ class Verification(unittest.TestCase):
             self.assertEqual(code, 0, err + json.dumps(data))
             self.assertEqual(messages(data), [])
             self.assertEqual(data["verification"], {"verified": 1})
+
+    def _verified_root(self, tmp, summary_line):
+        """A one-spec root whose record carries the given summary line."""
+        import shutil
+
+        root = pathlib.Path(tmp) / "root"
+        (root / "resources").mkdir(parents=True)
+        shutil.copy(VERIFY / "board-specs.yaml", root)
+        shutil.copy(VERIFY / "vok.spec.md", root)
+        record = (VERIFY / "resources" / "vok.verify.md").read_text()
+        old = [ln for ln in record.splitlines() if ln.startswith("summary:")]
+        self.assertEqual(len(old), 1, "fixture record should have exactly one summary line")
+        record = record.replace(old[0], summary_line)
+        (root / "resources" / "vok.verify.md").write_text(record)
+        return root
+
+    def test_adjudicate_is_optional_and_never_an_error_on_its_own(self):
+        """A disagreement is an adjudication item, not a failure: it must not fail the check."""
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._verified_root(
+                tmp, "summary: {pass: 1, fail: 0, unverifiable: 0, gap: 0, adjudicate: 2}"
+            )
+            code, data, err = run(root, "--require-verified", flags=["--no-pyyaml"])
+            self.assertEqual(code, 0, err + json.dumps(data))
+            self.assertEqual(messages(data), [])
+            self.assertEqual(data["verification"], {"verified": 1})
+
+    def test_adjudicate_must_be_a_non_negative_integer_when_present(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._verified_root(
+                tmp, "summary: {pass: 1, fail: 0, unverifiable: 0, gap: 0, adjudicate: -1}"
+            )
+            code, data, _ = run(root, flags=["--no-pyyaml"])
+            self.assertEqual(code, 1)
+            self.assertIn(
+                "verification record: summary.adjudicate must be a non-negative integer",
+                "\n".join(messages(data)),
+            )
 
 
 if __name__ == "__main__":
