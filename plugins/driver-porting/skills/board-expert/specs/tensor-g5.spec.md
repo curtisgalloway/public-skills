@@ -180,7 +180,7 @@ resources:
     - name: laguna-kernel-prebuilts
       url: https://github.com/GrapheneOS/device_google_laguna-kernels_6.6
       ref: "17"
-      license: "prebuilt kernel binaries and device-tree blobs; see the repository"
+      license: "unstated: the repository carries no licence file and its host reports none; prebuilt kernel binaries and device-tree blobs"
       verified: 2026-09-18
       fetch: ok
       fetch_via: raw
@@ -195,7 +195,8 @@ resources:
         - grapheneos/rango/dtbo.img
       note: >-
         A third-party prebuilt repository for the Pixel 10 family, maintained by GrapheneOS
-        (muzel = frankel, blazer, mustang, deepspace; rango = Pro Fold), read at commit
+        (muzel = frankel, blazer, mustang, and a directory also carrying a module config for
+        deepspace; rango = Pro Fold), read at commit
         80c104d7e5591ebc3cd413f54b076d972484ff0b. PROVENANCE: the artifacts here were obtained from
         this repository, which states its kernel builds are its own; identity with stock vendor
         artifacts is unverified. That statement covers the kernel builds and does not by itself
@@ -401,9 +402,12 @@ DXT-48-1536 GPU and a Samsung Exynos 5400 modem; treat those as unverified.
   and in the series the peripherals sit under a `soc@0` bus (also 2/2) with an identity `ranges`
   and `dma-ranges` covering `0x0`–`0x10_0000_0000`, so every peripheral `reg` is the CPU physical
   address as written (the debug UART at `0x0DB6_2000`, the GIC distributor at `0x0588_0000`). The
-  production blob has no single `soc` container, and most peripherals — including every node this
-  spec gives an address for — are direct children of `/` with a 64-bit `reg` that is CPU-physical
-  as written. **Eight `simple-bus` wrappers are the exception**, each mapping child address 0 onto
+  production blob has no single `soc` container, and most peripherals — the debug UART, the GIC,
+  the GIA aggregators, the SMMUs — are direct children of `/` with a 64-bit `reg` that is
+  CPU-physical as written. Some nodes this spec gives addresses for sit deeper without being
+  translated: the USB pair under `simple_usb_bus`, and the reserved-memory regions under
+  `/reserved-memory`, both of which carry an empty identity `ranges;`, so their `reg` is still
+  CPU-physical. **Eight `simple-bus` wrappers are the exception**, each mapping child address 0 onto
   the CPU-physical base in its own unit address, so a `reg` beneath one is an offset, not an
   address: `sswrp_dpu@ec00000`, `sswrp_g2d@3f200000`, `sswrp_aur@38000000`,
   `sswrp_codec3p@3f000000` and `sswrp_tpu@36000000` (one address cell), and
@@ -417,7 +421,9 @@ DXT-48-1536 GPU and a Samsung Exynos 5400 modem; treat those as unverified.
   translating. The addresses agree between the trees wherever a node exists in both. DRAM starts
   at `0x8000_0000` (the production blob's `memory@80000000` placeholder, which the bootloader
   overwrites), and reserved-memory `alloc-ranges` reach `0x8_8000_0000`–`0xA_0000_0000`, so DRAM
-  extends above the 32-bit boundary. The series GIC node declares no `ranges` (removed in v3
+  extends above the 32-bit boundary (that property decodes sensibly only as two address cells plus
+  **one** size cell, under a container declaring two of each — the blob is internally inconsistent
+  there, and the span holds under either reading). The series GIC node declares no `ranges` (removed in v3
   review); the production blob's carries an empty, identity `ranges;`. `[DT]` (`lga.dtsi`, series
   v4), `[DT]` (`lga-b0.dtb`, laguna-kernel-prebuilts; the full bus walk, tied to that blob's
   sha256, is in `resources/tensor-g5.addressing.txt`). `TODO (verify on hardware)`: the DRAM map

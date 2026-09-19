@@ -45,7 +45,7 @@ resources:
     - name: laguna-kernel-prebuilts
       url: https://github.com/GrapheneOS/device_google_laguna-kernels_6.6
       ref: "17"
-      license: "prebuilt kernel binaries and device-tree blobs; see the repository"
+      license: "unstated: the repository carries no licence file and its host reports none; prebuilt kernel binaries and device-tree blobs"
       verified: 2026-09-18
       fetch: ok
       fetch_via: raw
@@ -61,10 +61,14 @@ resources:
         80c104d7e5591ebc3cd413f54b076d972484ff0b: the production DTB, the dtbo table with the
         per-board overlays (muzel dtbo.img sha256
         b61cf25b95eada6ae1dd64b05191d316ec166a1c00bdbb97c90a61d300cb09a7, 34 entries), the
-        kernel image, and the module lists. PROVENANCE: obtained from this repository, which states
-        its kernel builds are its own; identity with stock vendor artifacts is unverified, and that
-        statement does not by itself establish whether each DTB or DTBO here was rebuilt or copied.
-        Values from it are tagged with this name and inherit that caveat.
+        kernel image, and the module lists. PROVENANCE: obtained from this repository, which carries
+        no README, licence or description of its own; the GrapheneOS source page is what states that
+        its kernel builds are GrapheneOS builds from kernel_pixel_6.6, replacing the AOSP prebuilts.
+        The DTB and DTBO images are outputs of that same build (declared by name in the muzel and
+        rango build definitions, matching the shipped images entry for entry), compiled from
+        vendor-authored device-tree sources, so a [DT] value read from them is the vendor's.
+        Byte-identity with a stock vendor artifact is uncheckable: AOSP publishes no laguna
+        kernel-prebuilt repository. Values from it are tagged with this name.
     - name: laguna-kernel-source
       url: https://gitlab.com/grapheneos/kernel_pixel_6.6
       ref: "17"
@@ -179,8 +183,8 @@ source. Everything an early bring-up can reach is on the SoC: the debug UART, th
 timers; every clock, reset, and regulator is a firmware mailbox request. The bootloader is closed
 and locked by default, the kernel source for this generation is published as a single monolithic
 repository, and the only public device trees are the unmerged mainline series and the production
-blobs in a separate prebuilt repository maintained by a third party, whose identity with stock
-vendor artifacts is unverified.
+blobs in a separate prebuilt repository maintained by a third party, whose blobs are that
+project's own build outputs from vendor-authored device-tree sources.
 The SoC spec carries the addressing model, hand-off facts, GIC, UART, and timers; this spec
 carries what the handset decides on top: partitions and images, unlock policy, console access,
 the per-board device-tree selection, and the companion parts.
@@ -260,10 +264,20 @@ the per-board device-tree selection, and the companion parts.
   next-20260918) adds `arch/arm64/boot/dts/google/lga-frankel.dts` and boots to an initramfs
   shell. Production: a 6.6-based Android kernel. Source for this generation is published as a
   monolithic repository (`kernel_pixel_6.6`, GitLab, default branch `17`, with a per-device build
-  script for each prebuilt directory). The binaries read here were **obtained from the
-  GrapheneOS-maintained prebuilt repository, which states its kernel builds are its own; identity
-  with stock vendor artifacts is unverified** — and that page's statement covers the kernel builds,
-  not necessarily each accompanying DTB or DTBO, which may have been rebuilt or copied. That image
+  script for each prebuilt directory). The binaries read here come from the GrapheneOS-maintained
+  prebuilt repository, which the GrapheneOS source page describes as a fork of the AOSP kernel
+  prebuilt repository **with the builds replaced by GrapheneOS kernels built from
+  `kernel_pixel_6.6`** — so the kernel image here is a GrapheneOS build, not the stock vendor
+  binary. The DTB and DTBO images beside it are outputs of that same build rather than copied-in
+  vendor blobs. `[inference]` (premises: the muzel and rango build definitions declare those blobs
+  as named outputs and their declared entry counts match the shipped images exactly — 34 muzel
+  overlays, 11 rango, 2 DTBs; the one muzel `dtbo.img` change in 17 commits follows a device-tree
+  source change four days earlier while the kernel image changed in all 17; and the fork retains no
+  vendor build directory. A copied blob is neither a declared build output nor tracks the source
+  tree's clock). The device-tree *content* is vendor-authored either way, and compiling a device
+  tree does not change its values, so `[DT]` values read from these blobs are the vendor's.
+  Byte-identity with a stock vendor artifact cannot be checked at all: AOSP publishes no laguna
+  kernel-prebuilt repository. That image
   reports `6.6.143-android15-8-gcf06d8aff8ae-4k`
   (built 2026-09-14) and its module set is loaded per board from `init.insmod.frankel.cfg` (a
   Broadcom Wi-Fi driver, a Cirrus haptics driver, and a FocalTech touch driver on top of the
