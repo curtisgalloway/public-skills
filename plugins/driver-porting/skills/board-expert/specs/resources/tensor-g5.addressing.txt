@@ -2,7 +2,7 @@
 Google Tensor G5 (muzel / lga-b0) production device tree -- address translation extraction
 ====================================================================================================
 
-Blob:    /Users/curtisg/src/pixel10-v4-resources/gos/muzel/lga-b0.dtb
+Blob:    lga-b0.dtb
 sha256:  f238c200f7cf7ae14265047af6a62fdc54ab39f58a4042e844564e39cfbca030
 Date:    2026-09-18
 Nodes:   2774
@@ -10,6 +10,11 @@ Nodes:   2774
 Produced by, and recomputable with:
     python3 addr.py  <blob>          # raw extraction dump
     python3 render.py <blob> <out>   # this file
+
+The Blob: line above names the file only. Both scripts printed the full path they were given when
+this file was produced, which put an absolute path from the producing machine into a public
+repository; the line and the two scripts below were amended to print the file name alone. Nothing
+else was changed, and the sha256 is of the blob's bytes, so it is unaffected.
 
 Both scripts are reproduced verbatim at the end of this file: addr.py in Appendix A (all
 parsing and arithmetic) and render.py in Appendix B (formatting only). Both are stdlib-only
@@ -843,7 +848,7 @@ rule()
 p("Google Tensor G5 (muzel / lga-b0) production device tree -- address translation extraction")
 rule()
 p()
-p("Blob:    /Users/curtisg/src/pixel10-v4-resources/gos/muzel/lga-b0.dtb")
+p("Blob:    lga-b0.dtb")
 p("sha256:  %s" % sha)
 p("Date:    %s" % datetime.date.today().isoformat())
 p("Nodes:   %d" % len(nodes))
