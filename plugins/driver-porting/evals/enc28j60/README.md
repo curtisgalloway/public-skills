@@ -15,10 +15,12 @@ test quality right on something cheap before the method is pointed at a complex 
 |---|---|---|
 | `corpus.yaml` | 1 | the frozen reference corpus: every source the gold ledger may be authored from, pinned by commit or document hash |
 | `corpus_check.py` | 1 | re-fetches every pin and reports drift |
+| `LEDGER-FORMAT.md` | 2 | what a gold-ledger row is, and why its IDs come from the corpus rather than from any document's headings |
 
-Phases 2 and up are not built yet. The gold ledger (phase 2) must be authored **from `corpus.yaml`
-alone, before any generated specification is read** — that independence is what makes the recall
-number mean anything, and it cannot be recovered after the fact.
+The ledger itself is not written yet. It must be authored **from `corpus.yaml` alone, before any
+generated specification is read** — that independence is what makes the recall number mean anything,
+and it cannot be recovered after the fact. `LEDGER-FORMAT.md` is deliberately settled first, because
+the one decision that cannot be retrofitted is how a requirement is identified.
 
 ## Checking the pins
 
