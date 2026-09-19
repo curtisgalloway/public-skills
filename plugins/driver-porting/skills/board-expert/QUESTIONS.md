@@ -50,10 +50,14 @@ Ask only the questions whose answer is missing. Each entry: what is missing → 
 the options come from → default, if any.
 
 1. **Which hardware.**
-   - The board name matched several specs or variants → "Which one: <variants>?" Options from the
-     matching specs' `name` and `aliases`. No default.
+   - The board name matched several specs or variants → "Which one: <base>, <variant>, ...?"
+     Options from the matching specs' `name`, `aliases`, and `variants[].name`. No default. A match
+     on a base spec whose `variants:` list a model named in the question is the same fork. A spec
+     whose `not_triggers` the question contains is not a candidate at all (`SPEC-FORMAT.md` §
+     Trigger matching): "pixel 10a" never offers the `pixel10` spec.
    - The board revision changes the facts (different SoC stepping, different PMIC) → "Which
-     revision?" Options from the board spec if it lists them. Default: the latest, stated.
+     revision?" Options from the board spec's `variants:` if it lists them. Default: the latest,
+     stated.
    - The board resolves nothing but an SoC does → "The board has no spec. Continue from the
      `<soc>` SoC spec with board facts missing, or scaffold the board first?" Default: continue.
    - The function named lives on two chips (a UART on the SoC and on a companion) → "On the SoC or
@@ -66,16 +70,36 @@ the options come from → default, if any.
      Default: anchored when a board was named, generic otherwise.
    - The board spec lists two Linux repositories → "Lead with <vendor tree> or <mainline>?"
      Default: the vendor tree, mainline for provenance.
+   - The vendor's own tree is not public (a phone whose kernel repositories are private or 404) →
+     "Lead with mainline, or with <public mirror>?" Default: mainline (and any unmerged series) as
+     the citable map, the most complete public mirror for what mainline lacks, each fact saying
+     which.
    - A ref pin is wanted for reproducibility → "Pin to <tag> or read head?" Default: head, commit
      recorded.
-4. **Which root and layer.** For the scaffold and for overlays.
+4. **Which root, layer, and names.** For the scaffold and for overlays.
    - "Write the spec under: this repository's public root, the tree root next to the driver, a
      vendor root, or a new root?" Options from the roots collected. Default: the tree root if the
      current checkout has one, else the public root.
    - For an overlay: "Which vendor skill does this overlay go through?" Options from loaded vendor
      skills. No default.
-5. **How far.** "Full driver spec, quick-facts only, or answer the one question?" Default: what the
-   caller asked for; if nothing was asked for, quick-facts.
+   - Spec id when the marketing name and the codename differ → "`<marketing>` or `<codename>`?"
+     Default: the marketing name as `id`, every codename in `aliases` and `triggers` (an SoC may
+     have two: `aliases: [laguna, lga]`). Ids are normalized: lowercase, spaces and underscores
+     become hyphens, only `[a-z0-9-]`, so "Tensor G5" is `tensor-g5`.
+   - Cache name → default `<board-id>-resources` (the board's id; SoC, chip, and IP parts inherit it
+     unless they name their own); ask only if the user has a convention.
+5. **How far, and filled or stubbed.**
+   - "Full driver spec, quick-facts only, or answer the one question?" Default: what the caller
+     asked for; if nothing was asked for, quick-facts.
+   - For the scaffold: "Research-fill the facts from the public sources, or write the spec with
+     TODO stubs for the user to fill?" Default: research-fill whenever the sources are public.
+   - For the scaffold: "Verify the spec now (a fresh verifier re-derives every fact from its
+     sources and writes the record, per `spec-verifier`), or later?" Default: now; a spec without a
+     record is reported as unverified by the checker and by `board-expert`.
+6. **Variant policy** (scaffold, when the board has sibling models). "Sibling models as
+   `variants:` rows on this spec, as their own specs with `variant_of`, or left out?" Default:
+   `variants:` rows when the SoC and console are shared and only capacity, radios, or size differ;
+   their own specs when the board facts differ materially; left out when nothing public is known.
 
 Anything not in the catalog is a gap: default it, mark it `TODO (verify on hardware)` or "not
 established", and move on.

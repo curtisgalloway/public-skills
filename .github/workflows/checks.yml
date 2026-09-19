@@ -37,9 +37,7 @@ jobs:
         run: |
           python3 plugins/driver-porting/skills/board-expert/scripts/spec_check.py \
             plugins/driver-porting/skills/board-expert/specs \
-            --stub plugins/driver-porting/skills/rpi-expert/SKILL.md \
-            --stub plugins/driver-porting/skills/rpi4-expert/SKILL.md \
-            --stub plugins/driver-porting/skills/indiedroid-nova-expert/SKILL.md
+            --stubs-from plugins/driver-porting/skills
 
       - name: review-swarm tests
         run: python3 -m unittest discover -s plugins/dev-tools/skills/review-swarm/tests -v

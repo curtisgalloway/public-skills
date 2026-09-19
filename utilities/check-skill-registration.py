@@ -74,17 +74,16 @@ def skill_is_registered(name: str, text: str) -> bool:
     The rule is strict: the name must appear backtick-quoted, exactly.
 
     A bare `name in text` false-passes whenever the name also occurs in the
-    surrounding prose, and the plugin-README region is the whole file. Five of
-    the 27 skills are in that state today -- teach, jj, os-investigator,
-    cleanroom-implementer, agent-agnostic-skills -- so delisting any of them
-    would go undetected by a loose check. Requiring the backticks also kills
-    prefix bleed for free: the closing backtick stops `cynthion-capture` from
+    surrounding prose, and the plugin-README region is the whole file. Several
+    skills are in that state (teach, jj, os-investigator, cleanroom-implementer,
+    agent-agnostic-skills among them), so delisting any of them would go
+    undetected by a loose check. Requiring the backticks also kills prefix
+    bleed for free: the closing backtick stops `cynthion-capture` from
     satisfying a hypothetical `cynthion-capture-foo`.
 
     The cost is a false failure the day someone writes a skill name unquoted
     in a heading. That is the intended trade: this runs before a commit, the
-    message names the skill and the file, and the fix is two backticks. All
-    27 skills in the tree already comply.
+    message names the skill and the file, and the fix is two backticks.
     """
     return f"`{name}`" in text
 
@@ -94,7 +93,7 @@ def check_marketplace(plugins: list[str]) -> list[str]:
 
     Deliberately NOT a name check. The `description` fields are curated prose
     ("USB device profiles", not `usb-device-profile`); requiring exact names
-    there flagged 17 of 27 skills on a clean tree, which is noise that buries
+    there flagged most skills on a clean tree, which is noise that buries
     anything real. What IS mechanical: every plugin directory needs an entry,
     and the bundle must cover its skills dir.
     """

@@ -3,9 +3,18 @@ kind: board
 id: <id>
 name: <Board display name>
 triggers: [<keyword1>, <keyword2>, <keyword3>]
-aliases: []
+not_triggers: []              # optional: names that extend a trigger but are another product (pixel 10a)
+aliases: []                   # codenames, normalized like ids
 parts: [<soc-id>, <chip-id>]
-cache: <short>-resources
+cache: <id>-resources         # the board id; parts inherit it
+variants: []                  # optional: sibling models sharing these facts; see SPEC-FORMAT § Variants
+#  - name: <Board display name> Pro
+#    triggers: [<keyword> pro]
+#    shares: [soc, parts, console]
+#    differs: <one line>
+#    tag: doc                 # the class the row rests on: doc (default) | press | source-observed
+#    source: <vendor page, or the prebuilt tree README that names it>
+# variant_of: <base-id>       # instead of variants, when THIS spec is a variant with differing facts
 resources:
   repos:
     - name: <repo short name>
@@ -14,7 +23,17 @@ resources:
       license: <SPDX identifier>
       files:
         - <path to the board .dts>
-      note: <what this repo is for; read for behavior, cite the datasheet>
+        # - {path: <path not in the ref yet>, status: unmerged, note: "<which series adds it>"}
+      note: "<what this repo is for; read for behavior, cite the datasheet>"   # quote: may hold ': '
+  # series:                    # unmerged patch series that are the public map; never cite: true
+  #   - title: <series subject>
+  #     url: <canonical lore URL>
+  #     message_id: <message-id>
+  #     target: <repo short name above>
+  #     status: unmerged
+  #     fetch: blocked         # lore's HTML is bot-challenged; name the working form in note
+  #     files: [<board .dts the series adds>]
+  #     note: "<what it establishes; fetched as /raw or t.mbox.gz with a Wget user agent>"
   docs:
     - title: <board documentation, schematic, or boot-configuration reference>
       url: <URL>
@@ -37,15 +56,35 @@ without the companion parts, which connector is the debug console.>
 
 ## Quick-facts
 
-<Every bullet ends with a provenance tag; mark anything unverified `TODO (verify on hardware)`.>
+<Every bullet ends with its tag clause: tags, each with a parenthetical citation where one exists,
+then at most one `TODO (verify on hardware)` sentence. `[doc]` always names its page. Drop bullets
+that do not apply; use the set that fits the device.>
+
+<Single-board computers and dev boards:>
 
 - **Boot media and chain.** <What runs the first-stage bootloader, where the next stages and the OS
   image are loaded from, which configuration file selects them. Entry state is an SoC fact: point at
-  the SoC spec.> `[doc]`
-- **Debug console.** <Connector, which UART instance, its address, the earlycon string.> `[DT]`, `[doc]`
-- **Headers and board-level GPIO.** <Which chip owns the header pins; point at that spec.> `[DT]`
-- **Power.** <PMIC part; rails the OS may need to touch.> `[databook]`
-- **<Board-specific link or reset state at hand-off.>** `[doc]`
+  the SoC spec.> `[doc]` (<page>)
+- **Debug console.** <Connector, which UART instance, its address, the earlycon string.> `[DT]`
+  (<node>), `[doc]` (<page>)
+- **Headers and board-level GPIO.** <Which chip owns the header pins; point at that spec.> `[DT]` (<node>)
+- **Power.** <PMIC part; rails the OS may need to touch.> `[databook]` (<datasheet>)
+- **<Board-specific link or reset state at hand-off.>** `[doc]` (<page>)
+
+<Handsets and other closed devices:>
+
+- **Partitions and boot images.** <Boot-image format and version, which image carries the DTB,
+  which carries the overlays, how the bootloader selects them.> `[doc]` (<page>)
+- **Unlock and boot policy.** <Whether the bootloader can be unlocked, what it enforces, what a
+  custom kernel must satisfy to boot.> `[doc]` (<page>)
+- **Physical console access.** <How to reach a serial console at all: debug cable, test points,
+  a bootloader command that enables the UART; baud.> `[doc]` (<page>), `[DT]` (<chosen node>)
+- **Per-revision device trees.** <Board id / revision ids and the overlay each selects.> `[DT]` (<node>)
+- **Device-tree selection by the bootloader.** <The DTBO table and its entry order, the board-id /
+  board-revision scheme the bootloader matches on, and any policy overlays it applies by build
+  type (eng / user / userdebug).> `[DT]` (<dtbo entries>), `[doc]` (<page>)
+- **Kernel family and branch.** <Which public kernel tree and branch carry this device, and which
+  device-tree files.> `[DT]` (<files>)
 
 ## Gotchas
 

@@ -8,7 +8,7 @@ instances:
   - name: uart0
     ip: widgetuart
     reg: 0xfe201000
-    irq: null
+    irq: {kind: SPI, number: 121, intid: 153, trigger: level-high, note: shared}
     clocks: [uartclk]
     role: debug console
     note: "quoted: colon inside"
@@ -21,10 +21,11 @@ resources:
 
 ## Quick-facts
 
-- **Addressing.** Flat. `[DT]`
+- **Addressing.** Flat. `[DT]` (`widgetsoc.dtsi`)
 - **Timer.** 24 MHz. `[standard]`, `[hardware]`
-- **Ordering.** Reset before clock. `[source-observed]` TODO (verify on hardware)
+- **Ordering.** Reset before clock. `[source-observed]` `TODO (verify on hardware)`: confirm the order.
+- **GPU.** Widget-G1 per press. `[press]` `TODO (verify on hardware)`: the part number.
 
 ## Gotchas
 
-- Enter at EL2. `[doc]`
+- Enter at EL2. `[doc]` (Widget boot guide)

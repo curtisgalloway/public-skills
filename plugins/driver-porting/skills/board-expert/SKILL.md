@@ -6,9 +6,9 @@ description: >-
   sources it names into the expert's cache, and answers bring-up questions: memory map and MMIO
   addresses, boot chain and exception-level hand-off, interrupts, timers, clocks/power, debug UART,
   GPIO/pinmux, sources and datasheets. Use for a hardware or low-level question about a named board,
-  SoC, chip, or IP block (a dwc3 spec, a PL011 spec) when no board-specific expert (rpi-expert,
-  rpi4-expert, indiedroid-nova-expert) matches. Pairs with os-investigator, which supplies the
-  method and the clean-room rule.
+  SoC, chip, or IP block (a dwc3 spec, a PL011 spec) when no board-specific stub (a
+  <board>-expert skill) matches. Pairs with os-investigator, which supplies the method and the
+  clean-room rule.
 ---
 
 <!--
@@ -63,7 +63,9 @@ and IP names in the question.
    skill's `specs/`, the `board-spec root:` line of every loaded skill, `board-specs.yaml` at the
    checkout root, `~/.config/board-specs/board-specs.yaml`, and whatever `roots:` those markers list.
    Never walk a tree looking for markers.
-2. **Match.** By id first, then by `triggers` and `aliases` across every root. A hit on an SoC or chip
+2. **Match.** By id first, then by `triggers` and `aliases` across every root, case-insensitively
+   and as whole-word substrings; a spec whose `not_triggers` the question contains is excluded
+   before its `triggers` are looked at (`SPEC-FORMAT.md` § Trigger matching). A hit on an SoC or chip
    spec with no board spec is still a hit; say which board-level facts are missing.
 3. **Compose.** Resolve `parts` recursively (board → SoC + chips), then the IP specs named by the
    `instances:` rows that the question touches.
@@ -117,7 +119,11 @@ short **Spec provenance** block:
 - every fact that came from a vendor or local layer, so a citation that is not publicly checkable is
   visible to the verifier;
 - for an IP: the mode (anchored to which board and instance, or generic), and the commit of every
-  tree read.
+  tree read;
+- for every spec used, its verification status from `<root>/resources/<id>.verify.md`: the
+  record's `verified` date and `summary` counts, "stale" when the record's `spec_sha256` no longer
+  matches the file, or "unverified" when there is no record. Read the record's frontmatter only;
+  its body is not for you and would only spend context.
 
 If a fork blocked part of the work, add the **Needs decision** block from `QUESTIONS.md` before the
 provenance section, listing the options the specs offered and what you assumed meanwhile.
