@@ -62,13 +62,16 @@ resources:
         per-board overlays (muzel dtbo.img sha256
         b61cf25b95eada6ae1dd64b05191d316ec166a1c00bdbb97c90a61d300cb09a7, 34 entries), the
         kernel image, and the module lists. PROVENANCE: obtained from this repository, which carries
-        no README, licence or description of its own; the GrapheneOS source page is what states that
+        no README or licence, and whose one-line host description states only what it holds and not
+        where the builds came from; the GrapheneOS source page is what states that
         its kernel builds are GrapheneOS builds from kernel_pixel_6.6, replacing the AOSP prebuilts.
         The DTB and DTBO images are outputs of that same build (declared by name in the muzel and
         rango build definitions, matching the shipped images entry for entry), compiled from
         vendor-authored device-tree sources, so a [DT] value read from them is the vendor's.
-        Byte-identity with a stock vendor artifact is uncheckable: AOSP publishes no laguna
-        kernel-prebuilt repository. Values from it are tagged with this name.
+        Byte-identity with a stock vendor artifact was not checked here: AOSP publishes no laguna
+        kernel-prebuilt repository, so the only stock artifact to compare against is the DTBO image
+        inside Google's published Pixel 10 factory or full-OTA image, which this spec did not
+        unpack. Values from it are tagged with this name.
     - name: laguna-kernel-source
       url: https://gitlab.com/grapheneos/kernel_pixel_6.6
       ref: "17"
@@ -269,22 +272,29 @@ the per-board device-tree selection, and the companion parts.
   prebuilt repository **with the builds replaced by GrapheneOS kernels built from
   `kernel_pixel_6.6`** — so the kernel image here is a GrapheneOS build, not the stock vendor
   binary. The DTB and DTBO images beside it are outputs of that same build rather than copied-in
-  vendor blobs. `[inference]` (premises: the muzel and rango build definitions declare those blobs
+  vendor blobs. `[inference]` (premises, all `[source-observed]` from the two repositories' trees,
+  build definitions and commit histories: the muzel and rango build definitions declare those blobs
   as named outputs and their declared entry counts match the shipped images exactly — 34 muzel
-  overlays, 11 rango, 2 DTBs; the one muzel `dtbo.img` change in 17 commits follows a device-tree
-  source change four days earlier while the kernel image changed in all 17; and the fork retains no
-  vendor build directory. A copied blob is neither a declared build output nor tracks the source
-  tree's clock). The device-tree *content* is vendor-authored either way, and compiling a device
+  overlays, 11 rango, 2 DTBs, and the shipped entry order matches the declared order group for
+  group; the one muzel `dtbo.img` change in 17 commits follows a device-tree source change four days
+  earlier while the kernel image changed in all 17; and no vendor build directory remains in the
+  tree. Derivation: a copied blob is neither a declared build output nor tracks the source tree's
+  clock. Confidence: strong, convergent but not a hash comparison — a byte comparison against the
+  DTBO image in Google's published factory image would settle it). The device-tree *content* is vendor-authored either way, and compiling a device
   tree does not change its values, so `[DT]` values read from these blobs are the vendor's.
-  Byte-identity with a stock vendor artifact cannot be checked at all: AOSP publishes no laguna
-  kernel-prebuilt repository. That image
+  Byte-identity with a stock vendor artifact was not checked here: AOSP publishes no laguna
+  kernel-prebuilt repository, so the only stock artifact to compare against is the DTBO image inside
+  Google's published Pixel 10 factory or full-OTA image, which this spec did not unpack. That image
   reports `6.6.143-android15-8-gcf06d8aff8ae-4k`
   (built 2026-09-14) and its module set is loaded per board from `init.insmod.frankel.cfg` (a
   Broadcom Wi-Fi driver, a Cirrus haptics driver, and a FocalTech touch driver on top of the
   common set; the Pro models load a Synaptics touch driver instead). `[DT]`
   (`lga-frankel.dts`, series v4), `[doc]` (series v4 cover letter; GrapheneOS source page),
-  `[source-observed]` (the prebuilt image's version string, the module lists, and the source
-  repository's root listing). `TODO (verify on hardware)`: the version string of a shipped build.
+  `[source-observed]` (the prebuilt image's version string, the module lists, the source
+  repository's root listing and build definitions, and both repositories' commit histories).
+  `TODO (verify on hardware)`: the version string of a shipped build, which settles the kernel
+  image; the inferred origin of the DTB and DTBO is settled instead by unpacking Google's published
+  factory or full-OTA image for this device and comparing the DTBO image byte for byte.
 - **Companion parts.** From the frankel MP overlay: Maxim MAX77779 PMIC, charger, fuel gauge,
   and voltage monitor over SPMI; MAX77759 Type-C port controller; NXP PCA9468 direct charger;
   CPS4041 wireless charging; Richtek RT6160 and TI TPS628600 regulators; Dialog SLG51002;
