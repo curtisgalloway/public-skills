@@ -330,11 +330,14 @@ Not verdicts.
    (Quick-facts/6), "pinctrl-single-style banks" (Quick-facts/10) and "Renesas/Dialog"
    (Quick-facts/9). None is wrong; none is read from a cited authority. These are what the
    `[inference]` class exists for.
-3. **Two frontmatter observations, outside verdict scope.** The prebuilts repository reports
-   `fork: false` with no parent on its host, although the `repos` note calls it "a third-party fork
-   of the AOSP prebuilt repository" — related to the `pixel10` Quick-facts/7 adjudication. And the
-   muzel directory also contains an `init.insmod.deepspace.cfg`, a fourth device the note's
-   "muzel = frankel, blazer, mustang" does not list.
+3. **One frontmatter observation, outside verdict scope.** The muzel directory also contains an
+   `init.insmod.deepspace.cfg`, a fourth device the `repos` note's "muzel = frankel, blazer,
+   mustang" did not list. Now listed.
+   The verifier also observed that the prebuilts repository reports `fork: false` with no parent on
+   its host, against the note calling it a fork. **Dropped as evidence on adjudication:** a host
+   permits a repository to leave a fork network while keeping its history, so that metadata cannot
+   establish software ancestry either way. The note no longer calls it a fork; it says who
+   maintains it and that identity with stock vendor artifacts is unverified.
 4. **Leak scan: findings, reviewed and cleared.** The full verifier's scan returned 0 shared token
    runs, with 57 lowercase and 2 ALL-CAPS identifiers, every one a device-tree node name, label,
    `reg-names`/`clock-names`/`reset-names` value, alias or regulator schematic name — `[DT]`
