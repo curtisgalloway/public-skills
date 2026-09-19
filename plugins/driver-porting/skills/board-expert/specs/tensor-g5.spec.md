@@ -194,10 +194,14 @@ resources:
         - grapheneos/rango/lga-b0.dtb
         - grapheneos/rango/dtbo.img
       note: >-
-        A third-party fork of the AOSP kernel prebuilt repository for the Pixel 10 family
-        (muzel = frankel, blazer, mustang; rango = Pro Fold), read at commit
-        80c104d7e5591ebc3cd413f54b076d972484ff0b. The vendor kernel source itself is not public;
-        the decompiled production blobs are the most complete public map, and a value from them is
+        A third-party prebuilt repository for the Pixel 10 family, maintained by GrapheneOS
+        (muzel = frankel, blazer, mustang, deepspace; rango = Pro Fold), read at commit
+        80c104d7e5591ebc3cd413f54b076d972484ff0b. PROVENANCE: the artifacts here were obtained from
+        this repository, which states its kernel builds are its own; identity with stock vendor
+        artifacts is unverified. That statement covers the kernel builds and does not by itself
+        establish whether each accompanying DTB or DTBO was rebuilt or copied, so every value drawn
+        from these blobs inherits that caveat. The decompiled production blobs remain the most
+        complete public map, and a value from them is
         tagged with this repository's name. lga-b0.dtb sha256
         f238c200f7cf7ae14265047af6a62fdc54ab39f58a4042e844564e39cfbca030, lga-a0.dtb
         5745204e715f376c58650133848c8d472a64161d3a3dd99d942d28bd582e20a7 (identical copies under
@@ -397,13 +401,27 @@ DXT-48-1536 GPU and a Samsung Exynos 5400 modem; treat those as unverified.
   and in the series the peripherals sit under a `soc@0` bus (also 2/2) with an identity `ranges`
   and `dma-ranges` covering `0x0`–`0x10_0000_0000`, so every peripheral `reg` is the CPU physical
   address as written (the debug UART at `0x0DB6_2000`, the GIC distributor at `0x0588_0000`). The
-  production blob has no bus node at all: every peripheral is a child of `/` with a 64-bit `reg`,
-  and the addresses agree wherever a node exists in both trees. DRAM starts at `0x8000_0000` (the
-  production blob's `memory@80000000` placeholder, which the bootloader overwrites), and
-  reserved-memory `alloc-ranges` reach `0x8_8000_0000`–`0xA_0000_0000`, so DRAM extends above
-  the 32-bit boundary. The GIC node declares no `ranges`. `[DT]` (`lga.dtsi`, series v4), `[DT]`
-  (`lga-b0.dtb`, laguna-kernel-prebuilts). `TODO (verify on hardware)`: the DRAM map beyond its
-  base.
+  production blob has no single `soc` container, and most peripherals — including every node this
+  spec gives an address for — are direct children of `/` with a 64-bit `reg` that is CPU-physical
+  as written. **Eight `simple-bus` wrappers are the exception**, each mapping child address 0 onto
+  the CPU-physical base in its own unit address, so a `reg` beneath one is an offset, not an
+  address: `sswrp_dpu@ec00000`, `sswrp_g2d@3f200000`, `sswrp_aur@38000000`,
+  `sswrp_codec3p@3f000000` and `sswrp_tpu@36000000` (one address cell), and
+  `sswrp_ispfe@F000000`, `sswrp_ispbe@3E400000` and `sswrp_gsw@3EC00000` (two), all with one size
+  cell. Nineteen MMIO nodes sit below them — for example the display controller under
+  `sswrp_dpu`, whose `reg` of `0x20_0000` is CPU-physical `0x0EE0_0000`. A further 21 `reg`-bearing
+  descendants are `port@N`/`endpoint@N` graph nodes under `ports` containers, whose `reg` is a port
+  index and not an address at all. `simple_usb_bus` and `odm` are `simple-bus` too but carry an
+  empty, identity `ranges;`, and the two `pcie@*` nodes are identity once the three-cell PCI
+  `phys.hi` tag is separated from the address — a naive three-cell read misclassifies them as
+  translating. The addresses agree between the trees wherever a node exists in both. DRAM starts
+  at `0x8000_0000` (the production blob's `memory@80000000` placeholder, which the bootloader
+  overwrites), and reserved-memory `alloc-ranges` reach `0x8_8000_0000`–`0xA_0000_0000`, so DRAM
+  extends above the 32-bit boundary. The series GIC node declares no `ranges` (removed in v3
+  review); the production blob's carries an empty, identity `ranges;`. `[DT]` (`lga.dtsi`, series
+  v4), `[DT]` (`lga-b0.dtb`, laguna-kernel-prebuilts; the full bus walk, tied to that blob's
+  sha256, is in `resources/tensor-g5.addressing.txt`). `TODO (verify on hardware)`: the DRAM map
+  beyond its base.
 - **Boot chain and entry state.** Closed firmware: boot ROM → Google's closed early stages,
   including an EL3 runtime that the production blob reserves a "BL31 memory log" buffer for at
   `0x8B60_0000` (2 MiB) → the Android bootloader (ABL), which loads Android boot images (a v4
@@ -431,8 +449,10 @@ DXT-48-1536 GPU and a Samsung Exynos 5400 modem; treat those as unverified.
   on them so far. The bootloader identifies the SoC by a 16-bit product id `0x0005` plus a major
   and minor nibble: A0 = `0x000500`, B0 = `0x000510`. The two production blobs differ only in
   DVFS and energy-model tables, in chip-info compatibles (`google,lga_a0_dvfs` versus
-  `google,lga_b0_dvfs`) and the chip-info `major` field (0 versus 1), and in the
-  hardlockup-detector node, which B0 restructures into child nodes and gives an extra register
+  `google,lga_b0_dvfs`), in the root-level `soc_compatible` node, whose child is renamed `A0` to
+  `B0` with `major` 0 versus 1, and in the early-hardlockup-detector node (`pmu-ehld` on A0,
+  `ehld-coreinstr` on B0; the separately named `hardlockup-watchdog` node is identical in both),
+  which B0 restructures into child nodes and gives an extra register
   window at `0x200C_0504` (`0x24` bytes) and a clock input that A0 has no counterpart for; no
   peripheral address, interrupt or clock differs. `[doc]` (series
   v4 cover letter and patch 3/4 message; series v1 patch 1/4 message), `[DT]` (`lga-a0.dtb` and
@@ -458,8 +478,10 @@ DXT-48-1536 GPU and a Samsung Exynos 5400 modem; treat those as unverified.
   per-core redistributor wake, and affinity routing; no GICv2 MMIO CPU interface exists. Most
   low-speed peripherals do not reach the GIC directly: Google "GIA" level aggregators
   (`google,level-gia`, one interrupt cell, a 16-byte register window, one GIC SPI each) fan them
-  in, and a peripheral's `interrupts-extended` names the aggregator and a line: LSIO-S at
-  `0x3BD6_0400` → SPI 694, LSIO-E at `0x3A16_0400` → SPI 704, LSIO-N at `0x0D96_0400` → SPI 684.
+  in, and a peripheral's `interrupts-extended` names the aggregator and a line. There are 90 of
+  them in the production blob, all direct children of `/`; the three that serve the low-speed UART
+  islands are LSIO-S at `0x3BD6_0400` → SPI 694, LSIO-E at `0x3A16_0400` → SPI 704, and LSIO-N at
+  `0x0D96_0400` → SPI 684.
   `[DT]` (`lga.dtsi`, series v4, gic node), `[DT]` (`lga-b0.dtb`, laguna-kernel-prebuilts, gic
   and aggregator nodes), `[standard]` (GICv3/v4 IHI 0069). `TODO (verify on hardware)`: the
   exact GIC product and version from GICD_PIDR2/GICR_TYPER, the redistributor stride, and the
@@ -623,5 +645,6 @@ DXT-48-1536 GPU and a Samsung Exynos 5400 modem; treat those as unverified.
 - **The production blob's node names lie about unit addresses.** The console is `uart@db61000`
   with `reg` `0xDB62000`; every CLI's UART node is named after the block's `+0x1000` personality
   address. Trust `reg`, not the node name. `[DT]` (`lga-b0.dtb`, laguna-kernel-prebuilts)
-- **This is not the Pixel 10a's chip.** The Pixel 10a carries an Exynos-derived Tensor G4;
-  nothing here applies to it. `[doc]` (series v4 cover letter)
+- **This is not the Pixel 10a's chip.** The Pixel 10a carries an Exynos-derived Tensor from the
+  G1–G4 generation; the cover letter groups it with those and does not say which. Nothing here
+  applies to it. `[doc]` (series v4 cover letter)

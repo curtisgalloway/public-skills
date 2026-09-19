@@ -57,11 +57,14 @@ resources:
         - grapheneos/muzel/modules.load
         - grapheneos/rango/dtbo.img
       note: >-
-        Third-party fork of the AOSP prebuilt repository for the Pixel 10 family, commit
+        A third-party prebuilt repository for the Pixel 10 family maintained by GrapheneOS, commit
         80c104d7e5591ebc3cd413f54b076d972484ff0b: the production DTB, the dtbo table with the
         per-board overlays (muzel dtbo.img sha256
         b61cf25b95eada6ae1dd64b05191d316ec166a1c00bdbb97c90a61d300cb09a7, 34 entries), the
-        kernel image, and the module lists. Values from it are tagged with this name.
+        kernel image, and the module lists. PROVENANCE: obtained from this repository, which states
+        its kernel builds are its own; identity with stock vendor artifacts is unverified, and that
+        statement does not by itself establish whether each DTB or DTBO here was rebuilt or copied.
+        Values from it are tagged with this name and inherit that caveat.
     - name: laguna-kernel-source
       url: https://gitlab.com/grapheneos/kernel_pixel_6.6
       ref: "17"
@@ -138,6 +141,13 @@ resources:
       verified: 2026-09-18
       fetch: ok
       note: "the prepare-device, flash, and run targets: the fastboot oem uart commands, the partitions erased and flashed, the earlycon passed"
+    - title: "9to5Google, Pixel 10 will still use an Exynos modem rather than MediaTek in Tensor G5, leak shows"
+      url: https://9to5google.com/2025/06/03/google-pixel-10-tensor-g5-exynos-modem-leak/
+      access: public
+      cite: false
+      verified: 2026-09-18
+      fetch: ok
+      note: "a hands-on report of a Pixel 10 Pro prototype's baseband string, concluding the same Exynos 5400 modem as the Pixel 9 family; press, not a vendor statement"
     - title: GrapheneOS source page
       url: https://grapheneos.org/source
       access: public
@@ -168,8 +178,9 @@ Pro Fold (`rango`) shares the SoC and the production SoC blob and has no public 
 source. Everything an early bring-up can reach is on the SoC: the debug UART, the GIC, and the
 timers; every clock, reset, and regulator is a firmware mailbox request. The bootloader is closed
 and locked by default, the kernel source for this generation is published as a single monolithic
-repository while the shipped binaries come from a separate prebuilt repository, and the only public
-device trees are the unmerged mainline series and the production blobs in that prebuilt repository.
+repository, and the only public device trees are the unmerged mainline series and the production
+blobs in a separate prebuilt repository maintained by a third party, whose identity with stock
+vendor artifacts is unverified.
 The SoC spec carries the addressing model, hand-off facts, GIC, UART, and timers; this spec
 carries what the handset decides on top: partitions and images, unlock policy, console access,
 the per-board device-tree selection, and the companion parts.
@@ -182,8 +193,8 @@ the per-board device-tree selection, and the companion parts.
   with a SPMI-attached modem PMIC, and press names the part as an Exynos 5400, the same as the
   Pixel 9 family. `[doc]` (Google Store, Pixel 10 tech specs), `[DT]` (`dtbo.img` entry 12,
   laguna-kernel-prebuilts, `samsung,exynos-cp` and `google,cp-pmic-spmi`), `[press]` (a
-  9to5Google report of a prototype's baseband string). `TODO (verify on hardware)`: the modem
-  part number.
+  9to5Google report of a prototype's baseband string, in `docs`). `TODO (verify on hardware)`: the
+  modem part number.
 - **Partitions and boot images.** Android boot-image layout: the `boot` partition carries a v4
   boot image (kernel plus generic ramdisk); the `vendor_boot` partition carries the DTB, the
   vendor ramdisk(s), and bootconfig; production builds keep per-board overlays in a `dtbo`
@@ -247,10 +258,13 @@ the per-board device-tree selection, and the companion parts.
   the encoding and the matching rule; Android DTB/DTBO partitions page).
 - **Kernel family and branch.** Public: the unmerged mainline series (v4, 2026-09-18, on
   next-20260918) adds `arch/arm64/boot/dts/google/lga-frankel.dts` and boots to an initramfs
-  shell. Production: a 6.6-based Android kernel whose *source* for this generation is published
-  as a monolithic repository (`kernel_pixel_6.6`, GitLab, default branch `17`, with a per-device
-  build script for each prebuilt directory) while the shipped *binaries* come from the laguna
-  prebuilts repository; the prebuilt image reports `6.6.143-android15-8-gcf06d8aff8ae-4k`
+  shell. Production: a 6.6-based Android kernel. Source for this generation is published as a
+  monolithic repository (`kernel_pixel_6.6`, GitLab, default branch `17`, with a per-device build
+  script for each prebuilt directory). The binaries read here were **obtained from the
+  GrapheneOS-maintained prebuilt repository, which states its kernel builds are its own; identity
+  with stock vendor artifacts is unverified** — and that page's statement covers the kernel builds,
+  not necessarily each accompanying DTB or DTBO, which may have been rebuilt or copied. That image
+  reports `6.6.143-android15-8-gcf06d8aff8ae-4k`
   (built 2026-09-14) and its module set is loaded per board from `init.insmod.frankel.cfg` (a
   Broadcom Wi-Fi driver, a Cirrus haptics driver, and a FocalTech touch driver on top of the
   common set; the Pro models load a Synaptics touch driver instead). `[DT]`
@@ -266,8 +280,10 @@ the per-board device-tree selection, and the companion parts.
   panel entries. The main PMIC (Renesas/Dialog DA9188) is an SoC-tree fact: see `tensor-g5`.
   `[DT]` (`dtbo.img` entry 12, laguna-kernel-prebuilts). `TODO (verify on hardware)`: which of
   the listed panels and parts a given unit carries.
-- **Power.** The main PMIC is a DA9188 driven through the SoC's CPM mailbox with its rails
-  monitor-only for the OS, and the battery-side parts are the MAX77779 family over SPMI (see
+- **Power.** The main PMIC is a DA9188 driven through the SoC's CPM mailbox with most of its rails
+  marked monitor-only for the OS (34 of 41 in the `da9188` set; a companion `da9189` set of 42
+  beside it has 30 marked, the unmarked ones almost all LDOs), and the battery-side parts are the
+  MAX77779 family over SPMI (see
   `tensor-g5` for the controllers). `[DT]` (`lga-b0.dtb`, laguna-kernel-prebuilts, `da9188mfd`;
   `dtbo.img` entry 12 for the SPMI clients). `TODO (verify on hardware)`: the rails and which of
   them the OS may touch.
