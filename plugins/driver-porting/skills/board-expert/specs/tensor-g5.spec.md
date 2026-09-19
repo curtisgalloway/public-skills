@@ -405,9 +405,13 @@ DXT-48-1536 GPU and a Samsung Exynos 5400 modem; treat those as unverified.
   production blob has no single `soc` container, and most peripherals — the debug UART, the GIC,
   the GIA aggregators, the SMMUs — are direct children of `/` with a 64-bit `reg` that is
   CPU-physical as written. Some nodes this spec gives addresses for sit deeper without being
-  translated: the USB pair under `simple_usb_bus`, and the reserved-memory regions under
-  `/reserved-memory`, both of which carry an empty identity `ranges;`, so their `reg` is still
-  CPU-physical. **Eight `simple-bus` wrappers are the exception**, each mapping child address 0 onto
+  translated, and for two different reasons. The USB pair under `simple_usb_bus` and the
+  reserved-memory regions under `/reserved-memory` sit beneath containers carrying an empty identity
+  `ranges;`, so their `reg` passes through unchanged. The early-hardlockup detector's register
+  windows — including the `0x200C_0504` one named in Quick-facts/3 — sit one level down under a
+  parent that declares **one** address cell and **no `ranges` property at all**, so their `reg` is a
+  single 32-bit cell that is CPU-physical because nothing maps it. Only nodes under the eight
+  wrappers carry a `reg` that is an offset. **Eight `simple-bus` wrappers are the exception**, each mapping child address 0 onto
   the CPU-physical base in its own unit address, so a `reg` beneath one is an offset, not an
   address: `sswrp_dpu@ec00000`, `sswrp_g2d@3f200000`, `sswrp_aur@38000000`,
   `sswrp_codec3p@3f000000` and `sswrp_tpu@36000000` (one address cell), and
@@ -421,9 +425,11 @@ DXT-48-1536 GPU and a Samsung Exynos 5400 modem; treat those as unverified.
   translating. The addresses agree between the trees wherever a node exists in both. DRAM starts
   at `0x8000_0000` (the production blob's `memory@80000000` placeholder, which the bootloader
   overwrites), and reserved-memory `alloc-ranges` reach `0x8_8000_0000`–`0xA_0000_0000`, so DRAM
-  extends above the 32-bit boundary (that property decodes sensibly only as two address cells plus
-  **one** size cell, under a container declaring two of each — the blob is internally inconsistent
-  there, and the span holds under either reading). The series GIC node declares no `ranges` (removed in v3
+  extends above the 32-bit boundary. (The five 12-cell `alloc-ranges` properties that establish
+  that span decode sensibly only as two address cells plus **one** size cell, under a container
+  declaring two of each; a sixth in the same container, on `google_gem_dma_region`, is four cells
+  and decodes cleanly as 2+2 — the blob is internally inconsistent here, and the `0xA_0000_0000`
+  top endpoint follows only from the 2+1 reading.) The series GIC node declares no `ranges` (removed in v3
   review); the production blob's carries an empty, identity `ranges;`. `[DT]` (`lga.dtsi`, series
   v4), `[DT]` (`lga-b0.dtb`, laguna-kernel-prebuilts; the full bus walk, tied to that blob's
   sha256, is in `resources/tensor-g5.addressing.txt`). `TODO (verify on hardware)`: the DRAM map
