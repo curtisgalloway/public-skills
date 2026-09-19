@@ -18,6 +18,12 @@ Antigravity and other harnesses that read skill directories: link the skill you 
   architecture, and brainstorming that explores the problem, lays out options and trade-offs,
   and pushes back, without touching code. Triggers on "let's brainstorm", "should I", "talk me
   through the trade-offs"; drops when the user says to build.
+- **`consult`** — ask the other coding agent to independently assess a question, then
+  exchange follow-ups toward an explicitly confirmed recommendation. Claude Code consults
+  Codex and Codex consults Claude Code; the original conversation stays in charge. Ships a
+  Python helper for restricted peer sessions, resumable context, bounded rounds, cancellation,
+  and local transcripts. Requires Python 3.9+, macOS/Linux, and an authenticated counterpart
+  CLI. Triggers on "consult your counterpart" or "work toward consensus".
 - **`project-plan`** — turn a project outcome into a detailed design and an implementation
   plan. Requires approval for a new or materially revised design unless waived, reuses
   an unchanged authoritative design, and builds cohesive milestones sized for roughly
@@ -76,4 +82,5 @@ user-invocable skill.
 
 ```bash
 python3 -m unittest discover -s plugins/agent-workflow/skills/agent-agnostic-skills/tests -v
+python3 -m unittest discover -s plugins/agent-workflow/skills/consult/tests -v
 ```
