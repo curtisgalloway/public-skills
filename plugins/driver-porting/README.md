@@ -19,7 +19,7 @@ Antigravity and other harnesses that read skill directories: link the skill you 
 | The reference driver is yours, or you may copy from it, and you want a spec whose every fact points back at the code | `anchored-peripheral-spec` |
 | A driver exists and you want it checked against the upstream, vendor, or original implementation | `reference-driver-review` |
 | You are the agent writing code from a clean-room spec | `cleanroom-implementer` |
-| You need memory maps, boot chains, clocks, or interrupt details for a specific board | `rpi-expert`, `rpi4-expert`, `indiedroid-nova-expert`, or `board-expert` for any board with a spec |
+| You need memory maps, boot chains, clocks, or interrupt details for a specific board | `rpi-expert`, `rpi4-expert`, `indiedroid-nova-expert`, `pixel10-expert`, or `board-expert` for any board with a spec |
 | You need a board expert for a board that does not have one yet | `board-spec-scaffold` writes the spec and stub; `board-expert` does its best without one |
 | You want a spec checked against every source it cites, or re-checked after the sources moved | `spec-verifier`, for board specs, clean-room driver specs, and anchored specs and reviews alike |
 
@@ -96,9 +96,9 @@ resolving (`--stubs-from` finds the stubs by their "stub over" sentence).
   names into the cache, and answers with `os-investigator`'s method. Best-effort when no spec
   exists, with a suggestion to scaffold one. An IP block (`dwc3`, `pl011`) resolves *anchored*
   through a board's `instances:` table and kernel tree, or *generic* from mainline at head plus the
-  public standards. Ships `specs/`, the public root: the `rpi5`, `rpi4`, and `indiedroid-nova`
-  board specs, the `bcm2712`, `bcm2711`, and `rk3588s` SoC specs, the `rp1` chip spec, and the
-  `pl011` and `dw-apb-uart` IP specs their instance tables place; `QUESTIONS.md`, the structured
+  public standards. Ships `specs/`, the public root: the `rpi5`, `rpi4`, `indiedroid-nova`, and
+  `pixel10` board specs, the `bcm2712`, `bcm2711`, `rk3588s`, and `tensor-g5` SoC specs, the `rp1`
+  chip spec, and the `pl011` and `dw-apb-uart` IP specs their instance tables place; `QUESTIONS.md`, the structured
   question catalog and the `Needs decision` protocol every skill here follows instead of guessing;
   and `VENDOR-GUIDE.md`, how a vendor adds overlay roots, wraps internal tools as skills, and keeps
   internal material out of public roots.
@@ -117,6 +117,12 @@ resolving (`--stubs-from` finds the stubs by their "stub over" sentence).
   the `indiedroid-nova` spec and the `rk3588s` SoC spec it composes: memory
   map, device tree, boot chain, PSCI/SMP, GIC-600, timers, clocks and power (CRU, SCMI, RK806),
   debug UART, GPIO and pinmux via the GRF, PCIe/USB/eMMC.
+- **`pixel10-expert`** — the Google Pixel 10 (Tensor G5, codename laguna / `lga`; board
+  `frankel`, with the Pixel 10 Pro and Pro XL as variants), a stub over the `pixel10` spec and the
+  `tensor-g5` SoC spec it composes: the flat 64-bit memory map, the unmerged mainline device trees
+  and the production DTBs as the public map, the closed Android boot chain and boot-image layout,
+  PSCI/SMP across Cortex-X4/A725/A520, the GICv3, timers, the DesignWare debug UART, and what is
+  and is not publicly established for a handset whose vendor kernel is not published.
 - **`board-spec-scaffold`** — write a new board spec (board, SoC, chip, or IP block) in the format
   `board-expert` reads, optionally with a thin `<board>-expert` stub, a vendor overlay, a
   `<vendor>-board-tools` skill for a vendor's internal resources, or a new spec root in a source
