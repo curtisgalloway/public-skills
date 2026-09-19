@@ -109,10 +109,12 @@ explicit mapping are what make the later merge possible, and both are cheap to d
 | 5 | Claim verification (candidate → sources) via `spec-verifier` | phase 3 |
 | 6 | Extend `spec-verifier` to score both directions against the ledger | phases 4 and 5, and a decision that it earns its cost |
 
-The hardware purchase in the proposal's first action — two ENC28J60 modules, about $4 each — is a
-user decision and is not assumed anywhere above. Phases 1 through 5 are all reachable without the
-physical fixture; what the fixture adds is execution evidence for the boundary and recovery checks,
-and its absence is recorded test by test rather than papered over.
+The hardware purchase in the proposal's first action — two ENC28J60 modules, about $4 each — was
+made on 2026-09-19 and the parts are on order; nothing above assumes them, and nothing above waits
+for them. Phases 1 through 5 are all reachable without the physical fixture; what the fixture adds
+is execution evidence for the boundary and recovery checks, and its absence is recorded test by
+test rather than papered over. Until the modules arrive, a test that wants the fixture is recorded
+as awaiting it — not skipped, and not scored as though it had run.
 
 ## Three changes this requires in the existing skills
 
