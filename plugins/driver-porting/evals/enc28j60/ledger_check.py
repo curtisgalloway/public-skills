@@ -24,10 +24,14 @@ What fails (exit 1):
     (the ledger was edited after freezing), or a lock whose corpus sha256 differs from the
     manifest the check ran against
   * with --freeze: any row still carrying a provisional merge marker (weight_disputed,
-    class_disputed, in_scope_disputed) or an active row whose notes say it overlaps another
-    active row without a disposition; a critical active row with fewer than two distinct readers
-    and no `independent_review` note. The freeze gate is what LEDGER-FORMAT.md rule 5 means by
-    "frozen": nothing provisional, nothing double-counted, every critical row read twice.
+    class_disputed, in_scope_disputed) or an active row carrying an `overlaps:` list without a
+    `replaced_by:` disposition; a critical active row with fewer than two distinct readers and no
+    structured `independent_review` (a mapping with `reviewer` not among the row's readers, a
+    non-empty `locators` list, and a `disposition`; a bare note does not count). This is the
+    mechanical half of what LEDGER-FORMAT.md rule 5 means by "frozen": nothing provisional,
+    nothing double-counted, every critical row read twice. It cannot establish blind authorship,
+    semantic deduplication, or the adequacy of a review; those are the adjudicator's attestation
+    in the lock, which the checker only records.
 
 What warns (reported, exit stays 0):
   * a gap in a facet's numbering with no withdrawn row to account for it
@@ -249,8 +253,22 @@ def check(
                 errors.append(f"{where}: freeze: provisional markers still present {provisional}")
             if row.get("overlaps") and not row.get("replaced_by"):
                 errors.append(f"{where}: freeze: overlaps {row.get('overlaps')} with no disposition")
-            if row.get("weight") == "critical" and n_readers < 2 and not _nonempty_str(row.get("independent_review")):
-                errors.append(f"{where}: freeze: critical row with fewer than two readers and no independent_review")
+            if row.get("weight") == "critical" and n_readers < 2:
+                ir = row.get("independent_review")
+                ok = (
+                    isinstance(ir, dict)
+                    and _nonempty_str(ir.get("reviewer"))
+                    and ir.get("reviewer") not in (readers or [])
+                    and isinstance(ir.get("locators"), list)
+                    and ir["locators"]
+                    and all(_nonempty_str(x) for x in ir["locators"])
+                    and _nonempty_str(ir.get("disposition"))
+                )
+                if not ok:
+                    errors.append(
+                        f"{where}: freeze: critical row with fewer than two readers needs a structured "
+                        "independent_review (reviewer not among readers, locators list, disposition)"
+                    )
 
         counts["rows"] += 1
         if status == "active":

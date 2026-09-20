@@ -186,9 +186,21 @@ class LedgerCheckTest(unittest.TestCase):
         # A critical row with one reader and no independent review blocks it.
         msgs = errors_of(GOOD.replace("readers: [A, B]", "readers: [A]"), "--freeze")
         self.assertIn("critical row with fewer than two readers", msgs)
-        # ...unless an independent_review note is recorded.
-        code, data = run(GOOD.replace("    readers: [A, B]\n", "    readers: [A]\n    independent_review: checked by reader C against DS80349C issue 5 on 2026-09-20\n"), "--freeze")
+        # ...and a bare note does not satisfy it: the review must say who, against what, and what they decided.
+        msgs = errors_of(GOOD.replace("    readers: [A, B]\n", "    readers: [A]\n    independent_review: checked by C\n"), "--freeze")
+        self.assertIn("needs a structured independent_review", msgs)
+        structured = (
+            "    readers: [A]\n"
+            "    independent_review:\n"
+            "      reviewer: C\n"
+            "      locators: [\"DS80349C silicon issue 5\"]\n"
+            "      disposition: supported as stated\n"
+        )
+        code, data = run(GOOD.replace("    readers: [A, B]\n", structured), "--freeze")
         self.assertEqual(code, 0, data["errors"])
+        # The reviewer must not be one of the row's own readers.
+        msgs = errors_of(GOOD.replace("    readers: [A, B]\n", structured.replace("reviewer: C", "reviewer: A")), "--freeze")
+        self.assertIn("needs a structured independent_review", msgs)
         # An overlap with no disposition blocks it.
         msgs = errors_of(GOOD.replace("    readers: [A, B]\n", "    readers: [A, B]\n    overlaps: [ENC28J60-RX-002]\n"), "--freeze")
         self.assertIn("overlaps ['ENC28J60-RX-002'] with no disposition", msgs)

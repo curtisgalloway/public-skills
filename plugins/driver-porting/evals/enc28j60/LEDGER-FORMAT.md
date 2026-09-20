@@ -143,7 +143,9 @@ against a candidate. The classes are not all requirements, and the denominators 
   picks a side.)
 - `observed-software-behavior` and `inference` rows are scored for recall only when the scoring
   policy for the run says so, and are always reported as their own counts; a candidate is not
-  penalized for omitting a driver behavior no document requires.
+  penalized for omitting a driver behavior no document requires. **That policy is versioned and
+  named in the freeze lock before any candidate is generated**; a denominator chosen after seeing
+  a candidate is not a measurement.
 - `implementation-choice` rows are **precision probes and never in a recall denominator**: they
   exist so a candidate that states the driver's choice as a hardware requirement is scored
   `misstated`, and one that omits it is scored nothing at all.
