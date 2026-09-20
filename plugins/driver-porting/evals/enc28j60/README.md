@@ -16,12 +16,35 @@ test quality right on something cheap before the method is pointed at a complex 
 | `corpus.yaml` | 1 | the frozen reference corpus: every source the gold ledger may be authored from, pinned by commit or document hash |
 | `corpus_check.py` | 1 | re-fetches every pin and reports drift |
 | `LEDGER-FORMAT.md` | 2 | what a gold-ledger row is, and why its IDs come from the corpus rather than from any document's headings |
-| `ledger.yaml` | 2 | the gold ledger: authored blind by two independent readers from `corpus.yaml` alone, merged with every disagreement preserved; **not yet frozen** |
+| `ledger.yaml` | 2 | the gold ledger: authored blind by two independent readers from `corpus.yaml` alone, merged with every disagreement preserved; frozen on 2026-09-20 |
 | `LEDGER-CONFLICTS.md` | 2 | the merge's conflict log: every reader disagreement, one-sided critical row, overlap, and correction applied since, for the adjudicator |
 | `ADJUDICATION.md` | 2 | the decisions a person must make before the freeze, each answerable with a letter or number |
 | `SCORING-POLICY.md` | 2 | the versioned scoring policy the freeze lock names: which classes are in the recall denominator, how precision is computed, how results are reported |
 | `SCORING-FACTS.md` | 2 | the credit-bearing facts of every composite scoring unit, one ordered list each: the numerator side of proportional partial credit, frozen with the policy |
 | `ledger_check.py` | 2 | the mechanical gate on the ledger: schema, ids, classes, derivations against the corpus pins; `--freeze` for the freeze rules; `--lock` to check a frozen ledger against its lock |
+| `prepare.py` | A | audits the claim inventory and builds neutral reviewer packets from an explicit field allowlist; prints the citable source vocabulary |
+| `score.py` | A | scores reviewed claims and frozen fact dispositions; archives attempts and applies strict documentary acceptance |
+| `SCORING-RUN.md` | A | review contract, CLI, policy, replay, and limits |
+
+## Stage A
+
+The scoring tool is implemented and tested. The [first practice run](PRACTICE-RUN.md) exercised
+generation, review, scoring and replay; acceptance is blocked and the review remains incomplete.
+No blind paired benchmark has taken place. See [SCORING-RUN.md](SCORING-RUN.md) for the contract.
+
+That run's preparation failures now have gates. `prepare.py` refuses a packet carrying another
+reader's judgment vocabulary or built from an inventory still being segmented; `score.py` takes
+that packet and its inventory, refuses judgments that are not the records the readers were given,
+and archives both. The review schema is `enc28j60-review-3`, carrying the frozen fact wording and
+its unit-level prose beside each numbered disposition. `SCORING-RUN.md` settles what a review may
+cite: the manifest evidences propositions about the manifest, a claim about the device cites the
+document, and a manifest-only claim earns no coverage credit.
+
+What that establishes is correspondence between artifacts, not testimony. It does not establish
+that the readers saw only the packet or that their contexts were isolated; those stay operator
+responsibilities, and the limits are written down beside the gates. The frozen answer key, policy
+and fact lists are unchanged, and the practice run's archived attempts keep their own tools and
+replay as scored.
 
 ## State of the ledger
 
@@ -34,9 +57,8 @@ proposal's author reviewed the result through the `consult` skill; the row-level
 review established from the sources, and a clause-level overlap pass, were then applied and
 logged. Every step is in `LEDGER-CONFLICTS.md`.
 
-What remains before the freeze is adjudication: `ADJUDICATION.md` holds the decisions, and
-`ledger_check.py --freeze` counts what is still provisional. The ledger is usable now for reading;
-it is not usable for scoring until it is frozen.
+Adjudication and the freeze are complete. `ADJUDICATION.md` and `LEDGER-CONFLICTS.md` retain the
+decisions; `ledger.lock` binds the resulting answer key.
 
 ## The ledger is frozen
 
@@ -77,9 +99,9 @@ file names the corpus pins, because a row cites them in `derivation.source` by n
 
 Then write `ledger.lock`, with **all eight** of these fields —
 `ledger_check.py ledger.yaml --json` prints the digest and version values it computes, so the lock
-can be filled from its output. The checker refuses a lock that omits any of the seven it validates
-itself; the eighth, `facts_sha256`, is required by this pilot's policy
-(`SCORING-POLICY.md` → "Binding") and is recorded the same way:
+can be filled from its output. The checker refuses a lock that omits any of these fields,
+including `facts_sha256` required by this pilot's policy
+(`SCORING-POLICY.md` → "Binding"):
 
 | Field | What it holds |
 |---|---|

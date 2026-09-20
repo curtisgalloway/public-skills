@@ -207,6 +207,41 @@ def facts_lists(facts_bytes: bytes | None) -> tuple[dict[str, tuple[int, int | N
     return out, dups, misnumbered
 
 
+def facts_text(facts_bytes: bytes | None) -> dict[str, tuple[list[str], str]]:
+    """Each composite unit's ordered fact entries and its unit-level prose, as frozen.
+
+    A review template copies both beside the numbered dispositions so a reader judges a fact it
+    can see. The copy is never a second authority: this map is re-derived from the frozen bytes
+    and a review whose text differs is refused rather than scored.
+
+    The prose is carried because SCORING-FACTS.md ("How a list works") assigns requirements in
+    unit-level sentences as well as in entries: INIT-015's two MABBIPG values carry the IEEE
+    minimum gap that only the sentence below them names. An entry list alone is a weaker
+    obligation than the frozen one, so copying only the entries would hand a reviewer a second,
+    looser reading of the answer key.
+    """
+    if facts_bytes is None:
+        return {}
+    text = facts_bytes.decode("utf-8", "replace")
+    out: dict[str, tuple[list[str], str]] = {}
+    parts = re.split(r"^###\s+(?:ENC28J60-)?((?:" + "|".join(FACETS) + r")-\d{3})\b", text, flags=re.M)
+    for i in range(1, len(parts) - 1, 2):
+        rid, body = f"ENC28J60-{parts[i]}", parts[i + 1]
+        entries, prose = [], []
+        for line in body.splitlines():
+            m = re.match(r"^\s*\d+\.\s+(\S.*)$", line)
+            if m:
+                entries.append(m.group(1).strip())
+            elif line.strip() and not line.startswith("#"):
+                prose.append(line.strip())
+        # The heading line's trailing title is not prose; the split consumed the id, so drop the
+        # remainder of that first line and keep everything the unit says under its list.
+        if prose and prose[0].startswith("—"):
+            prose.pop(0)
+        out[rid] = (entries, "\n".join(prose))
+    return out
+
+
 def check(
     ledger: dict,
     corpus: dict,
