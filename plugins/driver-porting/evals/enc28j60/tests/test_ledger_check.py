@@ -89,13 +89,21 @@ rows:
 """
 
 
-def run(text: str, *extra: str, corpus: Path = CORPUS):
+POLICY = "# Test policy\n\nVersion: test-1.0\nAdopted: 2026-09-20\n"
+
+
+def run(text: str, *extra: str, corpus: Path = CORPUS, policy: str | None = POLICY):
     with tempfile.TemporaryDirectory() as tmp:
         p = Path(tmp) / "ledger.yaml"
         p.write_text(text, encoding="utf-8")
+        args = [str(p), "--corpus", str(corpus), "--json"]
+        if policy is not None:
+            pol = Path(tmp) / "SCORING-POLICY.md"
+            pol.write_text(policy, encoding="utf-8")
+            args += ["--policy", str(pol)]
         out = io.StringIO()
         with contextlib.redirect_stdout(out):
-            code = ledger_check.main([str(p), "--corpus", str(corpus), "--json", *extra])
+            code = ledger_check.main([*args, *extra])
         return code, json.loads(out.getvalue())
 
 
@@ -208,37 +216,92 @@ class LedgerCheckTest(unittest.TestCase):
         code, data = run(GOOD.replace("readers: [A, B]", "readers: [A]"))
         self.assertEqual(code, 0, data["errors"])
 
+    def test_freeze_needs_a_versioned_scoring_policy(self):
+        # No policy file at all.
+        code, data = run(GOOD, "--freeze", policy=None)
+        self.assertEqual(code, 1)
+        self.assertTrue(any("no scoring policy" in e for e in data["errors"]), data["errors"])
+        # A policy with no Version line binds nothing.
+        code, data = run(GOOD, "--freeze", policy="# Test policy\n\nno version here\n")
+        self.assertEqual(code, 1)
+        self.assertTrue(any("declares no 'Version:'" in e for e in data["errors"]), data["errors"])
+        # Without --freeze a missing policy is not an error.
+        code, data = run(GOOD, policy=None)
+        self.assertEqual(code, 0, data["errors"])
+
+    def test_lock_pins_the_policy_version_and_bytes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            ledger = Path(tmp) / "ledger.yaml"
+            ledger.write_text(GOOD, encoding="utf-8")
+            policy = Path(tmp) / "SCORING-POLICY.md"
+            policy.write_text(POLICY, encoding="utf-8")
+            lock = Path(tmp) / "ledger.lock"
+            base = [str(ledger), "--corpus", str(CORPUS), "--policy", str(policy), "--lock", str(lock)]
+
+            def write_lock(**over):
+                fields = {
+                    "frozen": "2026-09-20",
+                    "sha256": hashlib.sha256(GOOD.encode()).hexdigest(),
+                    "corpus_sha256": hashlib.sha256(CORPUS.read_bytes()).hexdigest(),
+                    "policy_version": "test-1.0",
+                    "policy_sha256": hashlib.sha256(POLICY.encode()).hexdigest(),
+                }
+                fields.update(over)
+                lock.write_text("".join(f"{k}: {v}\n" for k, v in fields.items()))
+
+            write_lock()
+            self.assertEqual(ledger_check.main(base), 0)
+
+            write_lock(policy_version="test-0.9")
+            out = io.StringIO()
+            with contextlib.redirect_stdout(out):
+                self.assertEqual(ledger_check.main(base), 1)
+            self.assertIn("policy version", out.getvalue())
+
+            # Editing the policy after freezing, even trivially, breaks the lock.
+            write_lock()
+            policy.write_text(POLICY + "\na clarifying sentence nobody approved\n", encoding="utf-8")
+            out = io.StringIO()
+            with contextlib.redirect_stdout(out):
+                self.assertEqual(ledger_check.main(base), 1)
+            self.assertIn("policy was edited after freezing", out.getvalue())
+
     def test_lock_detects_edits_and_needs_a_date_and_corpus_digest(self):
         with tempfile.TemporaryDirectory() as tmp:
             ledger = Path(tmp) / "ledger.yaml"
             ledger.write_text(GOOD, encoding="utf-8")
+            policy = Path(tmp) / "SCORING-POLICY.md"
+            policy.write_text(POLICY, encoding="utf-8")
             lock = Path(tmp) / "ledger.lock"
+            argv = [str(ledger), "--corpus", str(CORPUS), "--policy", str(policy), "--lock", str(lock)]
             good_lock = (
                 f"frozen: 2026-09-19\n"
                 f"sha256: {hashlib.sha256(GOOD.encode()).hexdigest()}\n"
                 f"corpus_sha256: {hashlib.sha256(CORPUS.read_bytes()).hexdigest()}\n"
+                f"policy_version: test-1.0\n"
+                f"policy_sha256: {hashlib.sha256(POLICY.encode()).hexdigest()}\n"
             )
             lock.write_text(good_lock)
-            self.assertEqual(ledger_check.main([str(ledger), "--corpus", str(CORPUS), "--lock", str(lock)]), 0)
+            self.assertEqual(ledger_check.main(argv), 0)
 
             lock.write_text(good_lock.replace("frozen: 2026-09-19\n", ""))
             out = io.StringIO()
             with contextlib.redirect_stdout(out):
-                self.assertEqual(ledger_check.main([str(ledger), "--corpus", str(CORPUS), "--lock", str(lock)]), 1)
+                self.assertEqual(ledger_check.main(argv), 1)
             self.assertIn("missing frozen date", out.getvalue())
 
             lock.write_text(good_lock.replace("corpus_sha256: ", "corpus_sha256: 0"))
             out = io.StringIO()
             with contextlib.redirect_stdout(out):
-                self.assertEqual(ledger_check.main([str(ledger), "--corpus", str(CORPUS), "--lock", str(lock)]), 1)
+                self.assertEqual(ledger_check.main(argv), 1)
             self.assertIn("manifest is not the one frozen", out.getvalue())
 
             lock.write_text(good_lock)
             ledger.write_text(GOOD + "# edited\n", encoding="utf-8")
             out = io.StringIO()
             with contextlib.redirect_stdout(out):
-                self.assertEqual(ledger_check.main([str(ledger), "--corpus", str(CORPUS), "--lock", str(lock)]), 1)
-            self.assertIn("edited after freezing", out.getvalue())
+                self.assertEqual(ledger_check.main(argv), 1)
+            self.assertIn("ledger was edited after freezing", out.getvalue())
 
 
 if __name__ == "__main__":

@@ -4,7 +4,8 @@
 """Check an ENC28J60 gold ledger against LEDGER-FORMAT.md, and gate its freeze.
 
 Usage:
-    python3 ledger_check.py ledger.yaml [--corpus corpus.yaml] [--lock ledger.lock] [--freeze] [--json]
+    python3 ledger_check.py ledger.yaml [--corpus corpus.yaml] [--policy SCORING-POLICY.md]
+                           [--lock ledger.lock] [--freeze] [--json]
 
 What fails (exit 1):
   * the corpus manifest cannot be found (default: corpus.yaml beside the ledger): without it the
@@ -21,8 +22,13 @@ What fails (exit 1):
   * a withdrawn row, an out-of-scope row, or an unrecoverable row without notes saying why
   * a readers list that is not a list of distinct names
   * with --lock: a lock without a frozen date, a lock whose ledger sha256 differs from the file
-    (the ledger was edited after freezing), or a lock whose corpus sha256 differs from the
-    manifest the check ran against
+    (the ledger was edited after freezing), a lock whose corpus sha256 differs from the manifest
+    the check ran against, or a lock whose policy version or policy sha256 differs from the
+    scoring policy on disk. A version label on a file anyone can edit binds nothing, so the lock
+    pins the policy's bytes as well as its name.
+  * with --freeze: the scoring policy is missing or declares no `Version:` line. Which classes
+    are in the recall denominator has to be settled and named before a candidate exists, so a
+    freeze without a policy is refused.
   * with --freeze: any row still carrying a provisional merge marker (weight_disputed,
     class_disputed, in_scope_disputed) or an active row carrying an `overlaps:` list without a
     `replaced_by:` disposition; a critical active row with fewer than two distinct readers and no
@@ -75,6 +81,7 @@ APPLICABILITY = ("vendor_confirmed", "implementation_observed", "unresolved")
 PROVISIONAL = ("weight_disputed", "class_disputed", "in_scope_disputed")
 PAGE_ONLY_RE = re.compile(r"^\s*(?:p{1,2}\.?|pages?)?\s*\d+(?:\s*[-–]\s*\d+)?\s*$", re.IGNORECASE)
 HEADER = ("pilot", "corpus_frozen", "authored", "author", "authoring_rule")
+POLICY_VERSION_RE = re.compile(r"^Version:\s*(\S+)\s*$", re.MULTILINE)
 
 
 def load_yaml(path: Path):
@@ -112,6 +119,14 @@ def _nonempty_str(v) -> bool:
     return isinstance(v, str) and bool(v.strip())
 
 
+def policy_identity(policy_bytes: bytes | None) -> tuple[str | None, str | None]:
+    """The scoring policy's declared version and the hash of its bytes."""
+    if policy_bytes is None:
+        return None, None
+    m = POLICY_VERSION_RE.search(policy_bytes.decode("utf-8", "replace"))
+    return (m.group(1) if m else None), hashlib.sha256(policy_bytes).hexdigest()
+
+
 def check(
     ledger: dict,
     corpus: dict,
@@ -119,6 +134,7 @@ def check(
     corpus_bytes: bytes,
     lock: dict | None = None,
     freeze: bool = False,
+    policy_bytes: bytes | None = None,
 ) -> tuple[list[str], list[str], dict]:
     errors: list[str] = []
     warnings: list[str] = []
@@ -292,8 +308,16 @@ def check(
 
     digest = hashlib.sha256(ledger_bytes).hexdigest()
     corpus_digest = hashlib.sha256(corpus_bytes).hexdigest()
+    policy_version, policy_digest = policy_identity(policy_bytes)
     counts["sha256"] = digest
     counts["corpus_sha256"] = corpus_digest
+    counts["policy_version"] = policy_version
+    counts["policy_sha256"] = policy_digest
+    if freeze:
+        if policy_bytes is None:
+            errors.append("freeze: no scoring policy; which classes are in the recall denominator must be named before a candidate exists")
+        elif not policy_version:
+            errors.append("freeze: the scoring policy declares no 'Version:' line, so a lock cannot name a version")
     if lock is not None:
         if not isinstance(lock, dict):
             errors.append("lock: not a mapping")
@@ -304,6 +328,13 @@ def check(
                 errors.append(f"lock: ledger sha256 {digest[:12]}... differs from lock {str(lock.get('sha256'))[:12]}...; the ledger was edited after freezing")
             if lock.get("corpus_sha256") != corpus_digest:
                 errors.append(f"lock: corpus sha256 {corpus_digest[:12]}... differs from lock {str(lock.get('corpus_sha256'))[:12]}...; the manifest is not the one frozen with the ledger")
+            if policy_bytes is None:
+                errors.append("lock: no scoring policy on disk to check the lock's policy fields against")
+            else:
+                if lock.get("policy_version") != policy_version:
+                    errors.append(f"lock: policy version {policy_version!r} on disk differs from lock {lock.get('policy_version')!r}")
+                if lock.get("policy_sha256") != policy_digest:
+                    errors.append(f"lock: policy sha256 {str(policy_digest)[:12]}... differs from lock {str(lock.get('policy_sha256'))[:12]}...; the policy was edited after freezing")
             counts["frozen"] = lock.get("frozen")
     return errors, warnings, counts
 
@@ -312,7 +343,8 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("ledger", type=Path)
     ap.add_argument("--corpus", type=Path, help="corpus.yaml; defaults to the one beside the ledger")
-    ap.add_argument("--lock", type=Path, help="freeze record with frozen, sha256, and corpus_sha256")
+    ap.add_argument("--policy", type=Path, help="the scoring policy; defaults to SCORING-POLICY.md beside the ledger")
+    ap.add_argument("--lock", type=Path, help="freeze record with frozen, sha256, corpus_sha256, policy_version, policy_sha256")
     ap.add_argument("--freeze", action="store_true", help="also apply the freeze gate: no provisional rows, no undisposed overlaps, every critical row read twice")
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args(argv)
@@ -326,8 +358,15 @@ def main(argv: list[str] | None = None) -> int:
     corpus_bytes = corpus_path.read_bytes()
     corpus = load_yaml(corpus_path)
     lock = load_yaml(args.lock) if args.lock else None
+    policy_path = args.policy or args.ledger.parent / "SCORING-POLICY.md"
+    if args.policy and not policy_path.exists():
+        print(f"ledger_check: scoring policy not found at {policy_path}", file=sys.stderr)
+        return 1
+    policy_bytes = policy_path.read_bytes() if policy_path.exists() else None
 
-    errors, warnings, counts = check(ledger, corpus, ledger_bytes, corpus_bytes, lock=lock, freeze=args.freeze)
+    errors, warnings, counts = check(
+        ledger, corpus, ledger_bytes, corpus_bytes, lock=lock, freeze=args.freeze, policy_bytes=policy_bytes
+    )
     if args.json:
         json.dump({"errors": errors, "warnings": warnings, "counts": counts}, sys.stdout, indent=1)
         print()
