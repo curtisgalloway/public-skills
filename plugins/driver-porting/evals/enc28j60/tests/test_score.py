@@ -11,6 +11,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+import prepare
 import score
 
 
@@ -42,11 +43,10 @@ class ScoringTests(unittest.TestCase):
                         for r in cls.records],
         }
         cls.inventory_bytes = score.canonical(cls.inventory)
-        cls.packet = {
-            'schema': score.PACKET_SCHEMA, 'candidate_sha256': score.digest(cls.candidate),
-            'inventory_sha256': score.digest(cls.inventory_bytes),
-            'sources': ['DS39662E'], 'exceptions': [], 'records': cls.records,
-        }
+        # The packet is what the preparation tool actually emits for this inventory: the scorer
+        # rebuilds it and compares, so a hand-written fixture would only test the fixture.
+        cls.packet, lint = prepare.packet(cls.inventory, cls.candidate, cls.sources)
+        assert not lint, lint
         cls.packet_bytes = score.canonical(cls.packet)
         cls.base = score.template(cls.rows, cls.counts, cls.facts, cls.inputs,
                                   cls.packet, cls.packet_bytes)
@@ -209,9 +209,10 @@ class ScoringTests(unittest.TestCase):
         self.assertEqual(result['precision']['errors'], 1)
 
     def test_unsupported_partial_and_adjudicate_precision_accounting(self):
-        for claim, verdict in zip(self.review['claims'][:3], ('UNVERIFIABLE', 'GAP', 'ADJUDICATE')):
-            self.set_verdict(claim, verdict)
-        for fact in self.review['coverage'][0]['facts'][:3]:
+        # The packet sorts records by id, so reach the claims through the facts they evidence.
+        for fact, verdict in zip(self.review['coverage'][0]['facts'][:3],
+                                 ('UNVERIFIABLE', 'GAP', 'ADJUDICATE')):
+            self.set_verdict(self.claim(fact), verdict)
             fact['state'] = 'underspecified'
         precision = self.result()['precision']
         self.assertEqual(precision['precision'], 1)
@@ -438,6 +439,50 @@ class ScoringTests(unittest.TestCase):
             self.assertEqual(run.returncode, 3)
             self.assertIn('not the one this packet was built from', run.stderr)
             self.assertFalse((tmp / 'attempt').exists())
+
+    def test_a_packet_the_inventory_does_not_produce_is_refused(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = Path(tmp)
+            forged = copy.deepcopy(self.packet)
+            forged['reader_a_verdicts'] = {'C0001': 'PASS'}
+            for name, data in (('candidate.md', self.candidate),
+                               ('review.json', score.canonical(self.review)),
+                               ('packet.json', score.canonical(forged)),
+                               ('inventory.json', self.inventory_bytes)):
+                (tmp / name).write_bytes(data)
+            run = subprocess.run(
+                [sys.executable, str(ROOT / 'score.py'), 'score',
+                 '--candidate', str(tmp / 'candidate.md'), '--review', str(tmp / 'review.json'),
+                 '--packet', str(tmp / 'packet.json'), '--inventory', str(tmp / 'inventory.json'),
+                 '--output', str(tmp / 'attempt')], capture_output=True, text=True)
+            self.assertEqual(run.returncode, 3)
+            self.assertIn('packet', run.stderr)
+            self.assertFalse((tmp / 'attempt').exists())
+
+    def test_edited_packet_records_pass_structure_and_fail_the_rebuild(self):
+        forged = copy.deepcopy(self.packet)
+        forged['records'][0]['weight'] = 'critical'
+        # Structurally it is a packet, and its digest still names a clean inventory. Only
+        # rebuilding the packet from that inventory catches the edit.
+        self.assertEqual(score.load_packet(score.canonical(forged), self.candidate), forged)
+        rebuilt, lint = prepare.packet(self.inventory, self.candidate, self.sources)
+        self.assertEqual(lint, [])
+        self.assertNotEqual(forged, rebuilt)
+        self.assertEqual(forged['inventory_sha256'], rebuilt['inventory_sha256'])
+
+    def test_a_manifest_only_response_is_not_an_independent_technical_review(self):
+        claim = self.claim(self.entry('REG-001')['facts'][0])
+        claim['weight'] = 'critical'
+        self.packet['records'] = [dict(r, weight='critical') if r['id'] == claim['id'] else r
+                                  for r in self.packet['records']]
+        self.reseal()
+        claim['reviews'][1]['sources'] = [{'source': score.MANIFEST, 'locator': 'documents'}]
+        result = self.result()
+        # Both readers still count as reviews; only one of them read a pinned document.
+        scored = next(c for c in self.review['claims'] if c['id'] == claim['id'])
+        self.assertEqual(len(scored['reviews']), 2)
+        reasons = result['acceptance']['spec_ready']['reasons']
+        self.assertTrue(any('lacks two independent reviews' in r for r in reasons))
 
     def test_empty_bucket_is_null(self):
         self.assertIsNone(score.bucket([])['recall'])

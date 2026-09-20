@@ -113,18 +113,25 @@ The copied text is then scanned for judgment vocabulary (`PASS`, `FAIL`, `GAP`, 
 packet. **This is a lint, not a proof of neutrality**: it catches the shape the practice run's
 leak actually had, and an operator who paraphrases a verdict defeats it. Where one record
 genuinely uses such a word, the inventory carries an allowance naming the record, the field, the
-token and the reason. An allowance is scoped: a candidate that says `PASS` in one diagnostic
-example does not license the word on an unrelated proposition, which is where a leaked outcome
-would sit. The reason stays in the inventory — a justification reading "allowed because the first
-reader marked this correct" would recreate the leak — and only `record.field:token` appears in
-the packet.
+token, the reason, and the digest of that field's current content. An allowance is scoped to one
+record and field: a candidate that says `PASS` in one diagnostic example does not license the
+word on an unrelated proposition, which is where a leaked outcome would sit. **Field, not
+occurrence** — `evidence` can hold several multiline quotes, and an allowance releases the word
+across all of them; the content digest is what stops an old justification from covering text
+added to that field afterwards. The reason stays in the inventory — a justification reading
+"allowed because the first reader marked this correct" would recreate the leak — and only
+`record.field:token` appears in the packet.
 
 ### What binding the packet does and does not establish
 
-`score.py` takes the packet and the inventory it was built from. It refuses a review whose claims
-are not exactly the packet's active records, field for field, so a proposition discovered during
-review needs a new inventory, a new packet and a retained new attempt rather than an edit to the
-list a reader already answered. Each reviewer names the packet digest its instructions carried,
+`score.py` takes the packet and the inventory it was built from. **It rebuilds the packet from
+that inventory and refuses one that differs**, so a digest over a clean inventory cannot vouch
+for a packet holding different propositions, weights, mappings or evidence — or an extra field
+carrying a reader's verdicts. Any producer may build the packet; it has to be the packet that
+inventory produces, and it has to pass the lint at scoring time as well as at build time. The
+scorer then refuses a review whose claims are not exactly the packet's active records, field for
+field, so a proposition discovered during review needs a new inventory, a new packet and a
+retained new attempt rather than an edit to the list a reader already answered. Each reviewer names the packet digest its instructions carried,
 because a digest recorded once for the whole review cannot tell this round's answer from one
 imported out of the last. The inventory is re-audited at scoring time and archived, so its
 segmentation dispositions survive with the attempt instead of being named by a digest of bytes
@@ -155,6 +162,13 @@ A claim whose reviews cite *only* the manifest therefore earns **no coverage cre
 refuses it as evidence for any fact. It is still judged for precision like every other claim,
 because the frozen policy evaluates every claim the candidate makes, and dropping a class of
 claims after seeing a candidate would change a denominator that was fixed before it existed.
+
+This is read **per response, not pooled**. If one reader cites a pinned document and another
+cites only the manifest, the claim is supported — but only one reader read the device's
+documentation, so only one counts toward a critical claim's two agreeing independent reviews.
+The acceptance policy's rule is unchanged; what changed is that a transcription is not one of the
+two readings. Both responses are retained, and a manifest-only response is evidence of what its
+reader checked, not a second technical confirmation.
 
 The reason a hardware claim may not rest on the manifest is derivative evidence, not a missing
 freeze — the lock does pin `corpus.yaml`'s bytes. The manifest transcribes pages, and a

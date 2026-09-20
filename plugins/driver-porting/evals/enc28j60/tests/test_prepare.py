@@ -57,8 +57,11 @@ class PrepareTests(unittest.TestCase):
         return prepare.packet(self.inventory, CANDIDATE, self.sources)
 
     def allow(self, rid, field, token, reason='the record itself uses the word'):
+        record = next(r for r in self.inventory['records'] if r['id'] == rid)
         self.inventory['allowances'].append(
-            {'record': rid, 'field': field, 'token': token, 'reason': reason})
+            {'record': rid, 'field': field, 'token': token, 'reason': reason,
+             'content_sha256': score.digest(
+                 prepare.allowance_text(record, field).encode())})
 
     def dispose(self, record, reason='One assertion; the span is the fact.'):
         record['segmentation'] = {
@@ -165,9 +168,18 @@ class PrepareTests(unittest.TestCase):
         errors, _ = self.audit()
         self.assertTrue(any('does not contain FAIL' in e for e in errors))
         self.inventory['allowances'] = [
-            {'record': 'C9999', 'field': 'proposition', 'token': 'GAP', 'reason': 'r'}]
+            {'record': 'C9999', 'field': 'proposition', 'token': 'GAP', 'reason': 'r',
+             'content_sha256': score.digest(b'')}]
         errors, _ = self.audit()
         self.assertTrue(any('unknown record' in e for e in errors))
+
+    def test_an_allowance_does_not_survive_edited_field_content(self):
+        self.inventory['records'][0]['proposition'] = 'A GAP timer governs the interframe gap.'
+        self.allow('C0001', 'proposition', 'GAP')
+        self.assertEqual(self.audit(), ([], []))
+        self.inventory['records'][0]['proposition'] = 'A GAP timer governs the gap, and PASS.'
+        errors, _ = self.audit()
+        self.assertTrue(any('written against different content' in e for e in errors))
 
     def test_an_allowance_reason_never_reaches_a_reviewer(self):
         self.inventory['records'][0]['proposition'] = 'A GAP timer governs the interframe gap.'

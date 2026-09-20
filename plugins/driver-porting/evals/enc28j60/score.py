@@ -148,8 +148,8 @@ def load_packet(data, candidate):
     """
     packet = read_json(data)
     require(isinstance(packet, dict), 'packet: expected an object')
-    for key in ('schema', 'candidate_sha256', 'inventory_sha256', 'records'):
-        require(key in packet, f'packet: missing {key}')
+    keys(packet, ('schema', 'candidate_sha256', 'inventory_sha256', 'sources', 'exceptions',
+                  'records'), 'packet')
     require(packet['schema'] == PACKET_SCHEMA, f'packet: schema must be {PACKET_SCHEMA}')
     require(packet['candidate_sha256'] == digest(candidate),
             'packet: built against a different candidate')
@@ -326,10 +326,14 @@ def score(rows, counts, facts, sources, inputs, candidate, review, packet, packe
         # device. It is judged for precision like any other claim, and it cannot evidence a fact:
         # the manifest transcribes documents, so crediting it would let a transcription stand in
         # for the reading the ledger was authored from.
-        cited = {src['source'] for rev in claim['reviews'] for src in rev['sources']}
-        manifest_only = bool(cited) and cited == {MANIFEST}
+        # Read per response, not pooled. Pooling lets one reader's pinned citation mask another
+        # reader's manifest-only one, so a technical reading and a transcription would together
+        # satisfy a critical claim's two independent reviews.
+        technical = sorted(rev['reviewer'] for rev in claim['reviews']
+                           if {src['source'] for src in rev['sources']} - {MANIFEST})
         claims[cid] = dict(claim, weight=weight, reviewers=sorted(seen),
-                           manifest_only=manifest_only)
+                           technical_reviewers=technical,
+                           manifest_only=bool(claim['reviews']) and not technical)
     require(isinstance(review['coverage'], list), 'coverage must be a list')
     coverage = {}
     for entry in review['coverage']:
@@ -421,7 +425,11 @@ def score(rows, counts, facts, sources, inputs, candidate, review, packet, packe
         'coverage_review_complete': all(f['state'] != 'pending'
                                         for e in coverage.values() for f in e['facts']),
     }
-    acceptance = strict_accept.decide(results, list(claims.values()), gates, stale)
+    # Acceptance counts technical reviews only. The policy's rule is unchanged — a critical claim
+    # needs two agreeing independent reviews — but a response citing only the pin manifest is not
+    # one of them, for the same reason a manifest-only claim earns no coverage credit.
+    judged = [dict(claim, reviewers=claim['technical_reviewers']) for claim in claims.values()]
+    acceptance = strict_accept.decide(results, judged, gates, stale)
     return {
         'schema': 'enc28j60-score-1', 'inputs': inputs, 'run': run,
         'measurement_status': 'stale' if stale else 'provisional',
@@ -482,6 +490,13 @@ def main(argv=None):
         errors, warnings = prepare.audit(inventory, candidate, rows)
         require(not errors and not warnings,
                 'inventory: not ready for review: ' + '; '.join(errors + warnings))
+        # A digest over the inventory says nothing about the packet's contents. Rebuilding the
+        # packet from the audited inventory is what makes the two agree: any producer may build
+        # one, but it has to be the packet that inventory produces, lint and all.
+        expected, lint = prepare.packet(inventory, candidate, sources)
+        require(not lint, 'packet: leakage lint findings: ' + '; '.join(lint))
+        require(packet == expected,
+                'packet: not the packet this inventory produces; rebuild it with prepare.py')
         review_bytes = args.review.read_bytes()
         review = read_json(review_bytes)
         report = score(rows, counts, facts, sources, inputs, candidate, review, packet,

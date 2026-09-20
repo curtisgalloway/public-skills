@@ -39,7 +39,7 @@ PACKET_SCHEMA = score.PACKET_SCHEMA
 PACKET_FIELDS = ('id', 'proposition', 'weight', 'requirements', 'evidence')
 RECORD_FIELDS = PACKET_FIELDS + ('status', 'supersedes', 'segmentation', 'notes')
 STATUSES = ('active', 'retired')
-ALLOWANCE_FIELDS = ('record', 'field', 'token', 'reason')
+ALLOWANCE_FIELDS = ('record', 'field', 'token', 'reason', 'content_sha256')
 
 # Judgment vocabulary. This is a lint, not a proof of neutrality: it catches the shape the
 # practice run's leak actually had, and an operator who paraphrases defeats it. A packet
@@ -193,9 +193,16 @@ def allowance_errors(allowances, ids):
             score.require(record is not None, f'allowance: unknown record {item["record"]}')
             score.require(item['field'] in PACKET_FIELDS or item['field'].startswith('evidence'),
                           f'allowance: {item["field"]} is not a packet field')
-            score.require(item['token'] in allowance_text(record, item['field']),
+            content = allowance_text(record, item['field'])
+            score.require(item['token'] in content,
                           f'allowance {item["record"]}.{item["field"]}: the record does not '
                           f'contain {item["token"]}')
+            # An allowance releases a word across the whole field, and `evidence` can hold
+            # several multiline quotes. Binding the field's content stops an old justification
+            # from silently covering text added to it afterwards.
+            score.require(item['content_sha256'] == score.digest(content.encode()),
+                          f'allowance {item["record"]}.{item["field"]}: written against '
+                          'different content; re-check it against the field as it now reads')
         except ValueError as exc:
             errors.append(str(exc))
     return errors
