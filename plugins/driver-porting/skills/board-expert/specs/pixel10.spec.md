@@ -203,8 +203,9 @@ the per-board device-tree selection, and the companion parts.
   9to5Google report of a prototype's baseband string, in `docs`). `TODO (verify on hardware)`: the
   modem part number.
 - **Partitions and boot images.** Android boot-image layout: the `boot` partition carries a v4
-  boot image (kernel plus generic ramdisk); the `vendor_boot` partition carries the DTB, the
-  vendor ramdisk(s), and bootconfig; production builds keep per-board overlays in a `dtbo`
+  boot image, which may hold a kernel and a generic ramdisk though this flow's own boot image
+  carries only a kernel; the `vendor_boot` partition carries the DTB, the vendor ramdisk fragments
+  (both of this flow's ramdisks are vendor fragments), and bootconfig; production builds keep per-board overlays in a `dtbo`
   partition as a dt table the bootloader matches by entry id and revision. The upstream flow
   builds `vendor_boot.img` with `mkbootimg --header_version 4` around the whole board DTB and a
   vendor bootconfig, erases `boot`, `dtbo`, and `vendor_boot` (and `vendor_kernel_boot` and
@@ -226,8 +227,9 @@ the per-board device-tree selection, and the companion parts.
 - **Physical console access.** The console is the SoC's DesignWare UART `serial@db62000`
   (see `tensor-g5`, instance `lsion_cli16_uart`), brought out on the USB-C connector and split
   from USB data by a "USB-Cereal" debug dongle set to 1.8 V (no orientation detection: flip the
-  plug if the line is silent). The bootloader enables the UART only after
-  `fastboot oem uart enable`; the upstream flow then sets the rate with
+  plug if the line is silent). The bootloader enables the UART only when its own
+  console is turned on, which the upstream flow does with `fastboot oem uart enable`; that setting
+  is persistent bootloader configuration rather than a per-boot step. The flow then sets the rate with
   `fastboot oem uart config 3000000` (the production command line says 115200n8), and the
   bootloader appends `console=` itself; the console tty is `ttyS0`. Fastboot is entered with power plus volume-down at power-on, and a
   60 s power plus volume-down press recovers a hung kernel; SysRq works over the line. `[doc]`
@@ -275,8 +277,8 @@ the per-board device-tree selection, and the companion parts.
   vendor blobs. `[inference]` (premises, all `[source-observed]` from the two repositories' trees,
   build definitions and commit histories: the muzel and rango build definitions declare those blobs
   as named outputs and their declared entry counts match the shipped images exactly — 34 muzel
-  overlays, 11 rango, 2 DTBs, and the shipped entry order matches the declared order group for
-  group; the one muzel `dtbo.img` change in 17 commits follows a device-tree source change four days
+  overlays, 11 rango, 2 DTBs, and the shipped entry order matches the declared order entry for
+  entry; the one muzel `dtbo.img` change in 17 commits follows a device-tree source change four days
   earlier while the kernel image changed in all 17; and no vendor build directory remains in the
   tree. Derivation: a copied blob is neither a declared build output nor tracks the source tree's
   clock. Confidence: strong, convergent but not a hash comparison — a byte comparison against the
@@ -284,8 +286,8 @@ the per-board device-tree selection, and the companion parts.
   tree does not change its values, so `[DT]` values read from these blobs are the vendor's.
   Byte-identity with a stock vendor artifact was not checked here: AOSP publishes no laguna
   kernel-prebuilt repository, so the only stock artifact to compare against is the DTBO image inside
-  Google's published Pixel 10 factory or full-OTA image, which this spec did not unpack. That image
-  reports `6.6.143-android15-8-gcf06d8aff8ae-4k`
+  Google's published Pixel 10 factory or full-OTA image, which this spec did not unpack. The
+  GrapheneOS prebuilt kernel image in that directory reports `6.6.143-android15-8-gcf06d8aff8ae-4k`
   (built 2026-09-14) and its module set is loaded per board from `init.insmod.frankel.cfg` (a
   Broadcom Wi-Fi driver, a Cirrus haptics driver, and a FocalTech touch driver on top of the
   common set; the Pro models load a Synaptics touch driver instead). `[DT]`
