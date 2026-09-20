@@ -181,7 +181,7 @@ def policy_fact_counts(policy_bytes: bytes | None) -> dict[str, int]:
     return out
 
 
-def facts_lists(facts_bytes: bytes | None) -> dict[str, tuple[int, int | None]]:
+def facts_lists(facts_bytes: bytes | None) -> tuple[dict[str, tuple[int, int | None]], list[str], list[str]]:
     """Per unit, the number of listed facts and the count the file declares beside them.
 
     The file is a scoring checklist: one `### <id>` section per composite unit, an ordered list,
@@ -189,16 +189,22 @@ def facts_lists(facts_bytes: bytes | None) -> dict[str, tuple[int, int | None]]:
     list, its printed count and the policy's table, from drifting apart once they are frozen.
     """
     if facts_bytes is None:
-        return {}
+        return {}, [], []
     text = facts_bytes.decode("utf-8", "replace")
     out: dict[str, tuple[int, int | None]] = {}
+    dups: list[str] = []
+    misnumbered: list[str] = []
     parts = re.split(r"^###\s+(?:ENC28J60-)?((?:" + "|".join(FACETS) + r")-\d{3})\b", text, flags=re.M)
     for i in range(1, len(parts) - 1, 2):
         rid, body = f"ENC28J60-{parts[i]}", parts[i + 1]
-        items = len(re.findall(r"^\s*\d+\.\s+\S", body, re.M))
+        numbers = [int(n) for n in re.findall(r"^\s*(\d+)\.\s+\S", body, re.M)]
+        if numbers != list(range(1, len(numbers) + 1)):
+            misnumbered.append(rid)
         declared = re.search(r"Count:\s*(\d+)", body)
-        out[rid] = (items, int(declared.group(1)) if declared else None)
-    return out
+        if rid in out:
+            dups.append(rid)
+        out[rid] = (len(numbers), int(declared.group(1)) if declared else None)
+    return out, dups, misnumbered
 
 
 def check(
@@ -408,7 +414,11 @@ def check(
         # checked the way the id list is: a count that is absent, below two, or disagrees with
         # the list that justifies it is a wrong score waiting to happen.
         pol_counts = policy_fact_counts(policy_bytes)
-        lists = facts_lists(facts_bytes)
+        lists, dup_lists, misnumbered = facts_lists(facts_bytes)
+        for rid in sorted(set(dup_lists)):
+            errors.append(f"facts: {rid} has more than one fact list; a unit has exactly one")
+        for rid in sorted(set(misnumbered)):
+            errors.append(f"facts: {rid}'s entries are not numbered 1..n; reports name a missed fact by its number")
         for cid in sorted(comp_ids):
             n = pol_counts.get(cid)
             if n is None:
@@ -439,6 +449,8 @@ def check(
             errors.append("freeze: the scoring policy declares no 'Version:' line, so a lock cannot name a version")
         elif not comp_ids:
             errors.append("freeze: the scoring policy names no composite scoring units; a policy whose bounded exception is empty cannot be checked against the ledger")
+        elif facts_bytes is None:
+            errors.append("freeze: the policy names composite scoring units but there is no SCORING-FACTS.md; a frozen count without its fact list fixes a denominator and leaves the numerator to the scorer")
     if lock is not None:
         if not isinstance(lock, dict):
             errors.append("lock: not a mapping")

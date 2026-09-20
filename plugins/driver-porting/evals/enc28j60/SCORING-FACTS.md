@@ -26,6 +26,11 @@ substitute facts**. A row that is not in this file is atomic and keeps the ordin
   and `DS80349B` the errata editions, `Reg` a register definition, `T` a table, `§` a section.
   `driver` means the pinned reference driver at the commit `corpus.yaml` names — a locator only,
   never a quotation.
+- **An entry's requirements are what the entry names, plus anything a unit-level sentence
+  explicitly assigns to that entry or to every entry in the unit.** Those assigned attributes are
+  required for credit. Other explanatory prose in a unit adds no requirement. Where a convention
+  says an attribute rides with its element, the attribute is written into the entry that carries
+  it, so a scorer never has to decide whether a paragraph was binding.
 - **The count printed at the end of each unit equals the list length**, and equals the number in
   `SCORING-POLICY.md`'s composite table. The three are the same frozen number.
 - **Nothing here is new scoring surface.** A fact is listed only where the row's `statement`
@@ -68,9 +73,13 @@ Two smaller conventions with the same effect, marked the same way:
 - `[code pattern]` — a table row whose code carries a don't-care bit (`11x`) is one fact, because
   the corpus prints it as one row, not two codes.
 
-Where the corpus prints each member as its own row with its own outcome, grouping is **not**
-applied; `REG-019` was split for exactly that reason on 2026-09-20 (`LEDGER-CONFLICTS.md`,
-third pass).
+**Grouping applies only where this file marks it.** The marked sets above are the whole of it;
+nothing infers a group from the shape of a source table. `REG-019` deliberately treats each
+printed code value separately, and that choice about one unit does not bar the designated
+register sets in others: `REG-002` and `REG-013` group rows the data sheet also prints
+separately, and do so on purpose, because the unit is the set. Corrected 2026-09-20 from a
+rationale that read as a general rule against grouping separately printed rows, which the file's
+own marked sets contradict.
 
 ## REG
 
@@ -87,7 +96,7 @@ third pass).
 9. EDMAST at 0x10/0x11 [pair] — DS39662E T3-1 bank 0.
 10. EDMAND at 0x12/0x13 [pair] — DS39662E T3-1 bank 0.
 11. EDMADST at 0x14/0x15 [pair] — DS39662E T3-1 bank 0.
-12. EDMACS at 0x16/0x17 [pair] — DS39662E T3-1 bank 0.
+12. EDMACS at 0x16/0x17 [pair], 16-bit — DS39662E T3-1 bank 0, T3-2 bits 15:0.
 
 Bank membership (bank 0, BSEL = 00) rides with each placement; an address without its bank is not
 a placement. **Count: 12**
@@ -210,10 +219,13 @@ counted. **Count: 4**
 
 1. ERDPT, ERXST and ERXRDPT reset to 0x05FA [grouped set: all three registers and the shared value] — DS39662E T3-2 reset column.
 2. ERXND resets to 0x1FFF — DS39662E T3-2 reset column.
-3. EWRPT, ETXST, ETXND, ERXWRPT, EDMAST, EDMAND, EDMADST and EDMACS reset to 0x0000 [grouped set: all eight registers and the shared value] — DS39662E T3-2 reset column.
+3. EWRPT, ETXST, ETXND, ERXWRPT, EDMAST, EDMAND and EDMADST reset to 0x0000 [grouped set: all seven registers and the shared value] — DS39662E T3-2 reset column.
 
 That the receive FIFO therefore occupies 0x05FA to 0x1FFF until the host reprograms it follows from
-facts 1 and 2 and is not counted. **Count: 3**
+facts 1 and 2 and is not counted. EDMACS also resets to zero (DS39662E T3-2), but the row's
+statement names the buffer pointers and the DMA pointers, and EDMACS is the checksum result
+rather than a pointer; adding it would have made a candidate that satisfied the statement lose the
+whole grouped fact. Removed 2026-09-20. **Count: 3**
 
 ### REG-014 — MAC configuration reset values
 
@@ -281,12 +293,12 @@ facts and not four outcome groups. **Count: 10**
 
 ### REG-020 — MAC address octet order
 
-1. The first octet on the wire (MAADR<47:40>) is MAADR1 at bank 3 address 0x04 — DS39662E T3-2 MAADR rows.
-2. The second octet is MAADR2 at 0x05 — DS39662E T3-2 MAADR rows.
-3. The third octet is MAADR3 at 0x02 — DS39662E T3-2 MAADR rows.
-4. The fourth octet is MAADR4 at 0x03 — DS39662E T3-2 MAADR rows.
-5. The fifth octet is MAADR5 at 0x00 — DS39662E T3-2 MAADR rows.
-6. The last octet is MAADR6 at 0x01 — DS39662E T3-2 MAADR rows.
+1. The first octet on the wire (MAADR<47:40>) is MAADR1 at bank 3 address 0x04 — DS39662E T3-1 bank 3 for the addresses, T3-2 MAADR rows for the octet mapping.
+2. The second octet is MAADR2 at 0x05 — DS39662E T3-1 bank 3 for the addresses, T3-2 MAADR rows for the octet mapping.
+3. The third octet is MAADR3 at 0x02 — DS39662E T3-1 bank 3 for the addresses, T3-2 MAADR rows for the octet mapping.
+4. The fourth octet is MAADR4 at 0x03 — DS39662E T3-1 bank 3 for the addresses, T3-2 MAADR rows for the octet mapping.
+5. The fifth octet is MAADR5 at 0x00 — DS39662E T3-1 bank 3 for the addresses, T3-2 MAADR rows for the octet mapping.
+6. The last octet is MAADR6 at 0x01 — DS39662E T3-1 bank 3 for the addresses, T3-2 MAADR rows for the octet mapping.
 
 That the address is not stored in ascending register-address order follows from the six mappings
 and is not counted. **Count: 6**
@@ -429,7 +441,7 @@ The post-reset wait belongs to ENC28J60-INIT-003 and is not a fact of this unit.
 14. PHLCON is written — driver, hardware initialization routine.
 15. PHCON1 is written — driver, hardware initialization routine.
 16. PHCON2 is written — driver, hardware initialization routine.
-17. The MAC address is programmed last in this routine — driver, the MAC-address routine called from open.
+17. During open the MAC address is programmed after hardware initialization returns and before hardware enable — driver, the open path.
 18. Interrupt enable and RXEN are not part of this sequence; the driver sets them in a later step — driver, the hardware-enable routine called from open.
 
 That this is one valid ordering the corpus does not make mandatory records the row's class, and the
@@ -1204,12 +1216,13 @@ separately until 2026-09-20, and because it now rides, it is required for each f
 
 ### PHY-026 — the PHY identifier registers
 
-1. PHID1 reads 0x0083 — DS39662E T3-3 PHID1 row.
-2. PHID2 reads 0x1400 — DS39662E T3-3 PHID2 row.
+1. PHID1 reads 0x0083, read-only and constant — DS39662E T3-3 PHID1 row, §3.3.5.
+2. PHID2 reads 0x1400, read-only and constant — DS39662E T3-3 PHID2 row, §3.3.5.
 
-Both values are read-only and constant, which rides with them, and their encoding of the Microchip
-OUI with part number 0 and revision 0 follows from them; the read-only constancy was counted as a
-third fact until 2026-09-20. **Count: 2**
+Their encoding of the Microchip OUI with part number 0 and revision 0 follows from the values and
+is not counted. The read-only constancy was a third fact until 2026-09-20, when it was folded into
+the values under the attribute convention; it is written into both entries rather than left to a
+paragraph, because an attribute an entry does not name is not required for credit. **Count: 2**
 
 ### PHY-027 — how the reference driver reports the link
 

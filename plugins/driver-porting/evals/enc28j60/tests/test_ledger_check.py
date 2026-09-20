@@ -280,6 +280,15 @@ class LedgerCheckTest(unittest.TestCase):
         msgs = errors_of(GOOD, facts=FACTS + "\n### ENC28J60-INIT-001 - stray\n\n1. one.\n2. two.\n\n**Count: 2**\n")
         self.assertIn("ENC28J60-INIT-001 has a fact list but is not a composite unit", msgs)
 
+    def test_facts_file_identities_and_freeze_presence(self):
+        # Three bypasses a reviewer demonstrated in memory against the first version of this check.
+        msgs = errors_of(GOOD, "--freeze", facts=None)
+        self.assertIn("no SCORING-FACTS.md", msgs)
+        dup = FACTS + "\n### ENC28J60-RX-001 - a second, conflicting list\n\n1. one.\n2. two.\n\n**Count: 2**\n"
+        self.assertIn("has more than one fact list", errors_of(GOOD, facts=dup))
+        renumbered = FACTS.replace("2. Placing it elsewhere", "1. Placing it elsewhere")
+        self.assertIn("are not numbered 1..n", errors_of(GOOD, facts=renumbered))
+
     def test_freeze_needs_a_versioned_scoring_policy(self):
         # No policy file at all.
         code, data = run(GOOD, "--freeze", policy=None, facts=None)
