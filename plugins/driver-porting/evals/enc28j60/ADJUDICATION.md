@@ -24,17 +24,19 @@ with provisional markers, 5 one-sided critical rows (`LEDGER-CONFLICTS.md`, "Cor
   requirement, never for omitting it), `unresolved-conflict`. Class decides which denominator a
   row is in.
 - **Overlap** — two active rows that state the same clause, so a candidate would be scored twice.
-  The 2026-09-19 pass removed the overlaps the log and the first review named, but **five are
-  open**: a second review on 2026-09-20 found clause-level duplication still in SPI-021, REG-029,
-  RX-032, SPI-014 and RX-029. Each now carries an `overlaps:` list with no `replaced_by`, which
-  is exactly what the freeze gate refuses, and each is a decision in **group F**.
+  The 2026-09-19 pass removed the overlaps the log and the first review named, and a second review
+  on 2026-09-20 found clause-level duplication still in SPI-021, REG-029, RX-032, SPI-014 and
+  RX-029. Those five were **group F**, answered 2026-09-20; none is open now.
 - **Composite row** — one row that enumerates several independently falsifiable facts, usually a
-  register's bit layout. Seven are exempt from the atomic-row rule by name in `SCORING-POLICY.md`
-  (group A1); eleven more are unresolved and are **group G**.
+  register's bit layout. Seven were exempt from the atomic-row rule by name in `SCORING-POLICY.md`
+  (group A1); eleven more were **group G**, answered 2026-09-20 — nine joined the list, making
+  sixteen, and REG-029 and PHY-020 were narrowed instead.
 - **Freeze** — the point after which the ledger's hash is recorded and candidates may be graded.
   `ledger_check.py --freeze` refuses while any provisional marker, one-sided critical row or
   undisposed overlap remains; its error count is the progress number (41 when this sheet was
-  written, 30 after group A was applied, 35 once the five overlaps above were marked).
+  written, 30 after group A was applied, 35 once the five overlaps above were marked, 2 after
+  groups B to G — the two one-sided critical rows C1 and C2, whose independent derivations are
+  being produced separately).
 
 ## A. Policy decisions that settle many rows
 
@@ -110,6 +112,22 @@ both; (c) recall for both. Proposed default: (a).
 
 ## B. Remaining weight disputes (A's weight / B's weight -> proposed)
 
+**Answered 2026-09-20: every item the proposed weight, under a standing rule rather than one
+decision at a time.** The rule the owner gave — *weigh the consequence of a driver written from a
+spec that omits the row, adjusted for necessity; `critical` is for a requirement a working driver
+cannot avoid; a requirement that only bites inside an optional feature caps at `important`* — is
+now in `LEDGER-FORMAT.md` beside the `weight` field, and every proposal below was checked against
+it before being applied. None had to be overridden. All 24 `weight_disputed` markers are gone and
+items 25 to 28 are confirmed; only TX-021 (important to critical), and separately PHY-018 (see
+below), moved from the weight the row already carried beyond what the sheet's `->` column
+already implied. Logged in `LEDGER-CONFLICTS.md` under "Adjudicated 2026-09-20 (groups B to G)".
+
+**Also answered 2026-09-20, outside the list below: PHY-018 (PHCON2 layout) becomes `critical`**,
+one of the seven group A1 layout rows. PHCON2 holds HDLDIS, and a driver written from a spec that
+omits the layout leaves half-duplex loopback enabled, so every transmitted packet is looped back
+into the receive path. The earlier placement by whether the driver only reads the register is
+gone; that rule was withdrawn as unsound and was factually wrong here.
+
 One clause of consequence each; the reason is what happens to a driver written from a spec
 that misses the row.
 
@@ -165,6 +183,15 @@ important; B's row critical (proposed: important).
 
 ## C. One-sided critical rows
 
+**Answered 2026-09-20 for three of the five: C3 = (a), C4 = "w" (settled by F1), C5 = (d).**
+Reader A was added to REG-029's `readers`; SPI-021 was withdrawn into SPI-013, SPI-014 and
+REG-009, which is what answer "w" means and what group F1 did; RX-032 takes `important` on the
+strength of its narrowed content, not to escape the two-reader rule. **C1 (INIT-024) and C2
+(REG-005) are deliberately untouched**: independent derivations for both are being produced
+separately and will be wired in afterwards, so they stay one-sided critical and are the whole of
+the remaining freeze count. Logged in `LEDGER-CONFLICTS.md` under "Adjudicated 2026-09-20 (groups
+B to G)".
+
 Options for each: (a) the counterpart's compound row counts as the second reading, add the
 reader; (b) a second reader derives it from the corpus before freeze; (c) a structured
 `independent_review` (the checker now requires a mapping with a reviewer not among the readers,
@@ -186,6 +213,12 @@ two-reader rule.
 
 ## D. Possible omissions (log section 5): add a row, or not
 
+**Answered 2026-09-20: D1 = y, D2 = y, D3 = n, D4 = y, D5 = y, D6 = n, D7 = y** — every one the
+proposed default. Five rows minted, each continuing its facet's numbering, citing the corpus,
+naming the reader whose notes proposed it, and weighted under the group B rule: SPI-023 (D1),
+PHY-030 (D2), RX-038 (D4), RX-039 (D5), PHY-031 (D7). D3 and D6 stay as notes on TX-007 and
+TX-022. Logged in `LEDGER-CONFLICTS.md` under "Adjudicated 2026-09-20 (groups B to G)".
+
 1. Driver sends the System Reset Command through its two-byte write helper, so a second 0xFF
    follows on the wire. Add as observed-software-behavior, minor? (y/n) Proposed: y.
 2. Driver treats a PHLCON write timeout as PHY absence and aborts initialization. Add as
@@ -204,6 +237,15 @@ two-reader rule.
    documented-hardware-requirement, minor? Proposed: y.
 
 ## E. What Part 1 could not settle
+
+**Answered 2026-09-20: E1 = (b), E2 = (b), E3 = (a), E4 = y, E5 = y** — every one the proposed
+default. IRQ-016 is `in_scope: false` and stays active so a candidate that states wake-on-LAN is
+not penalized; REG-007 is reclassed `observed-software-behavior` with its statement reworded, which
+also clears the checker warning; ERR-006 keeps `applicability.unresolved: true` and INIT-004 keeps
+the driver-only applicability, both unchanged; the crediting rule stands and is now written into
+`LEDGER-FORMAT.md` beside authoring rule 4, with every `readers` list the earlier pass set under it
+re-checked and confirmed. Logged in `LEDGER-CONFLICTS.md` under "Adjudicated 2026-09-20 (groups B
+to G)".
 
 1. IRQ-016 scope (wake-on-LAN): A in scope, B out (not in the brief's coverage list). Marker
    `in_scope_disputed` added. Choose: (a) in scope; (b) out of scope. Proposed: (b), matching the
@@ -229,6 +271,14 @@ two-reader rule.
    listed landed in `a8c7b9b` and `c16d628`; neither needs a decision here.
 
 ## F. Residual overlap
+
+**Answered 2026-09-20: F1 = (a), F2 = (b), F3 = (b), F4 = (b), F5 = (b)** — every one the
+proposed default, and no row took option (c), so no duplicated-recall exception was written into
+`SCORING-POLICY.md`. SPI-021 is withdrawn with `replaced_by: [SPI-013, SPI-014, REG-009]`, which
+also answers C4; REG-029, RX-032, SPI-014 and RX-029 are narrowed to the clause no other row
+states and their `overlaps` markers cleared. Two of the narrowings change what the row is worth:
+RX-032 to `important` (group C5) and RX-029 to `minor` (group B14). No undisposed overlap remains.
+Logged in `LEDGER-CONFLICTS.md` under "Adjudicated 2026-09-20 (groups B to G)".
 
 Five active rows still state a clause another active row states, so a candidate that writes the
 clause once is credited — or penalized — more than once. Each row now carries an `overlaps:` list
@@ -266,6 +316,17 @@ separate text.
    itself states — which also makes B14's minor weight follow from what is left.
 
 ## G. Remaining composite layout rows
+
+**Answered 2026-09-20: (a) for G1 to G5 and G7 to G10, (c) for G6 and G11** — every one the
+proposed default. Nine rows — REG-008, REG-009, REG-018, REG-021, REG-022, RX-011, RX-019,
+IRQ-001, TX-008 — are now named in `SCORING-POLICY.md` beside the original seven, under the same
+verdict rule, making sixteen composite scoring units in all. Because the id list is part of the
+frozen policy text, the policy is bumped to **`enc28j60-1.1`** and carries a version history
+saying what changed and why the bump was needed. The two exceptions are narrowed rather than
+enumerated: G6 is F2, already done there and adding nothing here; G11 leaves PHY-020 holding the
+PHLCON layout, reset value and reserved-as-1 bits, with the table of common LED codes split out as
+the new row PHY-032. Logged in `LEDGER-CONFLICTS.md` under "Adjudicated 2026-09-20 (groups B to
+G)".
 
 Group A1 exempted seven rows from the atomic-row rule by name. Eleven more bundle independently
 falsifiable facts the same way and were not covered by that decision, so `LEDGER-FORMAT.md`

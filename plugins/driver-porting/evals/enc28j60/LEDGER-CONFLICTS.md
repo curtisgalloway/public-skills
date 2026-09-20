@@ -647,3 +647,245 @@ rows, the five one-sided critical rows (REG-005, REG-029, INIT-024, RX-032, SPI-
 newly marked undisposed overlaps (SPI-021, REG-029, RX-032, SPI-014, RX-029). REG-029, RX-032 and
 SPI-021 each contribute two errors; that is intended, since each needs both a second reading and
 an overlap disposition. Open groups are now B, C, D, E, F and G.
+
+## Adjudicated 2026-09-20 (groups B to G)
+
+The repository owner answered the rest of `ADJUDICATION.md`, and this pass applied the answers.
+Nothing here was re-decided by the preparer. Two rows were held back on the owner's instruction:
+**INIT-024 and REG-005 are untouched** and stay one-sided critical, because independent
+derivations for both are being produced separately and will be wired in afterwards. IDs omit
+`ENC28J60-`.
+
+### The weight principle (group B's answer, and now a standing rule)
+
+Weight measures consequence **adjusted for necessity**. The rule, added to `LEDGER-FORMAT.md`
+beside the `weight` field description:
+
+> Weigh the consequence of a driver written from a spec that omits the row, adjusted for
+> necessity. `critical` is for a requirement a working driver cannot avoid: omitting it means the
+> driver does not work or corrupts data. A requirement that only bites when a driver uses an
+> optional feature caps at `important`, however severe it is inside that feature.
+
+It is the rule the format's definition of `critical` already implied, written down. The cap is a
+ceiling and not a floor: an optional-feature row whose omission costs only completeness is still
+`minor`, which is why INIT-019 and INIT-020 (power save) land on `important` while REG-024 (the
+DMA copy) and PHY-025 (PHY-only reset) land on `minor` from the same observation that the feature
+is optional.
+
+**Every one of the 28 proposals was checked against the rule and every one follows it; none was
+overridden.** The check that could have overturned one runs in two directions — a `critical`
+proposal for something that only bites inside an optional feature, or a lower weight for
+something unavoidable whose omission breaks the driver or corrupts data — and no item tripped
+either. Where the cap is what does the work rather than the raw consequence, that is noted below.
+
+### Group B, item by item
+
+24 rows lost `weight_disputed`; items 25 to 28 never carried one (the weight was inherited across
+a 2026-09-19 split) and are confirmed or set outright. Consequence clauses are the sheet's, which
+is what the rule asks for.
+
+| Item | Row | Weight | Why it follows |
+|---|---|---|---|
+| 1 | SPI-002 | critical (unchanged) | CS raised mid-instruction abandons the byte; every multi-byte command fails, and no driver avoids those. |
+| 2 | SPI-003 | critical -> important | Exceeding 20 MHz fails, but a spec that omits the ceiling more often leaves a slower bus than a broken one. |
+| 3 | SPI-011 | critical -> important | A driver that switches banks for the unbanked registers still works, only slower: degraded, not broken. |
+| 4 | SPI-013 | critical (unchanged) | A driver unaware that reads wrap at ERXND corrupts every frame spanning the end of the FIFO, and AUTOINC is set after reset. |
+| 5 | SPI-014 | critical (unchanged) | Without the write-buffer path and its auto-increment nothing can be transmitted. |
+| 6 | SPI-017 | critical (unchanged) | On the marked silicon with a slow asynchronous SPI every MAC register write can silently fail; a revision-limited row is not an optional feature, and the policy's eligibility rule says so. |
+| 7 | REG-024 | important -> minor | The DMA copy is optional and the driver never uses it; capped at `important` and below the cap on consequence. |
+| 8 | INIT-009 | important -> minor | Order among MAC registers is unimportant, so omitting the statement costs nothing. |
+| 9 | INIT-010 | important -> minor | Set as proposed; the row is an `implementation-choice`, whose weight never enters recall, so the field is filled for consistency only. |
+| 10 | INIT-012 | critical (unchanged) | Without padding and CRC generation configured the MAC transmits frames as given, and a FULDPX mismatch leaves the device indeterminate. |
+| 11 | INIT-019 | critical -> important | Power save is optional (INIT-021); a driver that never enters it works. The cap does the work. |
+| 12 | INIT-020 | critical -> important | Same; a driver that never sleeps never wakes. The cap does the work. |
+| 13 | RX-016 | important -> minor | Only the free-space computation needs it, and the driver uses that only to classify an error. |
+| 14 | RX-029 | important -> minor | Duplication only: RX-002 and RX-018 already bind pointer programming, and after the F5 narrowing what is left is an alignment recommendation. The sheet's original reason, "the reset defaults are a working FIFO", was corrected before this pass and is not used: ERXST resets to 0x05FA (REG-013) while DS80349C issue 5 requires the buffer to start at 0x0000 (RX-003). |
+| 15 | TX-005 | critical (unchanged) | A transmission overlapping the receive FIFO corrupts received data. |
+| 16 | TX-012 | critical (unchanged) | On the marked silicon in half duplex TXRTS never clears and transmit hangs; half duplex is the device's reset default, not an optional feature. |
+| 17 | PHY-004 | important (unchanged) | A driver that writes a PHY register expecting bit-level semantics clears bits it did not mean to, including PHLCON's reserved-as-1 bits. |
+| 18 | PHY-010 | critical -> important | A driver assuming autonegotiation ends in a duplex mismatch: a degraded link rather than none. |
+| 19 | PHY-011 | critical -> important | A driver relying on the reset PDPXMD gets the wrong duplex on some boards; PHY-012 is the fix. |
+| 20 | PHY-014 | important -> minor | A diagnostic mode a driver need not use; HDLDIS itself is PHY-013. |
+| 21 | PHY-023 | important -> minor | A board workaround; the software consequence is PHY-012. |
+| 22 | PHY-025 | important -> minor | The driver never resets the PHY alone, and no driver has to. |
+| 23 | ELEC-001 | important -> minor | A board fact a driver cannot act on; INIT-023 carries the software side. |
+| 24 | ELEC-003 | important -> minor | The driver has no reset pin. |
+| 25 | TX-021 | important -> critical | Inherited across the 2026-09-19 split from A's compound row: the seven-byte status vector overwrites the receive buffer, and every transmit writes one. |
+| 26 | PHY-028 | important (confirmed) | Changing duplex at all is optional, so the cap applies to A's compound-row `critical`. |
+| 27 | PHY-029 | minor (confirmed) | Scan mode is an optional MII feature and its omission costs completeness. |
+| 28 | REG-012 | important (confirmed) | Every legal buffer address fits in 13 bits, so a driver that stays in range works; the width matters to a reader reasoning above 0x1FFF. |
+
+### PHY-018 becomes critical
+
+The owner's separate answer, outside the list above. **PHY-018 (PHCON2 layout): `important` ->
+`critical`**, with the consequence recorded in the row's `notes`: PHCON2 holds HDLDIS, and a
+driver written from a spec that omits the layout leaves half-duplex loopback enabled, so every
+transmitted packet is looped back into the receive path (DS39662E Register 6-5: with PHCON1<8>
+and PHCON1<14> clear, HDLDIS = 0 loops transmitted data back to the MAC). The earlier
+justification placing the row by whether the driver only reads the register is gone from the row:
+that rule was withdrawn as unsound on 2026-09-20 and was factually wrong here, since the driver
+writes PHCON2 in both duplex branches. PHY-018 carries both readers, so the new `critical` weight
+raises no two-reader question. It is one of the seven group A1 composite scoring units and stays
+one.
+
+### Group F, residual overlap
+
+All five the proposed default; **no row took option (c)**, so no duplicated-recall exception was
+written into `SCORING-POLICY.md` and that section still says the composite exception is about
+something else.
+
+- **F1 = (a). SPI-021 withdrawn**, `replaced_by: [SPI-013, SPI-014, REG-009]`, notes recording
+  that no clause survives the narrowing: the conditional streaming semantics are SPI-013 and
+  SPI-014 and the set-after-reset value is REG-009, and the "must be set" framing is the same
+  fact as SPI-013's conditional rather than an additional one. All three replacements carry both
+  readers. **This also settles C4**, whose answer is "w": the one-sided critical question
+  disappears with the row rather than being answered.
+- **F2 = (b). REG-029 narrowed** to the EIR bit positions and the reserved bit. The per-bit
+  access facts stay with IRQ-007 to IRQ-012, which own them one bit at a time, and are cited in
+  the notes. `overlaps` cleared.
+- **F3 = (b). RX-032 narrowed** to the silent-discard clause: a frame that fails the filters is
+  discarded with no indication to the host. The accepted-packet consequences are RX-013, IRQ-007
+  and RX-015. `overlaps` cleared. Weight follows the narrowing; see C5 below.
+- **F4 = (b). SPI-014 narrowed** to the streaming behavior: MSb-first data bytes, storage at
+  EWRPT, the AUTOINC advance and the 0x1FFF-to-0x0000 wrap. SPI-005 owns every opcode encoding.
+  `overlaps` cleared. Weight stays `critical`, since what is left is still the only way to put a
+  frame in the transmit buffer.
+- **F5 = (b). RX-029 narrowed** to the data sheet's even-ERXST recommendation, the only
+  receive-buffer placement rule the data sheet itself states; pointer-before-enable is RX-002 and
+  RX-018. `overlaps` cleared. Weight `minor`, which is group B item 14 and now follows from what
+  is left rather than from the duplication alone.
+
+Each narrowed row keeps its id and its `readers`.
+
+### Group C, the three that could be touched
+
+- **C3 = (a).** Reader A added to REG-029's `readers`. A stated the EIR bit positions inside
+  IRQ-001 before that row was narrowed to EIE, and the crediting rule confirmed in E5 makes that a
+  reading of the atomic row. What A never stated as one claim was the access legend, and after F2
+  the legend is not this row's content. REG-029 stops being a one-sided critical row.
+- **C5 = (d).** RX-032 takes `important`. **The reason is the narrowed content, not the two-reader
+  rule**: what remains is that a filtered frame leaves no trace, so a driver built from a spec
+  that omits it waits on a count or a flag that will not move for dropped frames, which is a
+  fragile receive path rather than a broken one. Downgrading a row to dodge the two-reader rule
+  would not be acceptable; the rule simply stops applying once the row is not critical, and that
+  is a consequence of the weight, not a reason for it.
+- **C4** is settled by F1 above.
+- **C1 (INIT-024) and C2 (REG-005) untouched**, on instruction. Both keep `weight: critical` with
+  one reader and no `independent_review`, and they are the entire remaining freeze count.
+
+### Group D, five rows minted
+
+Added: D1, D2, D4, D5, D7. Not added: D3 and D6, whose content stays in the notes of TX-007 and
+TX-022 as the sheet proposed. Each new row continues its facet's numbering, cites the corpus,
+carries `readers` naming the reader whose notes proposed it (this log's section 5), and takes a
+weight under the rule above.
+
+- **SPI-023** (D1, `observed-software-behavior`, minor, readers A and B): the driver sends the
+  System Reset Command through its two-byte write path, so a second byte follows on the wire where
+  the data sheet describes a one-byte command; the corpus does not say whether that matters. The
+  row states the behavior and the gap and claims no consequence, which is why it is minor.
+- **PHY-030** (D2, `implementation-choice`, minor, reader A): the driver treats a timeout writing
+  PHLCON as the PHY being absent and aborts initialization. A precision probe: a candidate that
+  presents the timeout as the documented way to detect a missing PHY, or as a required
+  initialization step, is misstated.
+- **RX-038** (D4, `implementation-choice`, minor, readers A and B): the driver refuses a MAC
+  address change while the interface is running. A precision probe: DS39662E section 7.2.1
+  recommends clearing RXEN before such a change, and RX-018 carries that; a candidate that states
+  the hardware forbids the change is misstated.
+- **RX-039** (D5, `observed-software-behavior`, minor, readers A and B): the driver rewrites
+  ERXFCON from its receive-mode path while reception is enabled. **The notes correct the sheet on
+  what this probes.** Reporting accurately that the driver does this is not itself a misstatement,
+  because section 7.2.1 recommends rather than prohibits, and a correctly attributed observation
+  of driver behavior is judged as that claim. What is wrong is a candidate presenting the rewrite
+  as following the vendor's recommendation, or as a hardware requirement; either is misstated
+  against RX-018, which records `implementation_observed` false because of this behavior.
+- **PHY-031** (D7, `documented-hardware-requirement`, minor, no readers): MIREGADR is five bits
+  wide, bits 7-5 unimplemented, so thirty-two PHY addresses are addressable and nine implemented.
+  `readers` is empty and the notes say why: neither draft made a row for it, so the row is the
+  adjudicator's, derived from DS39662E Table 3-2 and section 3.3. PHY-006 already says the
+  addresses above 0x14 are unimplemented, so a driver that writes a whole byte still reaches the
+  register it meant to, which is why it is minor.
+
+### Group E
+
+- **E1 = (b).** IRQ-016 (wake-on-LAN) is `in_scope: false`, with notes saying why: outside the
+  pilot's declared coverage, which is reader B's objection and the authoring brief's coverage
+  list. `in_scope_disputed` removed. The row stays **active**, so a candidate that states
+  wake-on-LAN is not penalized; out-of-scope rows sit outside every denominator and are reported
+  separately.
+- **E2 = (b).** REG-007 reclassed `unresolved-conflict` -> `observed-software-behavior`, and its
+  statement reworded to say what it now is: the driver's header names four control-register
+  addresses DS39662E shows as reserved or unimplemented, the names are the driver's, and the
+  corpus does not establish that a register exists at any of them. That is a fact about the
+  driver, not a disagreement between the two readers, and the reword clears the checker warning
+  that the statement did not present both readings — a warning the row could never have satisfied.
+  The ledger now has **no `unresolved-conflict` rows**; the class stays in the format and the
+  policy for a future one. The applicability columns were not touched, `unresolved: true`
+  included: E3 shows those are decided on their own.
+- **E3 = (a).** ERR-006 keeps `applicability.unresolved: true`. No change to the row; logged.
+- **E4 = y.** INIT-004 keeps the driver-only applicability (`vendor_confirmed` empty). No change
+  to the row; logged.
+- **E5 = y.** The crediting rule stands and is now written into `LEDGER-FORMAT.md` beside
+  authoring rule 4, so the next merge applies it: *a reader who stated a clause inside a compound
+  row is a reader of the atomic row that clause ends up in.* Every `readers` list the earlier pass
+  set under it was re-checked and is right: REG-011, REG-012, REG-019, REG-025, REG-027, INIT-002,
+  INIT-023, RX-010, RX-014, TX-009, ERR-003, ERR-004 and ERR-005 (A-only rows credited to B),
+  SPI-019, SPI-020, TX-021, PHY-028 and PHY-029 (B rows credited to A after a compound row was
+  narrowed), plus RX-005, REG-014, RX-020, IRQ-009, SPI-018 and IRQ-019 from the same pass. All
+  carry `[A, B]`.
+
+### Group G, remaining composite layout rows
+
+- **(a) for G1 to G5 and G7 to G10.** Nine rows are now additional composite scoring units, named
+  explicitly in `SCORING-POLICY.md` beside the original seven and under the same verdict rule:
+  **REG-008, REG-009, REG-018, REG-021, REG-022, RX-011, RX-019, IRQ-001, TX-008.** Sixteen in
+  all. No ledger row changed: the exemption lives in the policy, which is where a bounded
+  exception to `LEDGER-FORMAT.md` authoring rule 3 belongs.
+- **The policy version is bumped to `enc28j60-1.1`.** The id list is part of the frozen policy
+  text, so lengthening it is a new version, not an edit. The policy carries a new **Version
+  history** section saying what changed between 1.0 and 1.1 and why a bump was needed: a run
+  scored under 1.0 puts one denominator unit where a run under 1.1 puts one for nine further rows,
+  and the two recall numbers are not comparable. The lock's sha256 would have caught an edit, but
+  a changed hash says "this file moved", not "these results mean something different"; the version
+  string is what carries the second meaning. The same bump carries the roster change below. Live
+  references to the version string were updated in `LEDGER-FORMAT.md` and in the policy's own
+  Binding section; the two `enc28j60-1.0` references inside the group A records here and in
+  `ADJUDICATION.md` are left alone, because they record what group A adopted at the time.
+- **G6 = (c), which is F2.** REG-029 was narrowed there and nothing extra was needed here. It is
+  **not** in the list of nine: what is left of it is the EIR bit positions and one reserved bit,
+  and the owner enumerated the nine without it.
+- **G11 = (c).** PHY-020 is narrowed to PHLCON's layout, reset value and reserved-as-1 bits. The
+  table of common LED codes moves to the new row **PHY-032** (`documented-hardware-requirement`,
+  the data sheet's own table in Register 2-2; weight `minor`, because LED display is a feature a
+  driver need not configure and a driver that omits the codes still moves frames; `readers`
+  inherited from PHY-020; `supersedes` unset; notes saying it was split out of PHY-020). PHY-020
+  is not enumerated as a composite unit either, for the same reason as REG-029.
+
+### Roster and denominator effects
+
+Recorded so the policy and the ledger cannot drift apart:
+
+- `observed-software-behavior` goes from ten active rows to **thirteen**: REG-007 (reclassed by
+  E2), SPI-023 and RX-039 (minted by D) join TX-022, RX-026, RX-030, RX-037, IRQ-014, IRQ-018,
+  IRQ-019, PHY-027, SPI-022 and ERR-006. Counted, never in recall.
+- `inference` is unchanged at three: RX-006, RX-031, PHY-012. In recall.
+- `implementation-choice` gains PHY-030 and RX-038. Precision probes, never in recall.
+- REG-007 leaves the recall denominator, which is a denominator change and part of why the policy
+  version moved.
+- IRQ-016 leaves every denominator on `in_scope: false` while staying active and reportable.
+
+### Counts after this pass
+
+**205 -> 211 rows; 197 -> 202 active, 8 -> 9 withdrawn.** Six rows minted (SPI-023, PHY-030,
+PHY-031, PHY-032, RX-038, RX-039) and one withdrawn (SPI-021). Classes: 176
+documented-hardware-requirement, 19 implementation-choice, 13 observed-software-behavior, 3
+inference, 0 unresolved-conflict. Weights: 66 critical, 63 important, 82 minor. 178 rows carry
+both readers. Provisional markers: **25 rows -> 0**. Undisposed overlaps: **5 -> 0**.
+
+**The freeze gate falls from 35 errors to 2**, and both are the rows held back on instruction:
+REG-005 and INIT-024, each a critical active row with one reader and no structured
+`independent_review`. Nothing else remains — no provisional marker, no undisposed overlap, and
+`ledger_check.py` without `--freeze` reports 0 errors and 0 warnings (the REG-007 warning is gone
+with the reclass). The leak scan over `ledger.yaml`, `SCORING-POLICY.md`, `LEDGER-CONFLICTS.md`,
+`ADJUDICATION.md` and `README.md` against the pinned driver files is clean. Every group of
+`ADJUDICATION.md` is now answered.

@@ -137,6 +137,19 @@ vendor document does not prove a device unaffected.
 (degraded or fragile), `minor` (completeness). Recall is reported **per weight and unweighted**,
 never as a single blended number: 90% with every `critical` row missing is not a good spec.
 
+How to choose one, adopted 2026-09-20 as the adjudicator's standing rule and the rule the
+definition of `critical` above already implies:
+
+> Weigh the consequence of a driver written from a spec that omits the row, adjusted for
+> necessity. `critical` is for a requirement a working driver cannot avoid: omitting it means the
+> driver does not work or corrupts data. A requirement that only bites when a driver uses an
+> optional feature caps at `important`, however severe it is inside that feature.
+
+The cap is a ceiling, not a floor: a row about an optional feature whose omission costs only
+completeness is still `minor`. A row whose class is `implementation-choice` carries a weight that
+never enters recall, because the class is a precision probe and is outside every recall
+denominator; the field is filled in anyway so the row reads like the others.
+
 **`in_scope`** — whether the row counts toward the denominator for this evaluation. Set at authoring
 time with a reason in `notes`. A row can be out of scope for being about a facet the evaluation is
 not asking for; it is never out of scope for being hard.
@@ -168,7 +181,7 @@ against a candidate. The classes are not all requirements, and the denominators 
   rows do not multiply an error, which is why the freeze gate refuses undisposed overlaps.
 
 The versioned policy this ledger's freeze lock names is `SCORING-POLICY.md` (version
-`enc28j60-1.0`, adopted 2026-09-20): it fixes, per class, what is in the recall denominator.
+`enc28j60-1.1`, adopted 2026-09-20): it fixes, per class, what is in the recall denominator.
 
 (This paragraph was added 2026-09-19 after a review found the class table above and the original
 scoring sentence in conflict: the table said an implementation choice is "present so a candidate is
@@ -194,12 +207,20 @@ a distinct failure from one that is 50% missing and both can print the same perc
    row derived from a document that has since drifted is a row derived from an unknown document.
 3. **Atomic.** If a reviewer can agree with half a row, split it. The run's scoring policy may
    name **bounded** exceptions — a listed set of ids scored as composite units under a stated
-   verdict rule, never an open-ended category. This ledger's are the seven register bit-layout
-   rows in `SCORING-POLICY.md` → "Composite scoring units"; every other composite row is still
-   governed by this rule.
+   verdict rule, never an open-ended category. This ledger's are the sixteen register bit-layout
+   rows in `SCORING-POLICY.md` → "Composite scoring units" (seven named in policy version
+   `enc28j60-1.0`, nine more in `enc28j60-1.1`); every other composite row is still governed by
+   this rule.
 4. **Two readers on `critical` rows**, independently, with disagreements recorded as
    `unresolved-conflict` rather than settled by whoever wrote first — the same rule
-   `spec-verifier` applies to a claim, applied to the answer key.
+   `spec-verifier` applies to a claim, applied to the answer key. Who counts as a reader is
+   settled by the crediting rule, adopted 2026-09-20: **a reader who stated a clause inside a
+   compound row is a reader of the atomic row that clause ends up in.** So when a merge narrows
+   one reader's compound row and the clause lands on the other reader's atomic row, the first
+   reader joins that row's `readers`. Atomicity is a property of the ledger's rows, not of what a
+   reader knew, and without the rule the two-reader test would measure who happened to split their
+   draft more finely. It credits a clause the reader actually stated, never a clause the merge
+   inferred they would have agreed with.
 5. **Freeze before generating.** The ledger's hash is recorded before a candidate run begins. A row
    added after a candidate is read is not part of the denominator, and is marked so.
 

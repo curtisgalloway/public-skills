@@ -5,8 +5,8 @@ SPDX-License-Identifier: Apache-2.0
 
 # ENC28J60 gold ledger: scoring policy
 
-Version: enc28j60-1.0
-Adopted: 2026-09-20 (revised the same day, before freeze, to the completeness a review required)
+Version: enc28j60-1.1
+Adopted: 2026-09-20 (superseding `enc28j60-1.0` of the same day; see "Version history")
 
 `LEDGER-FORMAT.md` says that whether `observed-software-behavior` and `inference` rows count
 toward recall is a per-run decision, and that the decision is **versioned and named in the freeze
@@ -47,10 +47,13 @@ Rows that are out of scope, not recoverable, or withdrawn are outside every deno
 their class, and are reported separately — they measure the corpus, not the candidate.
 
 **Rosters, as of 2026-09-20 and regenerated from the ledger at freeze.** Observed software
-behavior, ten active rows, counted but not in recall: TX-022, RX-026, RX-030, RX-037, IRQ-014,
-IRQ-018, IRQ-019, PHY-027, SPI-022, ERR-006. Inference, three active rows, in recall: RX-006,
-RX-031, PHY-012. Their conditions and inference status survive inclusion: RX-006 is not a
-universal odd-`ERXND` obligation and PHY-012 is not a universal explicit-programming obligation.
+behavior, thirteen active rows, counted but not in recall: REG-007, TX-022, RX-026, RX-030,
+RX-037, RX-039, IRQ-014, IRQ-018, IRQ-019, PHY-027, SPI-022, SPI-023, ERR-006. Inference, three
+active rows, in recall: RX-006, RX-031, PHY-012. Their conditions and inference status survive
+inclusion: RX-006 is not a universal odd-`ERXND` obligation and PHY-012 is not a universal
+explicit-programming obligation. `unresolved-conflict`, no active rows: REG-007 was the only one
+and was reclassed on 2026-09-20 (`ADJUDICATION.md` group E2), so the class stays in the table
+above for a future row and contributes nothing to this run's denominator.
 
 ## The recall formula
 
@@ -64,22 +67,35 @@ percentage. An empty weight bucket prints `n/a (0 eligible rows)` — never `0%`
 
 ## Composite scoring units
 
-The layout rows **REG-010, PHY-007, PHY-008, PHY-016, PHY-017, PHY-018 and PHY-019** are composite
-scoring units, exempt from `LEDGER-FORMAT.md` authoring rule 3 (atomic rows). Each contributes one
-denominator unit. `covered` means every enumerated fact is stated correctly; `partial` means at
-least one is correct, others are omitted or underspecified, and none is contradicted; `missing`
-means none is stated; `misstated` means at least one is contradicted. `partial` earns 0.5;
-`missing` and `misstated` earn zero. Precision evaluates the candidate's individual claims
-independently, so one wrong bit is one precision error whatever the row verdict is.
+These sixteen rows are composite scoring units, exempt from `LEDGER-FORMAT.md` authoring rule 3
+(atomic rows):
+
+- Named in `enc28j60-1.0`: **REG-010, PHY-007, PHY-008, PHY-016, PHY-017, PHY-018, PHY-019.**
+- Added in `enc28j60-1.1`: **REG-008, REG-009, REG-018, REG-021, REG-022, RX-011, RX-019,
+  IRQ-001, TX-008.**
+
+Each contributes one denominator unit, under one verdict rule for all sixteen. `covered` means
+every enumerated fact is stated correctly; `partial` means at least one is correct, others are
+omitted or underspecified, and none is contradicted; `missing` means none is stated; `misstated`
+means at least one is contradicted. `partial` earns 0.5; `missing` and `misstated` earn zero.
+Precision evaluates the candidate's individual claims independently, so one wrong bit is one
+precision error whatever the row verdict is.
 
 The set is not strictly one row per register: PHY-007 covers MICMD **and** MISTAT, and PHY-019
-covers PHIE **and** PHIR.
+covers PHIE **and** PHIR. Nor is every unit a register: TX-008 is the seven-byte transmit status
+vector and RX-011 the four-byte receive one, and RX-019 carries the ANDOR combination rule and
+CRCEN's ordering alongside ERXFCON's bit positions, because the 2026-09-19 pass withdrew RX-034
+into it and splitting would undo that.
 
-**The exception covers these seven ids and no others.** Other rows that bundle independently
-falsifiable facts remain subject to the atomic-row rule and are unresolved work, listed as group G
-of `ADJUDICATION.md`; adding one here takes a decision there and a new policy version. This
-exception says nothing about two rows stating the same clause — that is overlap, a different
-problem, disposed of in the ledger with `overlaps` and `replaced_by` and adjudicated in group F.
+**The exception covers these sixteen ids and no others.** Any other row that bundles
+independently falsifiable facts remains subject to the atomic-row rule; adding one here takes a
+decision in `ADJUDICATION.md` and a new policy version, because the id list is part of the frozen
+policy text. The two rows of `ADJUDICATION.md` group G that are not in the list were narrowed
+instead of enumerated: REG-029 now states the EIR bit positions and its reserved bit only, and
+PHY-020 the PHLCON layout, reset value and reserved-as-1 bits, with the LED configuration codes
+split out as PHY-032. This exception says nothing about two rows stating the same clause — that is
+overlap, a different problem, disposed of in the ledger with `overlaps` and `replaced_by` and
+adjudicated in group F, which is now answered.
 
 ## Precision adjudication
 
@@ -129,10 +145,29 @@ one; the unsupported-claim count beside precision.
 
 ## Binding
 
-The freeze lock records this file's **sha256 as well as the version string** `enc28j60-1.0`,
+The freeze lock records this file's **sha256 as well as the version string** `enc28j60-1.1`,
 beside the ledger and corpus digests, and every run cites the lock rather than the version. A
 version label on a mutable file binds nothing: the label can stay while the text moves. Enforcing
 this in `ledger_check.py` is open work and is a prerequisite to freezing.
+
+## Version history
+
+A version is a name for one exact set of scoring rules. The id list under "Composite scoring
+units" is part of that set, so lengthening it is a new version and not an edit: a run scored under
+`enc28j60-1.0` put one denominator unit where a run scored under `enc28j60-1.1` puts one for nine
+further rows, and the two recall numbers are not comparable. Nothing forces the bump
+mechanically — the freeze lock pins the file's sha256, so an unversioned edit would be caught as a
+changed hash rather than as a changed policy, which says "this file moved" and not "these results
+mean something different". The version string is what carries that second meaning, so it moves
+whenever the rules do.
+
+| Version | Adopted | What changed, and why the bump |
+|---|---|---|
+| `enc28j60-1.0` | 2026-09-20 | First named policy: the group A4 denominator rule, eligibility, the recall formula, precision adjudication, uncertainty, binding, and seven composite scoring units. |
+| `enc28j60-1.1` | 2026-09-20 | Nine more composite scoring units (REG-008, REG-009, REG-018, REG-021, REG-022, RX-011, RX-019, IRQ-001, TX-008), from `ADJUDICATION.md` group G. The id list is frozen policy text and each addition moves a row from "one wrong bit fails the row" to the composite verdict rule, so the denominator and the per-row verdicts both change. The observed-software-behavior roster also grew from ten rows to thirteen (REG-007 reclassed by group E2; SPI-023 and RX-039 added by group D), which changes the recall denominator by removing REG-007 from it; the same bump carries it. |
+
+No candidate has been read under either version, so nothing needs rescoring; the rule below is for
+when that stops being true.
 
 ## Changes after a candidate has been read
 

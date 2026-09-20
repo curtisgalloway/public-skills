@@ -160,6 +160,40 @@ rows:
   weight: critical
   readers:
   - A
+  independent_review:
+    reviewer: >-
+      Reader C, 2026-09-20. A third reader working from the frozen corpus alone, without sight of
+      this row or any other requirement on the subject, and without searching for one; the
+      reference driver was read for mechanism under the clean-room rule and never quoted.
+    locators:
+    - >-
+      DS39662E section 3.1 (Control Registers), the ETH, MAC and MII grouping and the name-prefix
+      rule that determines membership
+    - >-
+      DS39662E section 4.2.1 (Read Control Register Command) with Figure 4-3 (ETH registers, 16
+      clocks) and Figure 4-4 (MAC and MII registers, 24 clocks, a dummy byte before the data)
+    - >-
+      DS39662E Table 3-1 (Control Register Map), bank 3 column, the names and addresses of every
+      bank 3 register
+    - >-
+      DS39662E Register 3-4 (MISTAT), whose own heading corroborates its MII membership, and
+      Table 3-2, which describes MAADR1 to MAADR6 as the MAC address bytes
+    - >-
+      DS39662E sections 4.2.5 and 4.2.6 (Bit Field Set and Bit Field Clear), both restricted to
+      ETH control registers, and Table 16-6 parameter 2, whose CS hold time is 10 ns for ETH
+      registers against 210 ns for MAC and MII
+    - >-
+      DS39662C section 3.1, Table 3-1 and section 4.2.1 with the same figures, as an edition check
+    - >-
+      DS80349B and DS80349C, whole documents, as a negative locator, since neither edition
+      mentions the Read Control Register command, its framing, or the dummy byte
+    disposition: >-
+      Supported. The corpus establishes as a hardware requirement that a Read Control Register on
+      a MAC or MII register returns a leading dummy byte while an ETH register read returns the
+      data immediately, and it settles each bank 3 register's group. One qualification the reader
+      raised: the data sheet prints no per-register group column, so EREVID's ETH membership rests
+      on the section 3.1 name-prefix rule rather than on a direct statement. That is the case this
+      row exists for, since bank 3 is mixed and EREVID is read with the short framing.
   in_scope: true
   recoverable: true
   status: active
@@ -169,6 +203,11 @@ rows:
 
 
     Reader A only.
+
+
+    Adjudicated 2026-09-20 (group C item 2, option c): a third reader derived the grouping and the
+    read framing from the corpus blind and reached the same conclusion, including EREVID's
+    membership. The structured review above is that reading.
 
 
     Reader B states group membership inside ENC28J60-REG-003 and ENC28J60-REG-004 but has no row for
@@ -199,11 +238,12 @@ rows:
   notes: Merged with draft B ENC28J60-REG-006.
 - id: ENC28J60-REG-007
   statement: >-
-    The driver's register header defines names for registers DS39662E does not list, at bank 2 address
-    0x01 (a MACON2 with reset bits), bank 2 0x0D (MAPHSUP), bank 2 0x11 (MICON) and bank 1 0x16/0x17
-    (wake-on-LAN enable and flag registers). DS39662E shows those addresses as reserved or unimplemented.
-    Which is right for a given silicon revision cannot be settled from the corpus.
-  class: unresolved-conflict
+    The reference driver's register header defines names for four control-register addresses that
+    DS39662E shows as reserved or unimplemented: bank 2 address 0x01 (a MACON2 with reset bits),
+    bank 2 0x0D (MAPHSUP), bank 2 0x11 (MICON) and bank 1 0x16/0x17 (wake-on-LAN enable and flag
+    registers). The names are the driver's; the corpus does not establish that any register exists
+    at those addresses.
+  class: observed-software-behavior
   derivation:
   - source: drivers/net/ethernet/microchip/enc28j60_hw.h
     locator: bank 1 and bank 2 register name definitions
@@ -230,7 +270,16 @@ rows:
 
     Reader B saw the same header names and recorded them in the notes of ENC28J60-REG-002 and ENC28J60-REG-003
     without an unresolved-conflict row, reasoning that the 2007 data sheet edition the header was
-    written against is not in the corpus. Whether this deserves a row is for the adjudicator.
+    written against is not in the corpus.
+
+
+    Reclassed 2026-09-20 (ADJUDICATION.md group E2, answer (b)) from unresolved-conflict to
+    observed-software-behavior, and the statement reworded to match: the driver's header naming
+    addresses the data sheet marks reserved is a fact about the driver, not a disagreement between
+    the two readers, and the unresolved-conflict class is for two sources that disagree with no
+    reading to settle them. The reword also clears the checker's warning that the statement did not
+    present both readings, which it could never do. As an observed row it is outside the recall
+    denominator under policy enc28j60-1.1 and is reported as its own count.
 - id: ENC28J60-REG-008
   statement: >-
     ECON1 bit layout: TXRST bit 7 (hold transmit logic in reset), RXRST bit 6 (hold receive logic
@@ -725,10 +774,7 @@ rows:
     vendor_confirmed: []
     implementation_observed: false
     unresolved: false
-  weight: important
-  weight_disputed:
-    A: important
-    B: minor
+  weight: minor
   readers:
   - A
   - B
@@ -854,9 +900,8 @@ rows:
     Reader A only.
 - id: ENC28J60-REG-029
   statement: >-
-    EIR bit layout is PKTIF bit 6 (read-only), DMAIF bit 5, LINKIF bit 4 (read-only), TXIF bit 3,
-    reserved bit 2, TXERIF bit 1, RXERIF bit 0; DMAIF, TXIF, TXERIF and RXERIF are host-clearable,
-    PKTIF and LINKIF are not directly writable.
+    EIR bit layout is PKTIF bit 6, DMAIF bit 5, LINKIF bit 4, TXIF bit 3, reserved bit 2, TXERIF
+    bit 1, RXERIF bit 0.
   class: documented-hardware-requirement
   derivation:
   - source: DS39662E
@@ -867,23 +912,17 @@ rows:
     unresolved: false
   weight: critical
   readers:
+  - A
   - B
   in_scope: true
   recoverable: true
   status: active
-  overlaps:
-  - ENC28J60-IRQ-007
-  - ENC28J60-IRQ-008
-  - ENC28J60-IRQ-009
-  - ENC28J60-IRQ-010
-  - ENC28J60-IRQ-011
-  - ENC28J60-IRQ-012
   notes: >-
-    Marked 2026-09-20 after a second review: the per-bit read-only and host-clearable access facts
-    this row's legend states are also stated in ENC28J60-IRQ-007 through IRQ-012. Being the only
-    row that gives the EIR legend as one claim does not remove the clause-level duplication.
-    `replaced_by` is deliberately unset, which the freeze gate refuses; the disposition is
-    ADJUDICATION.md group F.
+    Narrowed 2026-09-20 (ADJUDICATION.md group F2, answer (b)) to the EIR bit positions and the
+    reserved bit, which no other active row states. The per-bit access facts the legend carried,
+    PKTIF and LINKIF read-only and DMAIF, TXIF, TXERIF and RXERIF host-clearable, stay with
+    ENC28J60-IRQ-007, IRQ-008, IRQ-009, IRQ-010, IRQ-011 and IRQ-012, which own them one bit at a
+    time. The `overlaps` marker is cleared because what is left is disjoint from those rows.
 
 
     The driver includes PKTIF in one Bit Field Clear mask when enabling the hardware; that clear has
@@ -894,9 +933,10 @@ rows:
 
 
     ENC28J60-IRQ-001 was narrowed to EIE on 2026-09-19, so this is the only EIR layout row. Reader
-    A stated the EIR bit positions inside IRQ-001 and the per-bit access facts across
-    ENC28J60-IRQ-007, IRQ-008, IRQ-009, IRQ-010, IRQ-011 and IRQ-012, but never the legend as one
-    claim; whether that counts as a second reading is ADJUDICATION.md group C.
+    A was added 2026-09-20 (ADJUDICATION.md group C3, answer (a)): A stated the EIR bit positions
+    inside IRQ-001 before that narrowing, and under the crediting rule in LEDGER-FORMAT.md a reader
+    who stated a clause inside a compound row is a reader of the atomic row. What A never stated as
+    one claim was the access legend, and the legend is no longer this row's content.
 - id: ENC28J60-REG-030
   statement: >-
     MAMXFL is a 16-bit maximum frame length in MAMXFLL/MAMXFLH resetting to 0x0600 (1536); frames
@@ -1256,10 +1296,7 @@ rows:
     vendor_confirmed: []
     implementation_observed: true
     unresolved: false
-  weight: important
-  weight_disputed:
-    A: important
-    B: minor
+  weight: minor
   readers:
   - A
   - B
@@ -1294,10 +1331,7 @@ rows:
     vendor_confirmed: []
     implementation_observed: true
     unresolved: false
-  weight: important
-  weight_disputed:
-    A: minor
-    B: important
+  weight: minor
   readers:
   - A
   - B
@@ -1367,9 +1401,6 @@ rows:
     implementation_observed: true
     unresolved: false
   weight: critical
-  weight_disputed:
-    A: important
-    B: critical
   readers:
   - A
   - B
@@ -1568,10 +1599,7 @@ rows:
     vendor_confirmed: []
     implementation_observed: true
     unresolved: false
-  weight: critical
-  weight_disputed:
-    A: critical
-    B: important
+  weight: important
   readers:
   - A
   - B
@@ -1604,10 +1632,7 @@ rows:
     vendor_confirmed: []
     implementation_observed: true
     unresolved: false
-  weight: critical
-  weight_disputed:
-    A: critical
-    B: important
+  weight: important
   readers:
   - A
   - B
@@ -1727,6 +1752,40 @@ rows:
   weight: critical
   readers:
   - B
+  independent_review:
+    reviewer: >-
+      Reader C, 2026-09-20. A third reader working from the frozen corpus alone, without sight of
+      this row or any other requirement on the subject, and without searching for one; the
+      reference driver was read for mechanism under the clean-room rule and never quoted.
+    locators:
+    - >-
+      DS39662E section 6.5 (MAC Initialization Settings), preamble and step 9, which say the
+      settings are programmed once, that the order among the MAC registers is unimportant, and
+      that the local MAC address goes into MAADR1 through MAADR6
+    - >-
+      DS39662E Table 3-2 (Control Register Summary), the MAADR1 to MAADR6 rows, giving bit ranges
+      47:40 down to 7:0, OUI bytes 1 to 3 on MAADR1 to MAADR3, and a reset value of zero
+    - >-
+      DS39662E Table 3-1 (Control Register Map), bank 3 offsets 0x00 to 0x05, where the name order
+      and the address order disagree
+    - >-
+      DS39662E section 8.1 (Unicast Filter) and Register 8-1 (ERXFCON) bit 7 UCEN, power-on value
+      0b10100001, so the unicast filter is enabled out of reset
+    - >-
+      DS39662C sections 6.5, 8.1 and the same register map, as an edition check across the errata
+      gap
+    - >-
+      DS80349C silicon issue 1 (MAC Interface, revisions B1 and B4), which makes MAC register
+      writes unreliable below an 8 MHz asynchronous SPI clock, a constraint on programming these
+      registers
+    disposition: >-
+      Supported. Section 6.5 step 9 with Table 3-2 establishes that the host must program the local
+      address into MAADR1:MAADR6, and Register 8-1 shows the unicast filter that consumes it is
+      enabled at reset, so a driver that omits this does not receive frames addressed to the
+      device. Two scope notes the reader raised, neither of which weakens the row: reception does
+      not depend on MAADR in promiscuous mode with ERXFCON cleared (section 8.0), and the corpus
+      does not say which source address the hardware places in the pause frames it generates
+      itself (section 10.2), so no claim is made about that path.
   in_scope: true
   recoverable: true
   status: active
@@ -1738,6 +1797,13 @@ rows:
     filters and never inserts it as the source address were minted as ENC28J60-INIT-027 and
     withdrawn at once in favor of ENC28J60-TX-003 and ENC28J60-RX-020. The requirement to program
     MAADR at all is stated only here; no A row carries it (ADJUDICATION.md group C).
+
+
+    Adjudicated 2026-09-20 (group C item 1, option b): rather than downgrade the row or credit a
+    compound row as a second reading, a third reader derived the requirement from the corpus blind.
+    Their derivation agreed with this row and with ENC28J60-REG-020's byte-to-address mapping,
+    including the trap that the register names and the bank 3 offsets run in different orders. The
+    structured review above is that reading.
 - id: ENC28J60-INIT-025
   statement: >-
     The reference driver writes ECON1 to zero with a full register write immediately after the soft
@@ -1953,9 +2019,6 @@ rows:
     implementation_observed: true
     unresolved: false
   weight: critical
-  weight_disputed:
-    A: important
-    B: critical
   readers:
   - A
   - B
@@ -2201,9 +2264,6 @@ rows:
     implementation_observed: true
     unresolved: false
   weight: critical
-  weight_disputed:
-    A: important
-    B: critical
   readers:
   - A
   - B
@@ -2461,7 +2521,7 @@ rows:
     vendor_confirmed: []
     implementation_observed: true
     unresolved: false
-  weight: important
+  weight: critical
   readers:
   - A
   - B
@@ -3019,10 +3079,7 @@ rows:
     vendor_confirmed: []
     implementation_observed: false
     unresolved: false
-  weight: important
-  weight_disputed:
-    A: important
-    B: minor
+  weight: minor
   readers:
   - A
   - B
@@ -3408,8 +3465,7 @@ rows:
     Merged with draft B ENC28J60-RX-028.
 - id: ENC28J60-RX-029
   statement: >-
-    Before reception is enabled the host must program ERXST and ERXND; the data sheet recommends an
-    even ERXST.
+    The data sheet recommends that ERXST be programmed to an even address.
   class: documented-hardware-requirement
   derivation:
   - source: DS39662E
@@ -3420,25 +3476,27 @@ rows:
     vendor_confirmed: []
     implementation_observed: true
     unresolved: false
-  weight: important
-  weight_disputed:
-    A: important
-    B: minor
+  weight: minor
   readers:
   - A
   - B
   in_scope: true
   recoverable: true
   status: active
-  overlaps:
-  - ENC28J60-RX-002
-  - ENC28J60-RX-018
   notes: >-
-    Marked 2026-09-20 after a second review: the pointer-before-enable content is also in
-    ENC28J60-RX-002 (ERXST/ERXND writable only while RXEN is clear) and ENC28J60-RX-018
-    (RXEN set after the pointers, MAC and filters are configured); the even-ERXST recommendation
-    is what no other row states. `replaced_by` is deliberately unset, which the freeze gate
-    refuses; the disposition is ADJUDICATION.md group F.
+    Narrowed 2026-09-20 (ADJUDICATION.md group F5, answer (b)) to the even-ERXST recommendation,
+    the only receive-buffer placement rule the data sheet itself states. Pointer-before-enable is
+    stated in ENC28J60-RX-002 (ERXST and ERXND are writable only while RXEN is clear) and
+    ENC28J60-RX-018 (RXEN is set after the pointers, MAC and filters are configured). The
+    `overlaps` marker is cleared because what is left is disjoint from those rows.
+
+
+    Weight minor (ADJUDICATION.md group B14) follows from the narrowed content: an alignment
+    recommendation, with the obligation it used to be attached to already bound by RX-002 and
+    RX-018. The reason first written on the sheet, that the reset defaults are a working FIFO, was
+    withdrawn as wrong on 2026-09-20: ERXST resets to 0x05FA (ENC28J60-REG-013) while DS80349C
+    issue 5 requires the receive buffer to start at 0x0000 (ENC28J60-RX-003), so the reset layout
+    does not satisfy the errata. The duplication argument is the whole reason.
 
 
     DS39662E section 6.1 also advises programming ERXRDPT to the same value as ERXST for tracking,
@@ -3537,9 +3595,7 @@ rows:
     Reader A reaches the same conclusion in the notes of ENC28J60-RX-029 without a row.
 - id: ENC28J60-RX-032
   statement: >-
-    A packet that fails the receive filters is discarded without any indication to the host; when a
-    packet is accepted and completely written to the buffer, EPKTCNT increments, EIR.PKTIF is set,
-    an interrupt is generated if enabled, and ERXWRPT advances.
+    A packet that fails the receive filters is discarded with no indication to the host.
   class: documented-hardware-requirement
   derivation:
   - source: DS39662E
@@ -3548,32 +3604,34 @@ rows:
     vendor_confirmed: []
     implementation_observed: true
     unresolved: false
-  weight: critical
+  weight: important
   readers:
   - B
   in_scope: true
   recoverable: true
   status: active
-  overlaps:
-  - ENC28J60-RX-013
-  - ENC28J60-RX-015
-  - ENC28J60-IRQ-007
   notes: >-
-    Marked 2026-09-20 after a second review: the accepted-packet consequences are represented in
-    ENC28J60-RX-013 (EPKTCNT), ENC28J60-IRQ-007 (PKTIF) and ENC28J60-RX-015 (the write pointer),
-    and "no other row states these as one claim" is not a deduplication argument. `replaced_by`
-    is deliberately unset, which the freeze gate refuses; the disposition is ADJUDICATION.md
-    group F.
+    Narrowed 2026-09-20 (ADJUDICATION.md group F3, answer (b)) to the silent-discard clause, the
+    part a driver author can get wrong nowhere else. The accepted-packet consequences it also
+    carried are stated in ENC28J60-RX-013 (EPKTCNT increments), ENC28J60-IRQ-007 (PKTIF is set) and
+    ENC28J60-RX-015 (the write pointer advances). The `overlaps` marker is cleared because what is
+    left is disjoint from those rows.
+
+
+    Weight important (ADJUDICATION.md group C5, answer (d)) follows from the narrowed content, not
+    from the two-reader rule: what remains is that a filtered frame leaves no trace, so a driver
+    built from a specification that omits it waits on a count or a flag that will not move for
+    frames the filters drop. That is a fragile receive path rather than a broken one. Downgrading a
+    row to escape the two-reader rule would not be acceptable; the rule simply stops applying once
+    the row is no longer critical.
 
 
     From draft B ENC28J60-RX-012; reader B only.
 
 
     Narrowed 2026-09-19: the enabling clause (RXEN set after configuration) is stated only in
-    ENC28J60-RX-018; this row keeps the consequence clauses, which no other active row states as one
-    claim (the pieces appear from other angles in ENC28J60-RX-013, RX-015 and IRQ-007). Weight is
-    B's for the original compound row; whether the narrowed row is still critical, and whether it
-    needs a second reader, is ADJUDICATION.md group C.
+    ENC28J60-RX-018. The critical weight this row carried until 2026-09-20 was reader B's, for the
+    original compound row.
 - id: ENC28J60-RX-033
   statement: >-
     Because a single read pointer governs buffer ownership, packets must be processed in the order
@@ -3714,6 +3772,81 @@ rows:
     Narrowed 2026-09-19: the acceptance test is ENC28J60-RX-025 and the batch loop ENC28J60-RX-030,
     both with B credited; this row keeps the one behavior neither states, that dropped frames are
     freed the same way as accepted ones.
+- id: ENC28J60-RX-038
+  statement: >-
+    The reference driver refuses a MAC address change while the interface is running rather than
+    reprogramming MAADR; DS39662E recommends clearing RXEN before such a change, so refusing it,
+    deferring it, or clearing RXEN around it are all permitted policies.
+  class: implementation-choice
+  derivation:
+  - source: drivers/net/ethernet/microchip/enc28j60.c
+    locator: the set-MAC-address entry point and the guard it applies while the interface is up
+  - source: DS39662E
+    locator: >-
+      section 7.2.1 Enabling Reception, the recommendation to clear RXEN before altering ERXFCON
+      and the MAC address
+  applicability:
+    vendor_confirmed: []
+    implementation_observed: true
+    unresolved: false
+  weight: minor
+  readers:
+  - A
+  - B
+  in_scope: true
+  recoverable: true
+  status: active
+  notes: >-
+    Added 2026-09-20 (ADJUDICATION.md group D4, answer y) from the possible omission both readers
+    recorded in the notes of ENC28J60-RX-018 and draft B RX-013, which the merge log lists in
+    section 5. A precision probe: a candidate that states the hardware forbids a MAC address change
+    while reception is enabled is misstated, because what section 7.2.1 states is a recommendation
+    and ENC28J60-RX-018 carries it. Programming MAADR at all is ENC28J60-INIT-024.
+
+
+    Weight minor. An implementation-choice row's weight never enters recall.
+- id: ENC28J60-RX-039
+  statement: >-
+    The reference driver rewrites ERXFCON from its receive-mode path while reception is enabled,
+    without clearing ECON1.RXEN first.
+  class: observed-software-behavior
+  derivation:
+  - source: drivers/net/ethernet/microchip/enc28j60.c
+    locator: the receive-mode work handler and the ERXFCON write it performs
+  - source: DS39662E
+    locator: >-
+      section 7.2.1 Enabling Reception, the recommendation to clear RXEN before altering ERXFCON
+      and the MAC address
+  applicability:
+    vendor_confirmed: []
+    implementation_observed: true
+    unresolved: false
+  weight: minor
+  readers:
+  - A
+  - B
+  in_scope: true
+  recoverable: true
+  status: active
+  notes: >-
+    Added 2026-09-20 (ADJUDICATION.md group D5, answer y) from the possible omission both readers
+    recorded in the notes of ENC28J60-RX-018 and draft B RX-013, which the merge log lists in
+    section 5.
+
+
+    What this row does and does not probe: a candidate that reports accurately that the reference
+    driver rewrites ERXFCON with RXEN set is not misstated by saying so, because DS39662E section
+    7.2.1 recommends clearing RXEN rather than prohibiting the rewrite, and a correctly attributed
+    observation of driver behavior is judged as that claim. What is wrong is presenting the rewrite
+    as following the vendor's recommendation, or as a hardware requirement; either is misstated
+    against ENC28J60-RX-018, which carries the recommendation and records
+    `implementation_observed` false because of this very behavior.
+
+
+    Weight minor under the weight rule in LEDGER-FORMAT.md: what the corpus establishes is the loss
+    of the recommendation's protection against accepting unexpected packets during the change, not
+    a broken receive path. Observed rows are outside the recall denominator under policy
+    enc28j60-1.1 and are reported as their own count.
 - id: ENC28J60-IRQ-001
   statement: >-
     EIE bit layout: INTIE bit 7 (global enable for the INT pin), PKTIE bit 6, DMAIE bit 5, LINKIE
@@ -4191,13 +4324,10 @@ rows:
     implementation_observed: false
     unresolved: false
   weight: minor
-  in_scope_disputed:
-    A: true
-    B: false
   readers:
   - A
   - B
-  in_scope: true
+  in_scope: false
   recoverable: true
   status: active
   notes: >-
@@ -4210,8 +4340,11 @@ rows:
     so the omission is visible.
 
 
-    in_scope disagreement: reader A true, reader B false (wake-on-LAN is not in the brief's coverage
-    list). Kept in scope as the more inclusive value; logged.
+    Out of scope from 2026-09-20 (ADJUDICATION.md group E1, answer (b)): wake-on-LAN is outside the
+    pilot's declared coverage, which is what reader B objected to and what the authoring brief's
+    coverage list says. The row stays active rather than being withdrawn, so a candidate that
+    states wake-on-LAN is not penalized for it; out-of-scope rows sit outside every denominator and
+    are reported separately. It is not out of scope for being hard.
 
 
     Merged with draft B ENC28J60-IRQ-015.
@@ -4397,9 +4530,6 @@ rows:
     implementation_observed: true
     unresolved: false
   weight: important
-  weight_disputed:
-    A: important
-    B: minor
   readers:
   - A
   - B
@@ -4581,10 +4711,7 @@ rows:
     vendor_confirmed: []
     implementation_observed: true
     unresolved: false
-  weight: critical
-  weight_disputed:
-    A: critical
-    B: important
+  weight: important
   readers:
   - A
   - B
@@ -4618,10 +4745,7 @@ rows:
     vendor_confirmed: []
     implementation_observed: true
     unresolved: false
-  weight: critical
-  weight_disputed:
-    A: important
-    B: critical
+  weight: important
   readers:
   - A
   - B
@@ -4759,10 +4883,7 @@ rows:
     - B7
     implementation_observed: true
     unresolved: false
-  weight: important
-  weight_disputed:
-    A: important
-    B: minor
+  weight: minor
   readers:
   - A
   - B
@@ -4912,7 +5033,7 @@ rows:
     vendor_confirmed: []
     implementation_observed: true
     unresolved: false
-  weight: important
+  weight: critical
   readers:
   - A
   - B
@@ -4920,10 +5041,14 @@ rows:
   recoverable: true
   status: active
   notes: >-
-    Weight justification (important, the adjudicator's judgment, recorded 2026-09-20): HDLDIS at
-    bit 8 is what stops the half-duplex reset default from looping transmitted packets back into
-    the receive buffer (DS39662E section 9.1), so a driver built from a wrong layout receives its
-    own transmissions in half duplex; the reserved bits it also enumerates must be written 0.
+    Weight justification (critical, the adjudicator's answer of 2026-09-20): PHCON2 holds HDLDIS,
+    and a driver written from a specification that omits the layout leaves half-duplex loopback
+    enabled, so every transmitted packet is looped back into the receive path (DS39662E section
+    9.1, Register 6-5: with PHCON1<8> and PHCON1<14> clear, HDLDIS = 0 loops transmitted data back
+    to the MAC). The reserved bits the row also enumerates must be written 0. The earlier note
+    placing the row by whether the driver only reads the register is gone: that rule was withdrawn
+    as unsound, and it was factually wrong here, since the driver writes PHCON2 in both duplex
+    branches.
 
 
     Merged with draft B ENC28J60-PHY-013.
@@ -4966,8 +5091,7 @@ rows:
   statement: >-
     PHLCON layout: LACFG<3:0> bits 11-8 configure LEDA, LBCFG<3:0> bits 7-4 configure LEDB, LFRQ<1:0>
     bits 3-2 select the stretch length, STRCH bit 1 enables pulse stretching. Bits 13-12 must be written
-    as 1, bits 15-14 and bit 0 as 0. Reset value is 0x342x. Common codes: 0100 link status, 0101 duplex
-    status, 0111 transmit and receive activity, 0011 collision activity, 1000 on, 1001 off.
+    as 1, bits 15-14 and bit 0 as 0. Reset value is 0x342x.
   class: documented-hardware-requirement
   derivation:
   - source: DS39662E
@@ -4986,6 +5110,12 @@ rows:
   recoverable: true
   status: active
   notes: >-
+    Narrowed 2026-09-20 (ADJUDICATION.md group G11, answer (c)) to the register's layout, its reset
+    value and its reserved-as-1 bits. The table of common LED configuration codes it also carried
+    is now ENC28J60-PHY-032: the codes are a lookup a driver selects from, not part of the
+    register's layout, and ENC28J60-PHY-022 already turns on which code is programmed.
+
+
     Reader B adds: The reserved-as-1 bits are the trap: a value that clears bits 13:12 violates the
     register definition.
 
@@ -5091,10 +5221,7 @@ rows:
     - B7
     implementation_observed: false
     unresolved: false
-  weight: important
-  weight_disputed:
-    A: important
-    B: minor
+  weight: minor
   readers:
   - A
   - B
@@ -5169,10 +5296,7 @@ rows:
     vendor_confirmed: []
     implementation_observed: false
     unresolved: false
-  weight: important
-  weight_disputed:
-    A: important
-    B: minor
+  weight: minor
   readers:
   - A
   - B
@@ -5283,6 +5407,101 @@ rows:
     From draft B ENC28J60-PHY-027. Reader A stated scan mode inside ENC28J60-PHY-005 (important);
     those clauses moved here on 2026-09-19 and A is credited. Weight is B's; A did not weight the
     clauses separately (ADJUDICATION.md group B).
+- id: ENC28J60-PHY-030
+  statement: >-
+    The reference driver treats a timeout while writing PHLCON as the PHY being absent and aborts
+    initialization; no document in the corpus establishes such a liveness check, and any check, or
+    none, is permitted.
+  class: implementation-choice
+  derivation:
+  - source: drivers/net/ethernet/microchip/enc28j60.c
+    locator: the hardware initialization path, the PHLCON write and the branch taken when it times out
+  - source: DS39662E
+    locator: section 3.3.2 Writing PHY Registers, the MISTAT.BUSY completion rule
+  applicability:
+    vendor_confirmed: []
+    implementation_observed: true
+    unresolved: false
+  weight: minor
+  readers:
+  - A
+  in_scope: true
+  recoverable: true
+  status: active
+  notes: >-
+    Added 2026-09-20 (ADJUDICATION.md group D2, answer y) from the possible omission reader A
+    recorded in the notes of ENC28J60-PHY-021, which the merge log lists in section 5. A precision
+    probe: a candidate that presents a PHLCON write timeout as the documented way to detect a
+    missing PHY, or as a required initialization step, is misstated. The LED value the same write
+    programs is ENC28J60-PHY-021; the write rules are ENC28J60-PHY-020.
+
+
+    Weight minor. An implementation-choice row's weight never enters recall, because the class is a
+    precision probe and is outside every recall denominator.
+- id: ENC28J60-PHY-031
+  statement: >-
+    MIREGADR is five bits wide: MIREGADR<4:0> carries the PHY register address and bits 7-5 are
+    unimplemented. Thirty-two PHY addresses are therefore addressable, of which nine are
+    implemented; the implemented bits reset to 0.
+  class: documented-hardware-requirement
+  derivation:
+  - source: DS39662E
+    locator: Table 3-2 Control Register Summary, the MIREGADR row and its reset value column
+  - source: DS39662E
+    locator: section 3.3 PHY Registers, the count of PHY addresses
+  applicability:
+    vendor_confirmed: []
+    implementation_observed: true
+    unresolved: false
+  weight: minor
+  readers: []
+  in_scope: true
+  recoverable: true
+  status: active
+  notes: >-
+    Added 2026-09-20 (ADJUDICATION.md group D7, answer y). Neither draft made a row for it, which
+    is why `readers` is empty: the merge log's section 5 records that ENC28J60-PHY-006 lists the
+    nine implemented PHY addresses but no row states the width of the register that carries them.
+    Derived from the pinned data sheet, not from either draft.
+
+
+    Weight minor under the weight rule in LEDGER-FORMAT.md: every implemented PHY address is below
+    0x20, so a driver that writes a whole byte to MIREGADR still reaches the register it meant to;
+    the width matters only to a reader reasoning about addresses above 0x1F, which
+    ENC28J60-PHY-006 already says are unimplemented.
+- id: ENC28J60-PHY-032
+  statement: >-
+    The LACFG<3:0> and LBCFG<3:0> fields of PHLCON select an LED function from the data sheet's
+    table of configuration codes. Common codes: 0100 link status, 0101 duplex status, 0111 transmit
+    and receive activity, 0011 collision activity, 1000 on, 1001 off.
+  class: documented-hardware-requirement
+  derivation:
+  - source: DS39662E
+    locator: Register 2-2 PHLCON, the LACFG<3:0> and LBCFG<3:0> bit descriptions
+  applicability:
+    vendor_confirmed: []
+    implementation_observed: true
+    unresolved: false
+  weight: minor
+  readers:
+  - A
+  - B
+  in_scope: true
+  recoverable: true
+  status: active
+  notes: >-
+    Split out of ENC28J60-PHY-020 on 2026-09-20 (ADJUDICATION.md group G11, answer (c)): the codes
+    are a lookup a driver selects from rather than part of the register's layout, so PHY-020 keeps
+    the layout, the reset value and the reserved-as-1 bits and this row carries the table.
+    `readers` is inherited from PHY-020, whose merged statement carried these codes. Register 2-2
+    gives the complete encoding of both fields, including the blink and always-stretched combined
+    modes and the reserved values; the six above are the ones PHY-020 listed.
+
+
+    Weight minor under the weight rule in LEDGER-FORMAT.md: the LED outputs are a feature a driver
+    need not configure at all, and a driver built from a specification that omits the codes still
+    moves frames. Which code the reference driver programs is ENC28J60-PHY-021, and the combined
+    mode DS80349C issue 11 breaks is ENC28J60-PHY-022.
 - id: ENC28J60-SPI-001
   statement: >-
     The host SPI must use mode 0,0 only, with SCK idle low; the device samples SI on the rising edge
@@ -5328,9 +5547,6 @@ rows:
     implementation_observed: true
     unresolved: false
   weight: critical
-  weight_disputed:
-    A: important
-    B: critical
   readers:
   - A
   - B
@@ -5358,10 +5574,7 @@ rows:
     vendor_confirmed: []
     implementation_observed: false
     unresolved: false
-  weight: critical
-  weight_disputed:
-    A: critical
-    B: important
+  weight: important
   readers:
   - A
   - B
@@ -5605,10 +5818,7 @@ rows:
     vendor_confirmed: []
     implementation_observed: true
     unresolved: false
-  weight: critical
-  weight_disputed:
-    A: critical
-    B: important
+  weight: important
   readers:
   - A
   - B
@@ -5678,9 +5888,6 @@ rows:
     implementation_observed: true
     unresolved: false
   weight: critical
-  weight_disputed:
-    A: critical
-    B: important
   readers:
   - A
   - B
@@ -5701,9 +5908,9 @@ rows:
     Merged with draft B ENC28J60-RX-019.
 - id: ENC28J60-SPI-014
   statement: >-
-    Write Buffer Memory is the single byte 0x7A (opcode 011, constant 0x1A) followed by any number
-    of data bytes MSb first; bytes are stored at EWRPT, which auto-increments after each byte when
-    ECON2.AUTOINC is set and wraps from 0x1FFF to 0x0000 only.
+    Any number of data bytes may be streamed after the Write Buffer Memory command, MSb first; each
+    is stored at EWRPT, which auto-increments after every byte when ECON2.AUTOINC is set and wraps
+    from 0x1FFF to 0x0000 only.
   class: documented-hardware-requirement
   derivation:
   - source: DS39662E
@@ -5715,24 +5922,21 @@ rows:
     implementation_observed: true
     unresolved: false
   weight: critical
-  weight_disputed:
-    A: important
-    B: critical
   readers:
   - A
   - B
   in_scope: true
   recoverable: true
   status: active
-  overlaps:
-  - ENC28J60-SPI-005
   notes: >-
+    Narrowed 2026-09-20 (ADJUDICATION.md group F4, answer (b)) to the streaming behavior. The
+    command encoding, opcode 011 with the constant 0x1A giving the byte 0x7A, is stated in
+    ENC28J60-SPI-005, which owns every opcode encoding; the `overlaps` marker is cleared because
+    what is left is disjoint from that row. The weight stays critical: nothing can be transmitted
+    without the write path, its storage at EWRPT and its auto-increment.
+
+
     Reader B adds: Writes never wrap at the receive buffer boundary; only reads do (see the RX rows).
-
-
-    Marked 2026-09-20 after a second review: the Write Buffer Memory command encoding (opcode 011,
-    constant 0x1A, byte 0x7A) is also stated in ENC28J60-SPI-005. `replaced_by` is deliberately
-    unset, which the freeze gate refuses; the disposition is ADJUDICATION.md group F.
 
 
     Merged with draft B ENC28J60-SPI-006.
@@ -5815,9 +6019,6 @@ rows:
     implementation_observed: false
     unresolved: false
   weight: critical
-  weight_disputed:
-    A: critical
-    B: important
   readers:
   - A
   - B
@@ -5928,16 +6129,23 @@ rows:
   - B
   in_scope: true
   recoverable: true
-  status: active
+  status: withdrawn
+  replaced_by:
+  - ENC28J60-SPI-013
+  - ENC28J60-SPI-014
+  - ENC28J60-REG-009
   overlaps:
   - ENC28J60-SPI-013
   - ENC28J60-SPI-014
   - ENC28J60-REG-009
   notes: >-
-    Marked 2026-09-20 after a second review: the AUTOINC streaming semantics are also in
-    ENC28J60-SPI-013 and ENC28J60-SPI-014 and the reset value in ENC28J60-REG-009, so a candidate
-    stating them once would be credited more than once. `replaced_by` is deliberately unset, which
-    the freeze gate refuses; the disposition is ADJUDICATION.md group F.
+    Withdrawn 2026-09-20 (ADJUDICATION.md group F1, answer (a), which also answers group C4 with
+    "w"): no clause survives the narrowing. The conditional streaming semantics are stated in
+    ENC28J60-SPI-013 and ENC28J60-SPI-014, and the bit's set-after-reset value in
+    ENC28J60-REG-009; the "must be set" framing is the same fact as SPI-013's conditional rather
+    than an additional one. Reader B's reading is therefore carried by those three rows, all of
+    which have both readers, and the one-sided critical question that was group C4 disappears with
+    the row.
 
 
     The driver's write of the bit at initialization, which this row also carried, is recorded in
@@ -5947,9 +6155,9 @@ rows:
     From draft B ENC28J60-SPI-017; reader B only.
 
 
-    Reader A states the conditional semantics inside ENC28J60-SPI-013 and ENC28J60-SPI-014 and the
-    reset value in ENC28J60-REG-009, but has no row stating the bit must be set; whether that
-    counts as a second reading is ADJUDICATION.md group C.
+    Reader A stated the conditional semantics inside ENC28J60-SPI-013 and ENC28J60-SPI-014 and the
+    reset value in ENC28J60-REG-009, and has no row stating the bit must be set; that asymmetry is
+    what the withdrawal resolves.
 - id: ENC28J60-SPI-022
   statement: >-
     The reference driver issues a full 16-bit pointer register write as two separate one-byte Write
@@ -5979,6 +6187,39 @@ rows:
 
 
     Reader A notes the low-then-high helper in ENC28J60-RX-007 and ENC28J60-PHY-003 without a row.
+- id: ENC28J60-SPI-023
+  statement: >-
+    The reference driver issues the System Reset Command through its generic two-byte write path,
+    so a second byte follows the command on the wire where the data sheet describes a one-byte
+    command; the corpus does not say whether the trailing byte matters.
+  class: observed-software-behavior
+  derivation:
+  - source: drivers/net/ethernet/microchip/enc28j60.c
+    locator: the soft-reset path and the two-byte write helper it uses to send the command
+  - source: DS39662E
+    locator: section 4.2.7 System Reset Command, Figure 4-7
+  applicability:
+    vendor_confirmed: []
+    implementation_observed: true
+    unresolved: false
+  weight: minor
+  readers:
+  - A
+  - B
+  in_scope: true
+  recoverable: true
+  status: active
+  notes: >-
+    Added 2026-09-20 (ADJUDICATION.md group D1, answer y) from the possible omission both readers
+    recorded in the notes of ENC28J60-SPI-008 and draft B SPI-009, which the merge log lists in
+    section 5. The command itself is one byte, which is ENC28J60-SPI-008. No document in the corpus
+    says a trailing byte is harmful and none says it is safe, so the row states the behavior and
+    the gap and claims no consequence.
+
+
+    Weight minor under the weight rule in LEDGER-FORMAT.md: no consequence is established, so the
+    row is completeness. Observed rows are outside the recall denominator under policy
+    enc28j60-1.1 and are reported as their own count.
 - id: ENC28J60-ELEC-001
   statement: >-
     The clock input must be exactly 25 MHz with a tolerance of 50 ppm; an external clock must have
@@ -5993,10 +6234,7 @@ rows:
     vendor_confirmed: []
     implementation_observed: false
     unresolved: false
-  weight: important
-  weight_disputed:
-    A: important
-    B: minor
+  weight: minor
   readers:
   - A
   - B
@@ -6058,10 +6296,7 @@ rows:
     vendor_confirmed: []
     implementation_observed: false
     unresolved: false
-  weight: important
-  weight_disputed:
-    A: important
-    B: minor
+  weight: minor
   readers:
   - A
   - B
