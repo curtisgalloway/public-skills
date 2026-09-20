@@ -7,6 +7,8 @@ Code, but are written to work with any agent that supports the skill/slash-comma
 The skills are packaged by theme. Each theme is a directory under `plugins/`, a plugin in this
 repo's Claude Code marketplace, and has its own README with the details.
 
+Terminology is defined in the [glossary](GLOSSARY.md).
+
 ## Themes
 
 | Plugin | What it covers | Skills |

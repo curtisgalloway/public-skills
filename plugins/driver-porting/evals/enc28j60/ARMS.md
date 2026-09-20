@@ -13,6 +13,14 @@ adjusted after seeing a result.
 
 No paired run has taken place. This is a protocol, not a result.
 
+## Terms
+
+- **Arm** — a specification-generation condition, with or without the skill.
+- **Reconstruction** — implementing a driver from the frozen spec on the reference OS.
+- **Candidate** — the particular spec or driver being evaluated.
+
+See the repository [glossary](../../../../GLOSSARY.md).
+
 ## What the practice run established about the design
 
 The 2026-09-20 run (`PRACTICE-RUN.md`) was a workflow trial with a single arm, and its record
@@ -61,6 +69,17 @@ that errata issue numbers are renumbered between editions, that both served erra
 a data sheet edition two revisions old, that `EREVID`'s codes do not track the revision number —
 are reachable from the pinned documents and are exactly what the manifest refuses to pre-chew.
 
+## Shared target and environment
+
+Before writing either prompt, declare the same target OS/revision and feature scope for both
+spec authors. For this pilot the reconstruction target is the corpus's pinned Linux revision.
+State that task constraint without prescribing headings, mapping sections, or treatment methods.
+Give both authors identical general OS development inputs, recorded in the generation brief.
+Fixture-specific board wiring and OS binding configuration go only in the separate, shared
+implementation brief, outside the specs; record all such facts and their source. In both stages, neither arm gets undisclosed help.
+Do not require the baseline to reproduce the treatment's integration section. Report any
+resulting OS-integration advantage separately from hardware-fact coverage.
+
 ## Baseline prompt discipline
 
 The baseline prompt states the task and the deliverable, and nothing about how to do it. In
@@ -104,7 +123,38 @@ precision ratio of one.
    incomparable.
 2. `uv run --with pyyaml python3 ledger_check.py ledger.yaml --lock ledger.lock` — 0 errors.
 3. `uv run --with pyyaml python3 author_manifest.py --check author-manifest.yaml`.
-4. Decide and write down, for both arms: the model, the budget, the tool set, the access profile,
+4. Decide and write down, for both arms: the target OS/revision and scope, the model, the budget,
+   the tool set, the access profile,
    and whether the run is `practice` or `blind`. Record unknowns as `unknown`.
 5. Decide who reviews, and whether they can be independent of the authors. If they cannot, say so
    in the report rather than in a footnote.
+
+## Downstream reconstruction
+
+Both exact frozen spec artifacts feed the [reconstruction run](RECONSTRUCTION-RUN.md), under
+[the shared OS-neutral protocol](../../RECONSTRUCTION.md). Freeze that protocol, scope, inputs,
+and independent checks before inspecting paired candidates. Record each spec's hash and opaque
+ID in a separate reconstruction manifest; do not change the documentary lock or review schemas.
+
+Use separate implementer contexts with identical model/settings, brief, allowed OS documentation,
+scaffolding, format-neutral implementation instructions, tools, budget, and stopping conditions.
+Do not load the treatment-specific `cleanroom-implementer` prose into either run; use the shared
+protocol's mechanical controls and neutral brief. The
+only intended difference at this stage is the supplied spec. Do not disclose arm labels, scores,
+review findings, the original device source, or the other candidate. Unknown conditions remain
+unknown; material differences make the implementation comparison unpaired even if generation
+was paired. Keep generation and implementation pairing judgments separate.
+
+Implementations may run alongside documentary review without receiving its feedback. Freeze
+both drivers before reference comparison and evaluator-test feedback. Preserve failures, gaps,
+and budget exhaustion. Report implementation results separately from recall and precision, with
+source-supported attribution rather than treating every coding failure as a spec failure.
+A procedure trial or repaired implementation cannot substitute for a primary paired result.
+
+The generation decisions above do not authorize reconstruction spending: complete the run
+guide's preparation record and separately agree on implementer settings, reviewers, and budget.
+
+Report the shared protocol's OS-integration scoring caveat: hardware recall and all-claim
+precision cover different claim populations, and the frozen citation contract may not admit
+additional OS API evidence. Do not change denominators, allowed citation sources, or review
+schemas to accommodate the new reconstruction track.

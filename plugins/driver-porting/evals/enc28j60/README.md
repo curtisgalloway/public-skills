@@ -28,6 +28,17 @@ test quality right on something cheap before the method is pointed at a complex 
 | `score.py` | A | scores reviewed claims and frozen fact dispositions; archives attempts and applies strict documentary acceptance |
 | `SCORING-RUN.md` | A | review contract, CLI, policy, replay, and limits |
 
+## Planned reconstruction track
+
+The [shared OS-neutral protocol](../../RECONSTRUCTION.md) adds driver reconstruction from each
+frozen spec. The [pilot run guide](RECONSTRUCTION-RUN.md) describes the environment, scope,
+checks, isolation, and budgets to establish before running. Linux is selected by this pilot's
+existing corpus; future devices can use another reference OS. No reconstruction run or execution
+runner is supplied yet. Results will be separate from the frozen documentary scores, and the
+paired generation/review sequence in [ARMS.md](ARMS.md) remains in force.
+
+See the repository [glossary](../../../../GLOSSARY.md) for shared terminology.
+
 ## Stage A
 
 The scoring tool is implemented and tested. The [first practice run](PRACTICE-RUN.md) exercised

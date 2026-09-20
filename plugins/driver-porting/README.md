@@ -147,6 +147,16 @@ The Fuchsia-specific skills that consume this pipeline live in
 [curtisgalloway/fuchsia-skills](https://github.com/curtisgalloway/fuchsia-skills) and hand
 off to these by name.
 
+## Evaluating specification quality
+
+The [evaluation plan](EVAL-PLAN.md) measures both document quality and downstream usability.
+The [OS-neutral reconstruction protocol](RECONSTRUCTION.md) defines how isolated implementers
+build drivers from generated specs and evaluators compare them with the selected reference.
+The [ENC28J60 pilot](evals/enc28j60/README.md) has documentary scoring tools and a paired-run
+protocol; paired generation and reconstruction remain pending. Its
+[reconstruction run guide](evals/enc28j60/RECONSTRUCTION-RUN.md) lists preparation still needed.
+See the repository [glossary](../../GLOSSARY.md) for evaluation terminology.
+
 ## Tests
 
 ```bash
