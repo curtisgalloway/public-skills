@@ -430,10 +430,10 @@ class Verification(unittest.TestCase):
             with self.subTest(flags=flags):
                 code, data, _ = run(VERIFY, flags=flags)
                 self.assertEqual(code, 1)
-                self.assertEqual(data["specs"], 5)  # records are not specs
+                self.assertEqual(data["specs"], 6)  # records are not specs
                 self.assertEqual(
                     data["verification"],
-                    {"verified": 1, "stale": 1, "failing": 1, "unverified": 1, "malformed": 1},
+                    {"verified": 1, "stale": 2, "failing": 1, "unverified": 1, "malformed": 1},
                 )
                 msgs = "\n".join(messages(data))
                 self.assertIn("verification record reports 1 FAIL verdict(s)", msgs)
@@ -448,6 +448,30 @@ class Verification(unittest.TestCase):
                 self.assertTrue(
                     any(k.startswith("verification stale") and v == "warning" for k, v in by_level.items())
                 )
+
+    def test_stale_record_with_fail_verdicts_is_an_error(self):
+        import shutil, tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp) / "root"
+            (root / "resources").mkdir(parents=True)
+            shutil.copy(VERIFY / "board-specs.yaml", root)
+            shutil.copy(VERIFY / "vstalefail.spec.md", root)
+            shutil.copy(VERIFY / "resources" / "vstalefail.verify.md", root / "resources")
+            for flags in PARSER_FLAGS:
+                for require in (False, True):
+                    with self.subTest(flags=flags, require=require):
+                        args = ["--require-verified"] if require else []
+                        code, data, err = run(root, *args, flags=flags)
+                        self.assertEqual(code, 1, err + json.dumps(data))
+                        self.assertEqual(data["verification"], {"stale": 1})
+                        by_level = {f["message"]: f["level"] for f in data["findings"]}
+                        self.assertEqual(by_level, {
+                            "verification stale: resources/vstalefail.verify.md was written for another version of this file":
+                                "error" if require else "warning",
+                            "verification record reports 1 FAIL verdict(s); see resources/vstalefail.verify.md":
+                                "error",
+                        })
 
     def test_require_verified_upgrades_the_warnings(self):
         code, data, _ = run(VERIFY, "--require-verified", flags=["--no-pyyaml"])
