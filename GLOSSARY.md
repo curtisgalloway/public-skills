@@ -38,6 +38,14 @@ evaluation; add other terms as the documents that use them are updated.
 | Milestone | A bounded deliverable with dependencies, acceptance criteria, verification, review, and a recorded checkpoint. |
 | Validation contract | A test's requirements, independently supported expected observations, decision rule, setup, and limits. |
 | Run manifest | The record identifying an experiment's inputs, settings, versions, access rules, and output artifacts. |
+| Preparation manifest | An input and decision record that lists unresolved launch prerequisites; it is not a frozen execution manifest or permission to run. |
+| Sidecar | A separate record linked to existing artifacts by identity or digest, without modifying those artifacts. |
+| Custody | Locating and recovering the exact archived bytes used in an earlier run. |
+| Qualification | Demonstrating that a build, access control, fixture, or check works within its declared scope. |
+| Device tree / DTB | A hardware description supplied to a kernel / its compiled binary form. |
+| GPIO / IRQ | General-purpose input/output pin / an interrupt request that signals an event to a processor. |
+| FCS | Ethernet frame check sequence: the error-detection bytes that a capture may include or strip. |
+| defconfig | A kernel's starting configuration; the resolved build configuration must still be recorded. |
 | Evidence channel | A means of collecting observations, such as a traffic peer or instrument capture; its suitability must be established for the observation. |
 | Test envelope | The approved equipment configuration, operations, rates, duration, and other limits of a test. |
 | Held-out test | An evaluation case kept out of development and tuning, used afterward to assess transfer to unfamiliar cases. |

@@ -1,0 +1,304 @@
+{
+  "spdx_license_identifier": "Apache-2.0",
+  "spdx_file_copyright_text": "2026 contributors",
+  "record_kind": "M01 preparation pins, not an execution schema",
+  "version": 1,
+  "experiment": "enc28j60-reconstruction-trial-01",
+  "repository_revision": "3d7eb2913551e0d462f0e22f4541c970b25af679",
+  "path_base": "plugins/driver-porting",
+  "repository_files": [
+    {
+      "path": "evals/enc28j60/ledger.lock",
+      "bytes": 3696,
+      "sha256": "e22a73d945334f3f042bf71d70448836f6039964f17b60a4d20055325bdbe18c",
+      "role": "documentary freeze artifact"
+    },
+    {
+      "path": "evals/enc28j60/ledger.yaml",
+      "bytes": 260230,
+      "sha256": "3479587b9ee0f174209a956c7bebeca8e1d53001df8156908d05d1787db070b2",
+      "role": "documentary freeze artifact"
+    },
+    {
+      "path": "evals/enc28j60/corpus.yaml",
+      "bytes": 11331,
+      "sha256": "73c74ecd63b2d0d048234eeb0e9f8b255275306de9f601e5971300a738fe4beb",
+      "role": "documentary freeze artifact"
+    },
+    {
+      "path": "evals/enc28j60/SCORING-POLICY.md",
+      "bytes": 46683,
+      "sha256": "42561dee60b875879f0dfb6d879c62fb2aa1d52e62a418ef53b8fe543b7744fc",
+      "role": "documentary freeze artifact"
+    },
+    {
+      "path": "evals/enc28j60/LEDGER-FORMAT.md",
+      "bytes": 15332,
+      "sha256": "996e3f976c80e0822d8ee5187e155b539782e188fdc99455a994050420388ddc",
+      "role": "documentary freeze artifact"
+    },
+    {
+      "path": "evals/enc28j60/SCORING-FACTS.md",
+      "bytes": 73094,
+      "sha256": "45bd5768f56b2d4aec519d98b1cdb7358add6e07ace0e97d3b7edcc1ff340aaa",
+      "role": "documentary freeze artifact"
+    },
+    {
+      "path": "evals/enc28j60/score.py",
+      "bytes": 28355,
+      "sha256": "54da16d37074ebb25115d4d6ce9621481aeb538a2ccad8004766d73d3afc10bf",
+      "role": "current documentary tool"
+    },
+    {
+      "path": "evals/enc28j60/prepare.py",
+      "bytes": 19321,
+      "sha256": "241a1f746ad422f5f20ba4003bd39dd1cdda205f8680452fa8e202d45ae7ae6f",
+      "role": "current documentary tool"
+    },
+    {
+      "path": "evals/enc28j60/ledger_check.py",
+      "bytes": 31963,
+      "sha256": "d6583496ba5316948eb367b6409b42e41c4c46e9ba4d11afa15c9cc6f4bcc0d4",
+      "role": "current documentary tool"
+    },
+    {
+      "path": "skills/board-expert/scripts/strict_accept.py",
+      "bytes": 1704,
+      "sha256": "010b14960547e4cc4f74cc37e9b9c0af3f0fc1aec07724d9614970a94b556d2a",
+      "role": "current documentary tool"
+    },
+    {
+      "path": "skills/cleanroom-implementer/scripts/cleanroom_hook.py",
+      "bytes": 13768,
+      "sha256": "9cf4104bf4430fdccc16a0d8a922fcbb21a7bf4f3e2ddcf65190df3014c38d7e",
+      "role": "control helper"
+    },
+    {
+      "path": "skills/cleanroom-implementer/scripts/session_audit.py",
+      "bytes": 18406,
+      "sha256": "ecb4b3505dd04afe55705cf5061008a877a7a7f8f626df3abdef7b03783d1788",
+      "role": "control helper"
+    },
+    {
+      "path": "skills/cleanroom-implementer/assets/cleanroom-policy.json",
+      "bytes": 1679,
+      "sha256": "987e9e7c712e4b9352df1dd9adee280d5c0774f7ecdecc0a14b1c2ef8dbccc12",
+      "role": "control helper"
+    },
+    {
+      "path": "skills/os-investigator/scripts/leak_scan.py",
+      "bytes": 11193,
+      "sha256": "cbdd37892feddc0dda0f7b8a92416439888e133cdf9028ac7e71d0059fb82ac6",
+      "role": "control helper"
+    },
+    {
+      "path": "evals/enc28j60/RECONSTRUCTION-TRIAL.md",
+      "bytes": 17629,
+      "sha256": "8504d62ad0b353a1a5075a5306fe433044395ca8a6ea8f1e5a29e44d21216e7f",
+      "role": "preserved predecessor preparation"
+    },
+    {
+      "path": "evals/enc28j60/reconstruction/IMPLEMENTER-BRIEF-v1.md",
+      "bytes": 2419,
+      "sha256": "da6dbf36c3919e2b3e141b8e39441dcb6760652ce5225a6db9a3c4993243724e",
+      "role": "new trial task template; not launch-frozen"
+    }
+  ],
+  "historical_run_id": "enc28j60-practice-20260920-01",
+  "private_archive_files": [
+    {
+      "path": "generation/workspace/output/candidate.md",
+      "bytes": 120897,
+      "sha256": "516b7854e97fca4577d67922d2a49d174a80ebae9df9956d3a0738788f76bd06"
+    },
+    {
+      "path": "scores/attempt-01/candidate.md",
+      "bytes": 120897,
+      "sha256": "516b7854e97fca4577d67922d2a49d174a80ebae9df9956d3a0738788f76bd06"
+    },
+    {
+      "path": "scores/attempt-02/candidate.md",
+      "bytes": 120897,
+      "sha256": "516b7854e97fca4577d67922d2a49d174a80ebae9df9956d3a0738788f76bd06"
+    },
+    {
+      "path": "generation/workspace/inputs/enc28j60.c",
+      "bytes": 45062,
+      "sha256": "9fb940a540749bb10d662792af4e1babb2f0cdc7bd6ceff08811b0fcd245c5f0"
+    },
+    {
+      "path": "generation/workspace/inputs/enc28j60_hw.h",
+      "bytes": 8952,
+      "sha256": "2a90e04f93d2099ad8c67942c3564184594865dee322e050c912cddc5957fa62"
+    },
+    {
+      "path": "scores/attempt-02/result.json",
+      "bytes": 99221,
+      "sha256": "70e27b109380225c01c81f4cb02de2464ce28f15a1778f640b009c6d77296498"
+    },
+    {
+      "path": "scores/attempt-02/score.py",
+      "bytes": 19780,
+      "sha256": "c3c6803089bfcf00a8d68615be38a835fc4084943cea2eb87e09e4877177ea26"
+    },
+    {
+      "path": "scores/attempt-02/ledger_check.py",
+      "bytes": 30149,
+      "sha256": "0969f15a93d95119439f87eaa27a982862e32e91e99892f5191c84a1f172425e"
+    },
+    {
+      "path": "scores/attempt-02/strict_accept.py",
+      "bytes": 1704,
+      "sha256": "010b14960547e4cc4f74cc37e9b9c0af3f0fc1aec07724d9614970a94b556d2a"
+    }
+  ],
+  "linux_commit": "adc218676eef25575469234709c2d87185ca223a",
+  "retrieved_upstream_files": [
+    {
+      "path": "Documentation/driver-api/spi.rst",
+      "bytes": 2766,
+      "sha256": "9d388af2afacb060eee374e09d51e87e9f18c97f4dfe689593717511c8b93668",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/adc218676eef25575469234709c2d87185ca223a/Documentation/driver-api/spi.rst",
+      "disposition": "selected general API source; final export audit blocked B04"
+    },
+    {
+      "path": "Documentation/networking/netdevices.rst",
+      "bytes": 9525,
+      "sha256": "31533ece330addf25594836b80db23e8f8ce8dc0ddad6f48d2812ad5fbb142f1",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/adc218676eef25575469234709c2d87185ca223a/Documentation/networking/netdevices.rst",
+      "disposition": "selected general API source; final export audit blocked B04"
+    },
+    {
+      "path": "Documentation/core-api/memory-allocation.rst",
+      "bytes": 9192,
+      "sha256": "26022cb50cba35d29c48aaab14f16ca9bc349cb255082e2648c6e56886621ea7",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/adc218676eef25575469234709c2d87185ca223a/Documentation/core-api/memory-allocation.rst",
+      "disposition": "selected general API source; final export audit blocked B04"
+    },
+    {
+      "path": "Documentation/locking/mutex-design.rst",
+      "bytes": 7019,
+      "sha256": "e953f9a58c2666ed7f4c871bbfaf64b67d11730d9992bcc9a0e5d0228233131f",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/adc218676eef25575469234709c2d87185ca223a/Documentation/locking/mutex-design.rst",
+      "disposition": "selected general API source; final export audit blocked B04"
+    },
+    {
+      "path": "Documentation/core-api/genericirq.rst",
+      "bytes": 12837,
+      "sha256": "82d725a6d1289ec8d21ecba3bc003fee2411ccedb4efabb10e2e5584a5921490",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/adc218676eef25575469234709c2d87185ca223a/Documentation/core-api/genericirq.rst",
+      "disposition": "selected general API source; final export audit blocked B04"
+    },
+    {
+      "path": "Documentation/kbuild/modules.rst",
+      "bytes": 14578,
+      "sha256": "c16b2db72d9d9d00555f3815fd80b79dbee5581aec77e5f1bd28407dee1a8c1e",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/adc218676eef25575469234709c2d87185ca223a/Documentation/kbuild/modules.rst",
+      "disposition": "selected general API source; final export audit blocked B04"
+    },
+    {
+      "path": "Documentation/driver-api/driver-model/driver.rst",
+      "bytes": 10925,
+      "sha256": "26888df4ebaa27d1b351494d2d31da6540607d7f40d47904351b1cddebe275d0",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/adc218676eef25575469234709c2d87185ca223a/Documentation/driver-api/driver-model/driver.rst",
+      "disposition": "selected general API source; final export audit blocked B04"
+    },
+    {
+      "path": "arch/arm64/boot/dts/broadcom/bcm2711-rpi-4-b.dts",
+      "bytes": 80,
+      "sha256": "d940e608822e31c901c76dd48ccaa7142015e7ad437187420d703ef14cda0d8c",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/adc218676eef25575469234709c2d87185ca223a/arch/arm64/boot/dts/broadcom/bcm2711-rpi-4-b.dts",
+      "disposition": "evaluator-only board/configuration investigation"
+    },
+    {
+      "path": "arch/arm64/boot/dts/broadcom/bcm2712-rpi-5-b.dts",
+      "bytes": 1360,
+      "sha256": "d157f4780d2918b163519ece258e98c3c8ec1e32acbac099ea5aa691e513f312",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/adc218676eef25575469234709c2d87185ca223a/arch/arm64/boot/dts/broadcom/bcm2712-rpi-5-b.dts",
+      "disposition": "evaluator-only board/configuration investigation"
+    },
+    {
+      "path": "arch/arm/boot/dts/broadcom/bcm2711-rpi-4-b.dts",
+      "bytes": 4810,
+      "sha256": "6bc587c46e263bf096ee5f402669bd985d95a6048f77991ffd96bf7a7e6c6d86",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/adc218676eef25575469234709c2d87185ca223a/arch/arm/boot/dts/broadcom/bcm2711-rpi-4-b.dts",
+      "disposition": "evaluator-only board/configuration investigation"
+    },
+    {
+      "path": "arch/arm/boot/dts/broadcom/bcm2711.dtsi",
+      "bytes": 26595,
+      "sha256": "cc411d0132e487490315e24c289b1ae2352880a04040b8f11b372a74be18c3bc",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/adc218676eef25575469234709c2d87185ca223a/arch/arm/boot/dts/broadcom/bcm2711.dtsi",
+      "disposition": "evaluator-only board/configuration investigation"
+    },
+    {
+      "path": "arch/arm/boot/dts/broadcom/bcm283x.dtsi",
+      "bytes": 12630,
+      "sha256": "999bc1a10e79136b30e1f87633ba4eb2eb9e5d2b79edece0b6d5133625167447",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/adc218676eef25575469234709c2d87185ca223a/arch/arm/boot/dts/broadcom/bcm283x.dtsi",
+      "disposition": "evaluator-only board/configuration investigation"
+    },
+    {
+      "path": "arch/arm64/boot/dts/broadcom/bcm2712.dtsi",
+      "bytes": 7732,
+      "sha256": "c117b56235ce53bede3e80cca9fc5136c7808240c2afb1315a6afad33f9d0d03",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/adc218676eef25575469234709c2d87185ca223a/arch/arm64/boot/dts/broadcom/bcm2712.dtsi",
+      "disposition": "evaluator-only board/configuration investigation"
+    },
+    {
+      "path": "arch/arm64/configs/defconfig",
+      "bytes": 41805,
+      "sha256": "1b3030b1541816740a74d1ed23084dad61a7f58c0ce0b17b61fc6336b9f088e1",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/adc218676eef25575469234709c2d87185ca223a/arch/arm64/configs/defconfig",
+      "disposition": "evaluator-only board/configuration investigation"
+    },
+    {
+      "path": "drivers/spi/Kconfig",
+      "bytes": 41192,
+      "sha256": "6ce36d526ec62958f1e03240a2a38cfbb4c6eea9c28a35065feab7e8ea3f5e79",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/adc218676eef25575469234709c2d87185ca223a/drivers/spi/Kconfig",
+      "disposition": "evaluator-only board/configuration investigation"
+    },
+    {
+      "path": "drivers/pinctrl/bcm/Kconfig",
+      "bytes": 6458,
+      "sha256": "5c3859de28a48b69615092e8753bf0c87df064dc2e6073c973ea07bf5397e687",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/adc218676eef25575469234709c2d87185ca223a/drivers/pinctrl/bcm/Kconfig",
+      "disposition": "evaluator-only board/configuration investigation"
+    },
+    {
+      "path": "drivers/mmc/host/Kconfig",
+      "bytes": 34681,
+      "sha256": "8c951d50a83f61a31ad7815df4d17dd26a90caa3353490ab421f541687dcc4eb",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/adc218676eef25575469234709c2d87185ca223a/drivers/mmc/host/Kconfig",
+      "disposition": "evaluator-only board/configuration investigation"
+    },
+    {
+      "path": "Documentation/devicetree/bindings/net/microchip,enc28j60.txt",
+      "bytes": 2340,
+      "sha256": "814e007ed1d556a87c98bc784a15eadaa7afc6db98e9b1f36491326f613b7f83",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/adc218676eef25575469234709c2d87185ca223a/Documentation/devicetree/bindings/net/microchip,enc28j60.txt",
+      "disposition": "evaluator-only board/configuration investigation"
+    },
+    {
+      "path": "arch/arm/boot/dts/broadcom/bcm2711-rpi.dtsi",
+      "bytes": 2004,
+      "sha256": "a0c466269103c463be58a5b549e58f0d8406261103936c62e08846e8cb3ade1e",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/adc218676eef25575469234709c2d87185ca223a/arch/arm/boot/dts/broadcom/bcm2711-rpi.dtsi",
+      "disposition": "evaluator-only board/configuration investigation"
+    },
+    {
+      "path": "arch/arm/boot/dts/broadcom/bcm2835-rpi.dtsi",
+      "bytes": 1529,
+      "sha256": "7142bfd3bec96945b30b45f72cd2bc70ed8cddbff3961a896a58b60e57ac5350",
+      "url": "https://raw.githubusercontent.com/torvalds/linux/adc218676eef25575469234709c2d87185ca223a/arch/arm/boot/dts/broadcom/bcm2835-rpi.dtsi",
+      "disposition": "evaluator-only board/configuration investigation"
+    }
+  ],
+  "limitations": [
+    "No final implementation export exists.",
+    "Historical candidate content was not inspected or repaired during retrieval.",
+    "General API source files need semantic audit and rendered dependencies before export.",
+    "The historical scorer lacks prepare.py; use its own archived contract."
+  ]
+}
