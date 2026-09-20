@@ -108,19 +108,22 @@ errata_map:
     datasheet_clarifications: {count: unrecorded, note: "separate sequence restarting at 1; not enumerated this pass"}
   DS80349C:
     silicon_issues:
-      1:  {module: MAC Interface,               summary: MAC registers unreliable with a slow asynchronous SPI clock, affected: [B5, B7]}
+      # affected lists are read from Table 2 (Silicon Issue Summary) on page 2 of DS80349C.
+      # Issue 1 was first recorded here as [B5, B7]; a blind ledger author reading the extracted
+      # text flagged it, and the rendered page shows X under B1 and B4 only. Corrected 2026-09-19.
+      1:  {module: MAC Interface,               summary: MAC registers unreliable with a slow asynchronous SPI clock, affected: [B1, B4]}
       2:  {module: Reset,                       summary: CLKRDY set early, affected: [B1, B4, B5, B7]}
       3:  {module: Core (Operating Specifications), summary: industrial temperature range unsupported, affected: [B1, B4]}
       4:  {module: Oscillator (CLKOUT Pin),     summary: CLKOUT unavailable in Power Save mode, affected: [B1, B4, B5, B7]}
       5:  {module: Memory (Ethernet Buffer),    summary: receive buffer must start at 0x0000, affected: [B1, B4, B5, B7]}
       6:  {module: Interrupts,                  summary: Receive Packet Pending interrupt flag (PKTIF) unreliable, affected: [B1, B4, B5, B7]}
       7:  {module: PHY,                         summary: TPIN+/- automatic polarity detection and correction unreliable, affected: [B1, B4, B5, B7]}
-      8:  {module: PHY,                         summary: RBIAS resistor value differs between silicon revisions}
+      8:  {module: PHY,                         summary: RBIAS resistor value differs between silicon revisions, affected: [B1, B4]}
       9:  {module: PHY,                         summary: internal loopback in half-duplex unreliable}
       10: {module: PHY,                         summary: full-duplex loopback mode}
       11: {module: PHY LEDs,                    summary: PHLCON programming}
       12: {module: Transmit Logic,              summary: half-duplex hardware transmission}
-      13: {module: PHY,                         summary: half-duplex transmission with some magnetics}
+      13: {module: PHY,                         summary: half-duplex transmission with some magnetics, affected: [B5, B7]}
       14: {module: Memory (Ethernet Buffer),    summary: receive hardware may corrupt the circular buffer}
       15: {module: Transmit Logic,              summary: collision after 64 bytes have been transmitted}
       16: {module: PHY LEDs,                    summary: LED auto-polarity detection with some LEDs}
