@@ -5,6 +5,7 @@
 
 Usage:
     python3 ledger_check.py ledger.yaml [--corpus corpus.yaml] [--policy SCORING-POLICY.md]
+                           [--format LEDGER-FORMAT.md] [--facts SCORING-FACTS.md]
                            [--lock ledger.lock] [--freeze] [--json]
 
 What fails (exit 1):
@@ -24,8 +25,14 @@ What fails (exit 1):
   * with --lock: a lock without a frozen date, a lock whose ledger sha256 differs from the file
     (the ledger was edited after freezing), a lock whose corpus sha256 differs from the manifest
     the check ran against, or a lock whose policy version or policy sha256 differs from the
-    scoring policy on disk. A version label on a file anyone can edit binds nothing, so the lock
-    pins the policy's bytes as well as its name.
+    scoring policy on disk, or a lock missing or disagreeing with the digests of
+    LEDGER-FORMAT.md and SCORING-FACTS.md, or missing a repository revision. A version label on a
+    file anyone can edit binds nothing, so the lock pins the bytes of every file a score depends
+    on, and the revision is how someone gets those bytes back.
+  * a composite scoring unit the policy names with no fact count, a count below two, a unit with
+    no list in SCORING-FACTS.md, a list whose length disagrees with its own printed count or with
+    the policy's table, or a list for a row the policy does not call composite. Those counts are
+    the denominators of proportional partial credit, so a wrong one is a wrong score.
   * with --freeze: the scoring policy is missing or declares no `Version:` line. Which classes
     are in the recall denominator has to be settled and named before a candidate exists, so a
     freeze without a policy is refused.
@@ -154,6 +161,46 @@ def composite_ids(policy_bytes: bytes | None) -> tuple[set[str], int | None]:
     return ids, (int(total.group(1)) if total else None)
 
 
+def policy_fact_counts(policy_bytes: bytes | None) -> dict[str, int]:
+    """Each composite unit's frozen fact count, from the policy's table."""
+    if policy_bytes is None:
+        return {}
+    text = policy_bytes.decode("utf-8", "replace")
+    m = re.search(r"^##\s+Composite scoring units\s*$(.*?)(?=^##\s|\Z)", text, re.M | re.S)
+    if not m:
+        return {}
+    out: dict[str, int] = {}
+    for line in m.group(1).splitlines():
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if len(cells) < 3:
+            continue
+        rid = re.fullmatch(r"(?:ENC28J60-)?((?:" + "|".join(FACETS) + r")-\d{3})", cells[0])
+        n = re.fullmatch(r"\*{0,2}(\d+)\*{0,2}", cells[-1])
+        if rid and n:
+            out[f"ENC28J60-{rid.group(1)}"] = int(n.group(1))
+    return out
+
+
+def facts_lists(facts_bytes: bytes | None) -> dict[str, tuple[int, int | None]]:
+    """Per unit, the number of listed facts and the count the file declares beside them.
+
+    The file is a scoring checklist: one `### <id>` section per composite unit, an ordered list,
+    and a `Count: N` the list length must equal. Parsing it is what stops the three numbers, the
+    list, its printed count and the policy's table, from drifting apart once they are frozen.
+    """
+    if facts_bytes is None:
+        return {}
+    text = facts_bytes.decode("utf-8", "replace")
+    out: dict[str, tuple[int, int | None]] = {}
+    parts = re.split(r"^###\s+(?:ENC28J60-)?((?:" + "|".join(FACETS) + r")-\d{3})\b", text, flags=re.M)
+    for i in range(1, len(parts) - 1, 2):
+        rid, body = f"ENC28J60-{parts[i]}", parts[i + 1]
+        items = len(re.findall(r"^\s*\d+\.\s+\S", body, re.M))
+        declared = re.search(r"Count:\s*(\d+)", body)
+        out[rid] = (items, int(declared.group(1)) if declared else None)
+    return out
+
+
 def check(
     ledger: dict,
     corpus: dict,
@@ -163,6 +210,7 @@ def check(
     freeze: bool = False,
     policy_bytes: bytes | None = None,
     format_bytes: bytes | None = None,
+    facts_bytes: bytes | None = None,
 ) -> tuple[list[str], list[str], dict]:
     errors: list[str] = []
     warnings: list[str] = []
@@ -338,11 +386,13 @@ def check(
     corpus_digest = hashlib.sha256(corpus_bytes).hexdigest()
     policy_version, policy_digest = policy_identity(policy_bytes)
     format_digest = hashlib.sha256(format_bytes).hexdigest() if format_bytes is not None else None
+    facts_digest = hashlib.sha256(facts_bytes).hexdigest() if facts_bytes is not None else None
     counts["sha256"] = digest
     counts["corpus_sha256"] = corpus_digest
     counts["policy_version"] = policy_version
     counts["policy_sha256"] = policy_digest
     counts["format_sha256"] = format_digest
+    counts["facts_sha256"] = facts_digest
     comp_ids, comp_total = composite_ids(policy_bytes)
     counts["composite_units"] = len(comp_ids)
     if comp_ids:
@@ -354,6 +404,34 @@ def check(
             errors.append(f"policy: composite list names {cid}, which is withdrawn")
         if comp_total is not None and comp_total != len(comp_ids):
             errors.append(f"policy: composite list prints a total of {comp_total} but names {len(comp_ids)} distinct ids")
+        # The fact counts are the denominators of proportional partial credit, so they are
+        # checked the way the id list is: a count that is absent, below two, or disagrees with
+        # the list that justifies it is a wrong score waiting to happen.
+        pol_counts = policy_fact_counts(policy_bytes)
+        lists = facts_lists(facts_bytes)
+        for cid in sorted(comp_ids):
+            n = pol_counts.get(cid)
+            if n is None:
+                errors.append(f"policy: composite unit {cid} has no fact count")
+            elif n < 2:
+                errors.append(f"policy: composite unit {cid} declares {n} fact(s); a composite has at least two")
+            if facts_bytes is None:
+                continue
+            if cid not in lists:
+                errors.append(f"facts: composite unit {cid} has no fact list")
+                continue
+            items, declared = lists[cid]
+            if declared is None:
+                errors.append(f"facts: {cid} prints no count beside its list")
+            elif declared != items:
+                errors.append(f"facts: {cid} lists {items} fact(s) but prints a count of {declared}")
+            if n is not None and items != n:
+                errors.append(f"facts: {cid} lists {items} fact(s) but the policy's table says {n}")
+        for extra in sorted(set(lists) - comp_ids):
+            errors.append(f"facts: {extra} has a fact list but is not a composite unit in the policy")
+        counts["listed_facts"] = sum(i for i, _ in lists.values())
+    if facts_bytes is not None and not comp_ids:
+        errors.append("facts: a fact list exists but the policy names no composite units to match it against")
     if freeze:
         if policy_bytes is None:
             errors.append("freeze: no scoring policy; which classes are in the recall denominator must be named before a candidate exists")
@@ -392,6 +470,12 @@ def check(
                 errors.append("lock: no LEDGER-FORMAT.md on disk to check the lock's format_sha256 against")
             elif lock.get("format_sha256") != format_digest:
                 errors.append(f"lock: format sha256 {str(format_digest)[:12]}... differs from lock {str(lock.get('format_sha256'))[:12]}...; LEDGER-FORMAT.md was edited after freezing")
+            if not _nonempty_str(lock.get("facts_sha256")):
+                errors.append("lock: missing facts_sha256; SCORING-FACTS.md holds the denominators of proportional partial credit, so its bytes are pinned too")
+            elif facts_bytes is None:
+                errors.append("lock: no SCORING-FACTS.md on disk to check the lock's facts_sha256 against")
+            elif lock.get("facts_sha256") != facts_digest:
+                errors.append(f"lock: facts sha256 {str(facts_digest)[:12]}... differs from lock {str(lock.get('facts_sha256'))[:12]}...; SCORING-FACTS.md was edited after freezing")
             if not _nonempty_str(lock.get("revision")):
                 errors.append("lock: missing revision; a digest identifies bytes, a repository revision makes them recoverable")
             counts["frozen"] = lock.get("frozen")
@@ -404,6 +488,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--corpus", type=Path, help="corpus.yaml; defaults to the one beside the ledger")
     ap.add_argument("--policy", type=Path, help="the scoring policy; defaults to SCORING-POLICY.md beside the ledger")
     ap.add_argument("--format", type=Path, help="the ledger format; defaults to LEDGER-FORMAT.md beside the ledger")
+    ap.add_argument("--facts", type=Path, help="the credit-bearing fact lists; defaults to SCORING-FACTS.md beside the ledger")
     ap.add_argument("--lock", type=Path, help="freeze record with frozen, sha256, corpus_sha256, policy_version, policy_sha256")
     ap.add_argument("--freeze", action="store_true", help="also apply the freeze gate: no provisional rows, no undisposed overlaps, every critical row read twice")
     ap.add_argument("--json", action="store_true")
@@ -425,10 +510,12 @@ def main(argv: list[str] | None = None) -> int:
     policy_bytes = policy_path.read_bytes() if policy_path.exists() else None
     format_path = args.format or args.ledger.parent / "LEDGER-FORMAT.md"
     format_bytes = format_path.read_bytes() if format_path.exists() else None
+    facts_path = args.facts or args.ledger.parent / "SCORING-FACTS.md"
+    facts_bytes = facts_path.read_bytes() if facts_path.exists() else None
 
     errors, warnings, counts = check(
         ledger, corpus, ledger_bytes, corpus_bytes, lock=lock, freeze=args.freeze,
-        policy_bytes=policy_bytes, format_bytes=format_bytes,
+        policy_bytes=policy_bytes, format_bytes=format_bytes, facts_bytes=facts_bytes,
     )
     if args.json:
         json.dump({"errors": errors, "warnings": warnings, "counts": counts}, sys.stdout, indent=1)

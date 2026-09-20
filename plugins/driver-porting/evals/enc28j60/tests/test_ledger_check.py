@@ -92,14 +92,22 @@ rows:
 POLICY = (
     "# Test policy\n\nVersion: test-1.0\nAdopted: 2026-09-20\n\n"
     "## Composite scoring units\n\n"
-    "| Facet | Composite scoring units | Count |\n|---|---|---|\n"
-    "| `RX` | RX-001 | 1 |\n"
+    "| Scoring unit | The facts it enumerates | Facts |\n|---|---|---|\n"
+    "| RX-001 | the address and the consequence | 2 |\n"
     "| **Total** | | **1** |\n\n"
     "## Something else\n\nnot part of the list: INIT-001\n"
 )
 
+FACTS = (
+    "# Test facts\n\n### ENC28J60-RX-001 - receive buffer start\n\n"
+    "1. The buffer begins at 0x0000. DS80349C issue 5.\n"
+    "2. Placing it elsewhere corrupts receive data. DS80349C issue 5.\n\n"
+    "**Count: 2**\n"
+)
 
-def run(text: str, *extra: str, corpus: Path = CORPUS, policy: str | None = POLICY):
+
+def run(text: str, *extra: str, corpus: Path = CORPUS, policy: str | None = POLICY,
+        facts: str | None = FACTS):
     with tempfile.TemporaryDirectory() as tmp:
         p = Path(tmp) / "ledger.yaml"
         p.write_text(text, encoding="utf-8")
@@ -108,6 +116,10 @@ def run(text: str, *extra: str, corpus: Path = CORPUS, policy: str | None = POLI
             pol = Path(tmp) / "SCORING-POLICY.md"
             pol.write_text(policy, encoding="utf-8")
             args += ["--policy", str(pol)]
+        if facts is not None:
+            fct = Path(tmp) / "SCORING-FACTS.md"
+            fct.write_text(facts, encoding="utf-8")
+            args += ["--facts", str(fct)]
         out = io.StringIO()
         with contextlib.redirect_stdout(out):
             code = ledger_check.main([*args, *extra])
@@ -232,18 +244,45 @@ class LedgerCheckTest(unittest.TestCase):
         msgs = errors_of(GOOD, policy=POLICY.replace("RX-001", "RX-099"))
         self.assertIn("composite list names ENC28J60-RX-099, which is not a row", msgs)
         # An id whose row is withdrawn.
-        msgs = errors_of(GOOD, policy=POLICY.replace("| `RX` | RX-001 | 1 |", "| `RX` | RX-002 | 1 |"))
+        msgs = errors_of(GOOD, policy=POLICY.replace("| RX-001 |", "| RX-002 |"),
+                         facts=FACTS.replace("RX-001", "RX-002"))
         self.assertIn("composite list names ENC28J60-RX-002, which is withdrawn", msgs)
         # A printed total that does not match the ids.
         msgs = errors_of(GOOD, policy=POLICY.replace("**Total** | | **1**", "**Total** | | **7**"))
         self.assertIn("prints a total of 7 but names 1 distinct ids", msgs)
         # A policy with no composite section blocks a freeze.
-        msgs = errors_of(GOOD, "--freeze", policy="# Test policy\n\nVersion: test-1.0\n")
+        msgs = errors_of(GOOD, "--freeze", policy="# Test policy\n\nVersion: test-1.0\n", facts=None)
         self.assertIn("names no composite scoring units", msgs)
+
+    def test_fact_lists_are_checked_against_the_policy(self):
+        # These are the denominators of proportional partial credit. A reviewer changed one count
+        # to zero in an earlier version and the freeze gate stayed silent.
+        code, data = run(GOOD)
+        self.assertEqual(code, 0, data["errors"])
+        self.assertEqual(data["counts"]["listed_facts"], 2)
+        # The policy's count disagrees with the list that justifies it.
+        msgs = errors_of(GOOD, policy=POLICY.replace("| 2 |", "| 3 |"))
+        self.assertIn("lists 2 fact(s) but the policy's table says 3", msgs)
+        # A composite unit with no count at all.
+        msgs = errors_of(GOOD, policy=POLICY.replace("| RX-001 | the address and the consequence | 2 |",
+                                                     "| RX-001 | the address and the consequence | |"))
+        self.assertIn("has no fact count", msgs)
+        # A count below two is not a composite.
+        msgs = errors_of(GOOD, policy=POLICY.replace("| 2 |", "| 1 |"))
+        self.assertIn("declares 1 fact(s); a composite has at least two", msgs)
+        # The list's own printed count disagrees with its length.
+        msgs = errors_of(GOOD, facts=FACTS.replace("**Count: 2**", "**Count: 5**"))
+        self.assertIn("lists 2 fact(s) but prints a count of 5", msgs)
+        # A unit the policy names with no list at all.
+        msgs = errors_of(GOOD, facts="# Test facts\n\nnothing here\n")
+        self.assertIn("has no fact list", msgs)
+        # A list for something the policy does not call composite.
+        msgs = errors_of(GOOD, facts=FACTS + "\n### ENC28J60-INIT-001 - stray\n\n1. one.\n2. two.\n\n**Count: 2**\n")
+        self.assertIn("ENC28J60-INIT-001 has a fact list but is not a composite unit", msgs)
 
     def test_freeze_needs_a_versioned_scoring_policy(self):
         # No policy file at all.
-        code, data = run(GOOD, "--freeze", policy=None)
+        code, data = run(GOOD, "--freeze", policy=None, facts=None)
         self.assertEqual(code, 1)
         self.assertTrue(any("no scoring policy" in e for e in data["errors"]), data["errors"])
         # A policy with no Version line binds nothing.
@@ -251,7 +290,7 @@ class LedgerCheckTest(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertTrue(any("declares no 'Version:'" in e for e in data["errors"]), data["errors"])
         # Without --freeze a missing policy is not an error.
-        code, data = run(GOOD, policy=None)
+        code, data = run(GOOD, policy=None, facts=None)
         self.assertEqual(code, 0, data["errors"])
 
     def test_lock_pins_the_policy_version_and_bytes(self):
@@ -265,7 +304,9 @@ class LedgerCheckTest(unittest.TestCase):
 
             fmt = Path(tmp) / "LEDGER-FORMAT.md"
             fmt.write_text("# format\n", encoding="utf-8")
-            base = base + ["--format", str(fmt)]
+            fct = Path(tmp) / "SCORING-FACTS.md"
+            fct.write_text(FACTS, encoding="utf-8")
+            base = base + ["--format", str(fmt), "--facts", str(fct)]
 
             def write_lock(drop=(), **over):
                 fields = {
@@ -276,6 +317,7 @@ class LedgerCheckTest(unittest.TestCase):
                     "policy_version": "test-1.0",
                     "policy_sha256": hashlib.sha256(POLICY.encode()).hexdigest(),
                     "format_sha256": hashlib.sha256(fmt.read_bytes()).hexdigest(),
+                    "facts_sha256": hashlib.sha256(fct.read_bytes()).hexdigest(),
                 }
                 fields.update(over)
                 for k in drop:
@@ -333,9 +375,11 @@ class LedgerCheckTest(unittest.TestCase):
             policy.write_text(POLICY, encoding="utf-8")
             fmt = Path(tmp) / "LEDGER-FORMAT.md"
             fmt.write_text("# format\n", encoding="utf-8")
+            fct = Path(tmp) / "SCORING-FACTS.md"
+            fct.write_text(FACTS, encoding="utf-8")
             lock = Path(tmp) / "ledger.lock"
             argv = [str(ledger), "--corpus", str(CORPUS), "--policy", str(policy),
-                    "--format", str(fmt), "--lock", str(lock)]
+                    "--format", str(fmt), "--facts", str(fct), "--lock", str(lock)]
             good_lock = (
                 f"frozen: 2026-09-19\n"
                 f"revision: 0123456789abcdef0123456789abcdef01234567\n"
@@ -344,6 +388,7 @@ class LedgerCheckTest(unittest.TestCase):
                 f"policy_version: test-1.0\n"
                 f"policy_sha256: {hashlib.sha256(POLICY.encode()).hexdigest()}\n"
                 f"format_sha256: {hashlib.sha256(fmt.read_bytes()).hexdigest()}\n"
+                f"facts_sha256: {hashlib.sha256(fct.read_bytes()).hexdigest()}\n"
             )
             lock.write_text(good_lock)
             self.assertEqual(ledger_check.main(argv), 0)

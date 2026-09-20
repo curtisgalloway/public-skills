@@ -5,8 +5,11 @@ SPDX-License-Identifier: Apache-2.0
 
 # ENC28J60 gold ledger: scoring policy
 
-Version: enc28j60-1.3
-Adopted: 2026-09-20 (superseding `enc28j60-1.2` of the same day; see "Version history")
+Version: enc28j60-1.4
+Adopted: 2026-09-20 (superseding `enc28j60-1.3` of the same day; see "Version history")
+
+This policy is read with `SCORING-FACTS.md`, which lists the credit-bearing facts of every
+composite scoring unit and is frozen with it.
 
 `LEDGER-FORMAT.md` says that whether `observed-software-behavior` and `inference` rows count
 toward recall is a per-run decision, and that the decision is **versioned and named in the freeze
@@ -137,10 +140,18 @@ percentage. An empty weight bucket prints `n/a (0 eligible rows)` — never `0%`
 **bounded** set of ids scored as composite units instead. The table below is that list, and the
 number beside each id is how many facts that unit holds.
 
+**The facts themselves are written down, in `SCORING-FACTS.md`.** That file holds one ordered list
+per unit, and the list's length is the number in this table. A frozen count fixes a fraction's
+denominator and nothing else, so without the lists two scorers can divide by the same number and
+disagree about the top; the lists are what make the numerator reproducible. **A scorer records a
+disposition against each listed fact and may not subdivide, combine or substitute facts.**
+`SCORING-FACTS.md` is frozen with this file and the lock records its sha256, because a list anyone
+can edit fixes nothing.
+
 **How a row's facts were counted.** Every active row was walked and the independently checkable
 facts it asserts were enumerated. A fact is one proposition a reviewer can mark right or wrong on
 its own: one register's placement, one bit's position and meaning, one code in a table, one value,
-one prohibition, one step of a sequence carrying its own value, one peer requirement. Three
+one prohibition, one step of a sequence carrying its own value, one peer requirement. Four
 conventions kept the walk consistent, and they are part of the frozen rule:
 
 - **An attribute rides with the element it qualifies.** A register's width, a register's access, a
@@ -155,17 +166,32 @@ conventions kept the walk consistent, and they are part of the frozen rule:
   work is to record the row's class or provenance** — that the corpus permits alternatives, that a
   value is the driver's own, which document corrected which. Those make the row's class readable;
   they are not content a candidate is scored on.
+- **A listed set may be designated one credit-bearing fact.** It earns credit only when every
+  listed member and the shared property are stated correctly; naming some members earns nothing,
+  and a scorer may not award part of it. Every such set is marked `[grouped set]` in
+  `SCORING-FACTS.md` and its members are listed there, so grouping is visible where it is scored.
+  Grouping is for a set the corpus presents as one thing — a block of consecutive registers, a run
+  of reserved addresses, several registers sharing one reset value in one column. Where the corpus
+  prints each member as its own row with its own outcome, the members are separate facts;
+  `REG-019`'s eight PADCFG codes were split on 2026-09-20 for exactly that reason.
+
+**Because grouping is in play, the fact total is not an inventory of independently checkable
+propositions.** It is a count of credit-bearing units of judgment, some of which are sets judged
+whole. The same goes for the smaller conventions `SCORING-FACTS.md` marks: a low/high register pair
+is one placement, and a multi-bit field or a run of reserved bits described as one range is one
+fact.
 
 The classification follows from the count instead of preceding it. **A row whose count is 1 is
 atomic by construction. A row whose count is 2 or more is a composite scoring unit, and its count
 is the denominator of its partial credit.** For atomic rows nothing is recorded: the absence of an
 entry in the table below is the claim that the row holds one fact.
 
-**The walk covered all 203 active rows in `ledger.yaml` on 2026-09-20.** It found **141 composite
-units and 62 atomic rows**, holding 689 facts between them. Per facet the composite units are REG
-26, INIT 13, TX 17, RX 21, IRQ 13, PHY 27, SPI 16, ELEC 7, ERR 1. The distribution of counts is 62
-rows at 1, 30 at 2, 42 at 3, 20 at 4, 18 at 5, 11 at 6 and 20 at 7 or more; the largest units are
-TX-008 at 21, INIT-010 at 17, RX-011 at 15 and REG-003 at 14.
+**The walk covered all 203 active rows in `ledger.yaml` on 2026-09-20**, and every composite unit's
+facts were written out as a list the same day. It found **141 composite units and 62 atomic rows**,
+holding 687 facts between them, 625 of them in the composite units. Per facet the composite units
+are REG 26, INIT 13, TX 17, RX 21, IRQ 13, PHY 27, SPI 16, ELEC 7, ERR 1. The distribution of
+counts is 62 rows at 1, 34 at 2, 39 at 3, 19 at 4, 18 at 5, 12 at 6 and 19 at 7 or more; the
+largest units are TX-008 at 21, INIT-010 at 18, RX-011 at 15 and REG-003 at 14.
 
 | Scoring unit | The facts it enumerates | Facts |
 |---|---|---|
@@ -185,7 +211,7 @@ TX-008 at 21, INIT-010 at 17, RX-011 at 15 and REG-003 at 14.
 | REG-015 | the register's identity and four revision codes | 5 |
 | REG-017 | the prescaler field, seven codes, and two reset behaviors | 10 |
 | REG-018 | six MACON3 fields | 6 |
-| REG-019 | four PADCFG encodings, the TXCRCEN pairing, the TXCRCEN-clear behavior | 6 |
+| REG-019 | eight PADCFG codes, the TXCRCEN pairing, the TXCRCEN-clear behavior | 10 |
 | REG-020 | six octet-to-register mappings | 6 |
 | REG-021 | four MACON1 bits and the reserved bit | 5 |
 | REG-022 | three MACON4 bits, the half-duplex restriction, the reserved bits | 5 |
@@ -199,7 +225,7 @@ TX-008 at 21, INIT-010 at 17, RX-011 at 15 and REG-003 at 14.
 | INIT-003 | the stopped PHY clock, CLKRDY's unchanged state, the 1 ms wait | 3 |
 | INIT-005 | the reset-value rule, the transmit-only and receive-only resets, buffer contents through a System Reset, buffer state after a Power-on Reset | 4 |
 | INIT-007 | the PWRSV precondition, the Bit Field Clear, the 300 us regulator wait | 3 |
-| INIT-010 | seventeen steps of the driver's initialization order | 17 |
+| INIT-010 | seventeen steps of the driver's initialization order, and the enable it defers | 18 |
 | INIT-011 | MARXEN, and the pause-enable pair for full duplex | 2 |
 | INIT-012 | the padding and CRC configuration, the host's fallback obligation, FULDPX, FRMLNEN | 4 |
 | INIT-014 | the MAMXFL programming requirement, the standard-frame value, the receive-side rejection | 3 |
@@ -214,7 +240,7 @@ TX-008 at 21, INIT-010 at 17, RX-011 at 15 and REG-003 at 14.
 | TX-004 | the start, the TXRTS clear, the status-vector write, the untouched pointers | 4 |
 | TX-006 | two prohibitions while TXRTS is set and the cancellation rule | 3 |
 | TX-007 | four abort effects and two host obligations | 6 |
-| TX-008 | twenty status-vector fields and the vector's size and byte order | 21 |
+| TX-008 | twenty status-vector fields and the vector's little-endian packing | 21 |
 | TX-010 | the TXRST pulse and the order of clearing TXERIF | 2 |
 | TX-012 | the late-collision treatment, the stalled state machine, three host obligations | 5 |
 | TX-014 | the reset's effect, the in-progress abort, the resume, what is unaffected | 4 |
@@ -231,7 +257,7 @@ TX-008 at 21, INIT-010 at 17, RX-011 at 15 and REG-003 at 14.
 | RX-009 | the next-packet pointer, the status vector, the frame bytes, even packet starts, the pad byte | 5 |
 | RX-010 | the field position, its byte order, and what the count includes | 3 |
 | RX-011 | thirteen status bits, the zero bit, the reserved bits | 15 |
-| RX-012 | the PKTDEC write, its self-clearing, the ignored underflow | 3 |
+| RX-012 | the PKTDEC write with its self-clearing, the ignored underflow | 2 |
 | RX-013 | the saturation at 255, the abort at 255, the host's decrement obligation | 3 |
 | RX-015 | the internal write pointer load, and ERXWRPT's update rule | 2 |
 | RX-017 | three free-space cases and the permanently unusable byte | 4 |
@@ -251,7 +277,7 @@ TX-008 at 21, INIT-010 at 17, RX-011 at 15 and REG-003 at 14.
 | IRQ-003 | flags set regardless of the enables, and the clear-before-enable obligation | 2 |
 | IRQ-005 | clearing INTIE on entry, and what re-setting it with an event pending does | 2 |
 | IRQ-006 | PKTIF's unreliability with the EPKTCNT obligation, and the pin's continued reliability | 2 |
-| IRQ-007 | read-only, set while EPKTCNT is non-zero, cleared only through PKTDEC, Bit Field Clear ineffective | 4 |
+| IRQ-007 | set while EPKTCNT is non-zero, and the clearing rule with its read-only access and ineffective Bit Field Clear | 2 |
 | IRQ-008 | TXIF's set condition, its clearing, the success test | 3 |
 | IRQ-009 | five abort causes, the simultaneous TXIF, the full-duplex case, the clearing | 8 |
 | IRQ-010 | two set conditions, the permanent loss, two host obligations | 5 |
@@ -266,12 +292,12 @@ TX-008 at 21, INIT-010 at 17, RX-011 at 15 and REG-003 at 14.
 | PHY-006 | nine implemented addresses and the behavior of the rest | 10 |
 | PHY-007 | two MICMD bits and four MISTAT positions | 6 |
 | PHY-008 | four PHCON1 bits and the reserved pair | 5 |
-| PHY-010 | the absence of autonegotiation and the manual-configuration consequence | 2 |
+| PHY-010 | the absence of autonegotiation and what an autonegotiating partner detects | 2 |
 | PHY-011 | the sampling mechanism and three wiring outcomes | 4 |
 | PHY-013 | the half-duplex loopback default, HDLDIS, when HDLDIS is ignored | 3 |
 | PHY-014 | the unreliable half-duplex loopback, the external-cable recommendation, the HDLDIS advice, its default | 4 |
 | PHY-015 | the unreliable full-duplex loopback, the external connector, PLOOPBK's effect on the link | 3 |
-| PHY-016 | six PHSTAT2 bits and their read-only access | 7 |
+| PHY-016 | six PHSTAT2 bits, each with its read-only access | 6 |
 | PHY-017 | two capability bits and two latching bits | 4 |
 | PHY-018 | four PHCON2 bits and the reserved-as-zero rule | 5 |
 | PHY-019 | two PHIE bits, two PHIR bits, the read-to-clear rule, the reserved bits | 6 |
@@ -280,12 +306,12 @@ TX-008 at 21, INIT-010 at 17, RX-011 at 15 and REG-003 at 14.
 | PHY-023 | the LED misdetection, its effect on PDPXMD, the resistor workaround | 3 |
 | PHY-024 | the ineffective polarity correction and the wiring workaround | 2 |
 | PHY-025 | PRST's effect and the poll-until-clear obligation | 2 |
-| PHY-026 | the two identifier values and their read-only constancy | 3 |
+| PHY-026 | the two identifier values, with their read-only constancy | 2 |
 | PHY-027 | reading link state from PHSTAT2, and reporting DPXSTAT's duplex | 2 |
 | PHY-028 | the transmit-quiescent and receive-disabled conditions | 2 |
 | PHY-029 | the scan's rate, NVALID, the unpaired halves, the stop procedure | 4 |
-| PHY-031 | the five-bit field, the unimplemented bits, the reset value | 3 |
-| PHY-032 | the code-table rule and six common codes | 7 |
+| PHY-031 | the five-bit field with its unimplemented upper bits, the reset value | 2 |
+| PHY-032 | six common LED configuration codes | 6 |
 | SPI-001 | mode 0,0 with SCK idle low, the sampling edge, the drive edge | 3 |
 | SPI-002 | CS low for the whole instruction, the framing edge, the abandoned partial byte | 3 |
 | SPI-004 | the opcode, the address argument, the single data byte | 3 |
@@ -313,21 +339,41 @@ TX-008 at 21, INIT-010 at 17, RX-011 at 15 and REG-003 at 14.
 | **Total** | | **141** |
 
 **The verdict rule, for all 141.** Each contributes one denominator unit, and the unit's frozen
-count is what its partial credit is computed over:
+count is what its partial credit is computed over. Let **n** be the number of facts
+`SCORING-FACTS.md` lists for the unit — the number in the table above — and **k** the number of
+them the candidate states **fully correctly**. An underspecified fact contributes zero:
 
-- `covered` — every enumerated fact is stated correctly. Earns 1.
-- `partial` — at least one enumerated fact is correct, the others are omitted or underspecified,
-  and none is contradicted. Earns **the fraction correct over the row's frozen count**: a candidate
-  with three of RX-020's four filter criteria earns 0.75 of that row.
-- `missing` — none of the enumerated facts is stated. Earns zero.
-- `misstated` — at least one enumerated fact is contradicted. Earns zero, whatever else is right.
+- `misstated` — any listed fact is contradicted. Earns zero, whatever else is right, and this test
+  comes first.
+- `covered` — all n facts are correct (k = n). Earns 1.
+- `missing` — the candidate states no recognizable content for the unit at all. Earns zero.
+- `partial` — everything else. Earns **k/n**, **including k = 0**: a candidate that writes about
+  the unit's subject while getting no single listed fact fully right is `partial` earning zero, not
+  `missing`. A candidate with three of RX-020's four filter criteria earns 0.75 of that row.
+
+The k = 0 case is why `partial` and `missing` are not the same verdict at the same score: they are
+different failures, they are reported as separate counts, and a `missing` unit is one the candidate
+never addressed.
+
+**What "fully correct" means for a fact that carries attributes.** A listed fact is fully correct
+when everything its entry names is stated correctly — the element **and** every attribute the entry
+carries with it. A correct address with the access the entry names **omitted** is underspecified
+and earns zero for that fact, without making the row `misstated`; the same attribute stated
+**wrongly** is a contradiction and does make the row `misstated`. An attribute the entry does not
+name is not required. The strict reading follows from the attribute convention: an attribute is
+folded into its element's fact instead of being counted separately, and if it were then not
+required for credit, folding it in would have removed it from the scoring surface altogether.
+`SCORING-FACTS.md` therefore carries in each entry the attributes that are credit-bearing for that
+unit, and only those.
 
 **The frozen count is the denominator, never a scorer's own segmentation.** A scorer who reads
 RX-020 as three criteria rather than four, or TX-008 as one layout rather than twenty-one fields,
 still divides by the number printed in this table; that is what freezing it is for, since two
 scorers reading one candidate must not be able to reach different numbers by segmenting a row
-differently. **A count changes only with a new policy version**, exactly as the id list does:
-changing either changes every recall number computed under it.
+differently. The same holds for the numerator: the facts are the ones `SCORING-FACTS.md` lists, in
+its order, and a scorer marks each one rather than counting up its own. **A count, and the list
+behind it, change only with a new policy version**, exactly as the id list does: changing any of
+them changes every recall number computed under it.
 
 Atomic rows keep the ordinary rule, where `partial` earns 0.5. Their one fact stated but
 underspecified is half a row by convention rather than by count — dividing one correct fact by a
@@ -379,9 +425,10 @@ REG-001 to REG-004 are the four bank columns of one register map.
 
 **The exception covers these 141 ids and no others.** A row not in the table is atomic and governed
 by authoring rule 3, and the walk that produced the table is the evidence that a row's absence from
-it is a judgment rather than an oversight. Adding an id, removing one or changing a count takes a
-decision in `ADJUDICATION.md` and a new policy version, because the list and its counts are frozen
-policy text. Two rows stating the same clause is a different problem — that is overlap, disposed of
+it is a judgment rather than an oversight. Adding an id, removing one, changing a count, or
+changing what a unit's facts are in `SCORING-FACTS.md` takes a decision in `ADJUDICATION.md` and a
+new policy version, because the list, its counts and the fact lists behind them are frozen policy
+text. Two rows stating the same clause is a different problem — that is overlap, disposed of
 in the ledger with `overlaps` and `replaced_by`, adjudicated in group F and swept again before the
 freeze.
 
@@ -474,10 +521,25 @@ the observed-software-behavior counts beside recall, never inside it; the implem
 probes as a count of `misstated` out of the probes, which is a precision result and not a recall
 one; the unsupported-claim count beside precision.
 
+**A report names the critical facts the candidate missed, not only the fraction.** For every
+`critical` unit scored `partial`, the report lists by number the facts of `SCORING-FACTS.md` the
+candidate did not state fully correctly. Proportional credit makes this necessary: a candidate can
+earn four fifths of PHY-018 while omitting HDLDIS, the fact the envelope makes that row critical
+for, and the fraction alone hides it. Critical recall is coverage of critical units; it is not
+proof that the essential behavior is specified, and the list of missed facts is what lets a reader
+see the difference.
+
+**The outer denominator is scoring units, not facts.** A unit's facts decide that unit's
+contribution; the denominator a recall percentage divides by is the 162 eligible rows. A report
+says so rather than presenting 687 as the thing recall is computed against.
+
 ## Binding
 
-The freeze lock records this file's **sha256 as well as the version string** `enc28j60-1.3`,
-beside the ledger and corpus digests, and every run cites the lock rather than the version. A
+The freeze lock records this file's **sha256 as well as the version string** `enc28j60-1.4`,
+beside the ledger and corpus digests, and every run cites the lock rather than the version. It
+records `SCORING-FACTS.md`'s sha256 as `facts_sha256` for the same reason: that file holds the
+numerator of every composite fraction, so a score computed under this policy is only reproducible
+if its bytes are pinned too. A
 version label on a mutable file binds nothing: the label can stay while the text moves.
 `ledger_check.py --lock` now enforces that. It requires a `Version:` line in this file and a
 non-empty `policy_version` and `policy_sha256` in the lock, and fails when either side is missing
@@ -505,6 +567,7 @@ whenever the rules do.
 | `enc28j60-1.1` | 2026-09-20 | Nine more composite scoring units (REG-008, REG-009, REG-018, REG-021, REG-022, RX-011, RX-019, IRQ-001, TX-008), from `ADJUDICATION.md` group G. The id list is frozen policy text and each addition moves a row from "one wrong bit fails the row" to the composite verdict rule, so the denominator and the per-row verdicts both change. The observed-software-behavior roster also grew from ten rows to thirteen (REG-007 reclassed by group E2; SPI-023 and RX-039 added by group D), which changes the recall denominator by removing REG-007 from it; the same bump carries it. |
 | `enc28j60-1.2` | 2026-09-20 | The composite inventory, made by walking every active row: **16 ids to 113**, with the test that decided each row written down and the per-facet counts printed. Every row's verdict rule can change with it, so the bump is mandatory. The same version carries five other rule changes a scorer would feel: the operating envelope the `critical` weights assume, stated so the necessity argument is checkable; that scope filters rosters only while precision covers every candidate claim; the contradicted / unsupported / attribution-error distinction for necessity claims; that correct inference content presented as documented fact is covered content with a precision attribution error and not a `misstated` row; formatting-independent segmentation; what a verdict is given against and when a concrete value earns coverage; and the precision formula written out with its denominator and its `n/a` case. Two rows were split rather than enumerated (PHY-006 to PHY-033, TX-019 to TX-024), so the ledger's active row count moves from 202 to 204. |
 | `enc28j60-1.3` | 2026-09-20 | Proportional partial credit, and the fact-count inventory that makes it computable. Every active row was walked again and the independently checkable facts it asserts were enumerated and frozen, with the counting conventions written down: **141 composite units, from 113**, against 62 atomic rows, each unit's count printed beside it. A composite `partial` now earns the fraction of that unit's frozen count the candidate stated correctly instead of a flat half, so every partially covered row's contribution moves and no recall number is comparable with one computed under `enc28j60-1.2`. Twenty-eight rows moved from atomic to composite and none the other way, which changes their verdict rule as well. The same version carries four other rule changes a scorer would feel: an implementation choice asserted as necessary is an error only where the corpus establishes an alternative, replacing the automatic `misstated` and its "at least one" extension; a clause explicitly assigned to another row is scored only in the owner row; recall is stated as coverage of the frozen scoring units, with atomic and composite verdict counts reported separately; and REG-023 and RX-019 are kept whole for the unit they are meant to be rather than because splitting would reopen a merge. `ENC28J60-PHY-033` was withdrawn into PHY-020 as a duplicate of its reserved-bit rules, so the active row count moves from 204 to 203 and the recall denominator from 163 to 162. |
+| `enc28j60-1.4` | 2026-09-20 | The fact lists, in a new frozen file `SCORING-FACTS.md`: one ordered list of credit-bearing facts per composite unit, the list's length being the unit's count, so the numerator of a proportional score is as fixed as its denominator. A scorer marks each listed fact and may not subdivide, combine or substitute. The same version carries the rule changes the lists forced. **Eight counts moved** and the fact total goes from 689 to 687: REG-019 6 to 10 (the corpus prints each of the eight PADCFG codes as its own row, so they are not four outcome groups) and INIT-010 17 to 18 (the deferred interrupt and RXEN enable is its own ordering fact); RX-012 3 to 2, IRQ-007 4 to 2, PHY-016 7 to 6, PHY-026 3 to 2, PHY-031 3 to 2 and PHY-032 7 to 6, each applying a convention the counts had contradicted. **A fourth counting convention** authorizes a designated grouped set as one fact, earning credit only when every member and the shared property are stated, and the total is no longer described as an inventory of independently checkable propositions. **The composite verdict rule is restated as k/n** with the uncovered case closed: any contradiction is `misstated`, all n correct is `covered`, no recognizable content is `missing`, and everything else is `partial` earning k/n including k = 0. **"Fully correct" is defined** for a fact carrying attributes: everything the entry names must be stated, so an omitted named access earns zero for that fact and a wrong one makes the row `misstated`. Reporting gains the requirement to name which critical facts a candidate missed. Every partially covered row's contribution can move, so no recall number is comparable with one computed under `enc28j60-1.3`. |
 
 No candidate has been read under any version, so nothing needs rescoring; the rule below is for
 when that stops being true.

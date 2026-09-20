@@ -1270,3 +1270,183 @@ column did not trip the list-versus-total check. The leak scan over `ledger.yaml
 `SCORING-POLICY.md`, `LEDGER-CONFLICTS.md`, `ADJUDICATION.md` and `README.md` against the pinned
 driver files is clean, and the checker's unit tests pass. `ledger.lock` was **not** written: the
 freeze is the adjudicator's step, and the two held-back weights are still open.
+
+## Pre-freeze repairs, third pass 2026-09-20
+
+The same outside reviewer read the ledger again at commit `4516643`, read-only, reproduced the
+clean mechanical gate and the arithmetic (203 active rows, 141 composites, 62 atomic, 689 declared
+facts, 162 recall-eligible rows), accepted the row repairs and the explicit operating profile, and
+**again refused the freeze** — this time entirely about the new scoring scheme. The finding that
+drove this pass: **a frozen count does not freeze the numerator.** For many rows the policy
+announced a quantity without saying which facts it was counting, so two scorers could divide by the
+same denominator and disagree about the top. Alongside it, several counts contradicted the policy's
+own counting conventions, the grouping some counts relied on was nowhere stated, and the composite
+verdict rule had an uncovered case. IDs omit `ENC28J60-`.
+
+### 1. `SCORING-FACTS.md`, the fact lists
+
+**What was done.** Every one of the 141 composite units now has an ordered, numbered list of its
+credit-bearing facts in a new file, `SCORING-FACTS.md`; the list's length is the unit's count, and
+the count is printed at the end of each unit so the two can be checked against each other and
+against the policy's table by eye or by script. Each entry is one clause and a short corpus locator
+taken from the row's own `derivation`. A scorer records a disposition against each listed fact and
+**may not subdivide, combine or substitute**.
+
+The lists are a separate file on purpose: `ledger.yaml` stays readable and `SCORING-POLICY.md`
+stays short enough to be read whole. The policy names the file, says the lists are the numerator
+side of every composite fraction, and requires the lock to carry the file's sha256 as
+`facts_sha256` — a list anyone can edit fixes nothing. `LEDGER-FORMAT.md` authoring rule 3 and the
+README's file table and freeze instructions name it too, and the leak scan now covers it.
+
+**The lists were reconstructed from the frozen counts wherever the count reconstructed into a
+defensible list, which was 133 of the 141 units.** Eight did not, and in each the count moved to
+match the list rather than the list being padded to match the count. **The fact total moves from
+689 to 687** (625 in composite units plus 62 atomic rows). The unit count does not move: no unit
+fell to one fact, so the composite roster is still 141 ids and the recall denominator is still 162
+rows.
+
+### 2. The six counts that contradicted the attribute convention
+
+The policy says an attribute rides with the element it qualifies. Six counts violated it, and all
+six are corrected as the reviewer proposed; none of them was a case where the convention looked
+wrong rather than the count, so no convention change is proposed in their place.
+
+- **RX-012, 3 to 2.** PKTDEC's self-clearing rides with the write-and-decrement fact.
+- **IRQ-007, 4 to 2.** The read-only access and the ineffective Bit Field Clear both ride with the
+  clearing rule, leaving the set condition and the clearing rule.
+- **PHY-016, 7 to 6.** The six status fields' read-only access rides with the fields.
+- **PHY-026, 3 to 2.** The read-only constancy rides with the two identifier values, and the OUI
+  and part-number reading follows from them.
+- **PHY-031, 3 to 2.** In an eight-bit register the implemented five-bit field and the
+  unimplemented upper three bits are one mask stated from both ends; the reset value is separate.
+- **PHY-032, 7 to 6.** "The fields select a function from a code table" is the frame for the six
+  mappings, not a seventh fact beyond them.
+
+**A consequence worth stating, because it decides scores.** Folding an attribute into its element's
+fact would delete the attribute from the scoring surface if the fact could then be earned without
+it. So the folded attribute is **required**: `SCORING-FACTS.md` carries it in the entry, and a
+candidate that gives PHY-016's six bit positions without their read-only access earns zero of that
+row rather than all of it. See item 4.
+
+**One superficially similar count kept.** REG-022's "all three bits apply to half duplex only" was
+left as its own fact. It is a condition on when the three bits act, not a width, an access or a
+self-clearing behavior, and contradicting it would not falsify any of the three bit definitions —
+which is the test the second convention states. The count stays at 5.
+
+### 3. The grouping convention, now stated
+
+**The finding.** Several counts treated a set as one fact while the policy elsewhere promised one
+register placement or one code per fact. That is a defensible scoring choice and it was not the
+stated rule.
+
+**Added to the policy**, as a fourth counting convention: a listed set may be designated one
+credit-bearing fact; it earns credit only when every listed member and the shared property are
+stated correctly; naming some members earns nothing and a scorer may not award part of it. Every
+such set is marked `[grouped set]` in `SCORING-FACTS.md` with its members written out. The policy
+also stops describing the total as an inventory of independently checkable propositions and says
+what it is: a count of credit-bearing units of judgment, some of which are sets judged whole. Two
+smaller conventions are marked the same way — a low/high register pair is one placement, and a
+multi-bit field or a run of reserved bits described as one range is one fact.
+
+**Kept as grouped sets**, each now explicit: REG-002's two eight-register blocks; REG-003's seven
+reserved addresses; REG-004's six-address MAC address block; REG-013's three-register 0x05FA group
+and eight-register zero group; REG-014's six zero-reset registers; RX-011's reserved bits 17 and
+19; PHY-008's reserved pair, PHY-018's three reserved ranges and PHY-020's two reserved-bit
+rules; INIT-010's receive-pointer and transmit-pointer steps; INIT-011's pause-enable pair; INIT-017's two
+collision registers; RX-018's ERXST/ERXND pair; RX-021's two unprogrammed filters; RX-026's three
+reprogrammed pointers; IRQ-011's two PHY enables; IRQ-016's CRCEN/MPEN and PKTIE/INTIE pairs;
+TX-007's two clearable bits. The test they pass: the corpus presents the set as one thing — a block
+of consecutive addresses, a column of identical reset values, a pair that cannot be written singly.
+
+**REG-017's `11x` kept as one fact, not a group.** Register 2-1 prints `11x` as a single row, so it
+is one code-pattern fact rather than two codes grouped. The count stays at 10.
+
+**Split: REG-019, 6 to 10.** The reviewer named it the least defensible grouping and the corpus
+agrees: Register 6-2 prints each of the eight PADCFG codes as its own row with its own outcome —
+including four separate rows that each say no automatic padding. Grouping them into four outcome
+groups would mean a candidate naming three of the four no-padding codes earns nothing for them. The
+eight codes are now eight facts, with the TXCRCEN pairing and the TXCRCEN-clear behavior, giving
+10. This is the one count in this pass that grew for a reason other than an uncounted proposition.
+
+### 4. The verdict rule, and what "fully correct" means
+
+**The uncovered case.** A candidate can state recognizable content for a composite while getting no
+single fact fully right. That was neither `partial` ("at least one correct") nor `missing` ("none
+stated"). The rule is replaced, adapted from the review: let n be the number of listed facts and k
+the number the candidate states fully correctly; an underspecified fact contributes zero; any
+contradicted fact makes the row `misstated` and the test comes first; otherwise all n is `covered`,
+no recognizable content for the unit is `missing`, and everything else is `partial` earning k/n,
+**including k = 0**. The two zero-scoring verdicts stay distinct because they are different
+failures and are reported as separate counts.
+
+**"Fully correct" is decided, not left open.** A listed fact is fully correct when everything its
+entry names is stated correctly — the element and every attribute the entry carries. A correct
+address with a named access **omitted** is underspecified: zero for that fact, and the row is not
+`misstated`. The same attribute stated **wrongly** is a contradiction, and the row is `misstated`.
+An attribute the entry does not name is not required. The strict reading is what keeps item 2's
+folding from erasing content, and it is applied consistently in the lists: an entry carries the
+attributes that are credit-bearing for that unit and no others.
+
+### 5. The four partitions the reviewer wanted reconciled
+
+Writing the lists settled all four. Where a convention decided it, the convention is named.
+
+- **RX-008, 3 kept.** Boundary, the abort of the offending packet, and the host's advance
+  obligation. The obligation is a requirement on the host, not a consequence whose contradiction
+  would falsify the boundary, so the second convention leaves it standing as its own fact.
+- **RX-033, 2 kept.** In-order processing, and the copy-to-keep rule. The single read pointer is
+  the mechanism behind the first and rides with it; the second is a separate obligation, and a
+  candidate denying it has not denied in-order processing.
+- **PHY-010, 2 kept, relabeled.** The facts are the absence of autonegotiation and what an
+  autonegotiating partner detects. "Full duplex works only when both ends are manually configured"
+  follows from the two and is not counted; the table's "manual-configuration consequence" was the
+  ambiguous wording the reviewer objected to and is gone.
+- **SPI-017, 2 kept, each carrying its condition.** Both entries state the remedy **and** the
+  operating condition it remedies, so a candidate recommending a clock arrangement without the
+  erratum's condition has not stated either fact fully and earns nothing ambiguous.
+
+### 6. INIT-010's seventeenth step, and the eighteenth
+
+The seventeen reconstruct exactly as the reviewer guessed — receive pointers grouped, transmit
+pointers grouped, MAIPG and MABBIPG separate, the three PHY writes separate — and those groups are
+now declared rather than implied. The statement's remaining clause, that interrupts and RXEN are
+enabled in a later step, is a proposition about the driver's order that none of the seventeen
+entails, so it is **fact 18**. The count moves 17 to 18. INIT-010 is an implementation-choice row,
+so this changes probe scoring only, never recall.
+
+### 7. Two wording alignments
+
+- **`LEDGER-FORMAT.md`'s definition of `critical`.** Added, adapted from the review: for this
+  pilot, "does not work" includes failing to satisfy a behavior the operating profile in
+  `SCORING-POLICY.md` explicitly requires, and it does not imply that an implementation outside the
+  profile is nonfunctional. A promiscuous software-filtering driver works; it is not the driver
+  this benchmark measures.
+- **Reporting.** A score report now names **which** critical facts a candidate missed, by their
+  numbers in `SCORING-FACTS.md`, for every `critical` unit scored `partial` — because a candidate
+  can earn four fifths of PHY-018 while omitting HDLDIS, the fact the profile makes that row
+  critical for, and the fraction alone hides it. The same section states that the outer denominator
+  is the 162 eligible rows and not 687 facts.
+
+### Counts after this pass
+
+**213 rows, 203 active, 10 withdrawn — unchanged.** No row was minted, withdrawn, or had its
+statement, class, weight or scope changed: this pass touched scoring policy only. Composite scoring
+units: **141, unchanged**; atomic rows 62, unchanged; the recall denominator stays at 162 rows, 127
+of them composite.
+
+**Facts: 689 to 687**, 625 of them inside composite units. Eight counts moved — REG-019 6 to 10,
+INIT-010 17 to 18, RX-012 3 to 2, IRQ-007 4 to 2, PHY-016 7 to 6, PHY-026 3 to 2, PHY-031 3 to 2,
+PHY-032 7 to 6 — and the distribution is now 62 rows at 1 fact, 34 at 2, 39 at 3, 19 at 4, 18 at 5,
+12 at 6 and 19 at 7 or more; the largest are TX-008 at 21, INIT-010 at 18, RX-011 at 15, REG-003 at
+14, REG-001 and RX-019 at 12. Scoring policy: `enc28j60-1.3` -> **`enc28j60-1.4`**, with the
+version history extended. Recall numbers under 1.4 are not comparable with any computed under 1.3,
+which is what the bump records; no candidate has been scored under any version.
+
+`ledger_check.py ledger.yaml` and `ledger_check.py ledger.yaml --freeze` both report 0 errors and 0
+warnings, the leak scan over `ledger.yaml`, `SCORING-POLICY.md`, the new `SCORING-FACTS.md`,
+`LEDGER-CONFLICTS.md`, `ADJUDICATION.md` and `README.md` against the pinned driver files is clean,
+and the checker's 18 unit tests pass. The checker as it stood at the end of this pass does not yet
+read `SCORING-FACTS.md`; the fact lists were verified against the policy's table by a throwaway
+script — 141 units present, every list numbered from 1 with no gap, every list length equal to its
+printed count and to the policy's, and the per-facet composite counts unchanged. `ledger.lock` was
+**not** written: the freeze is the adjudicator's step.

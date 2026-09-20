@@ -20,6 +20,7 @@ test quality right on something cheap before the method is pointed at a complex 
 | `LEDGER-CONFLICTS.md` | 2 | the merge's conflict log: every reader disagreement, one-sided critical row, overlap, and correction applied since, for the adjudicator |
 | `ADJUDICATION.md` | 2 | the decisions a person must make before the freeze, each answerable with a letter or number |
 | `SCORING-POLICY.md` | 2 | the versioned scoring policy the freeze lock names: which classes are in the recall denominator, how precision is computed, how results are reported |
+| `SCORING-FACTS.md` | 2 | the credit-bearing facts of every composite scoring unit, one ordered list each: the numerator side of proportional partial credit, frozen with the policy |
 | `ledger_check.py` | 2 | the mechanical gate on the ledger: schema, ids, classes, derivations against the corpus pins; `--freeze` for the freeze rules; `--lock` to check a frozen ledger against its lock |
 
 ## State of the ledger
@@ -45,7 +46,7 @@ Run in this directory (the checker needs PyYAML):
 uv run --with pyyaml python3 ledger_check.py ledger.yaml --freeze   # must report 0 errors
 python3 corpus_check.py                                              # must report 0 drifted
 python3 ../../skills/os-investigator/scripts/leak_scan.py \
-  ledger.yaml SCORING-POLICY.md LEDGER-CONFLICTS.md ADJUDICATION.md README.md \
+  ledger.yaml SCORING-POLICY.md SCORING-FACTS.md LEDGER-CONFLICTS.md ADJUDICATION.md README.md \
   --whitelist leak-scan-whitelist.txt \
   --against <your cache>/enc28j60.c <your cache>/enc28j60_hw.h    # must report no findings
 ```
@@ -54,9 +55,11 @@ The ledger is a clean-side artifact: it describes what the reference driver does
 it, so it has to pass the scanner the same way a clean-room spec does. The whitelist holds the two
 file names the corpus pins, because a row cites them in `derivation.source` by name.
 
-Then write `ledger.lock`. The checker requires **all seven** of these fields, and refuses a lock
-that omits one — `ledger_check.py ledger.yaml --json` prints the five digest and version values
-it computes, so the lock can be filled from its output:
+Then write `ledger.lock`, with **all eight** of these fields —
+`ledger_check.py ledger.yaml --json` prints the digest and version values it computes, so the lock
+can be filled from its output. The checker refuses a lock that omits any of the seven it validates
+itself; the eighth, `facts_sha256`, is required by this pilot's policy
+(`SCORING-POLICY.md` → "Binding") and is recorded the same way:
 
 | Field | What it holds |
 |---|---|
@@ -64,8 +67,9 @@ it computes, so the lock can be filled from its output:
 | `revision` | the repository revision that holds the checker, the adjudication record and the authoring brief; a digest identifies bytes, a revision makes them recoverable |
 | `sha256` | `ledger.yaml`'s digest |
 | `corpus_sha256` | `corpus.yaml`'s digest, the manifest the check ran against |
-| `policy_version` | the scoring policy's `Version:` string, currently `enc28j60-1.3` |
+| `policy_version` | the scoring policy's `Version:` string, currently `enc28j60-1.4` |
 | `policy_sha256` | `SCORING-POLICY.md`'s digest, because a version label on a mutable file binds nothing |
+| `facts_sha256` | `SCORING-FACTS.md`'s digest, because that file holds the numerator of every composite fraction |
 | `format_sha256` | `LEDGER-FORMAT.md`'s digest, because the verdict definitions and authoring rules the policy builds on live there |
 
 and the adjudicator's attestation:

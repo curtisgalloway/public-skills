@@ -146,6 +146,12 @@ vendor document does not prove a device unaffected.
 (degraded or fragile), `minor` (completeness). Recall is reported **per weight and unweighted**,
 never as a single blended number: 90% with every `critical` row missing is not a good spec.
 
+For this pilot, **"does not work" includes failing to satisfy a behavior the operating profile in
+`SCORING-POLICY.md` explicitly requires**, and it does not imply that an implementation outside
+that profile is nonfunctional. A driver that receives promiscuously and filters in software works;
+it is not the driver this benchmark measures, and the profile is what makes "cannot avoid"
+checkable. `INIT-024` and `PHY-018` are the two weights that rest on it.
+
 How to choose one, adopted 2026-09-20 as the adjudicator's standing rule and the rule the
 definition of `critical` above already implies:
 
@@ -190,7 +196,8 @@ against a candidate. The classes are not all requirements, and the denominators 
   rows do not multiply an error, which is why the freeze gate refuses undisposed overlaps.
 
 The versioned policy this ledger's freeze lock names is `SCORING-POLICY.md` (version
-`enc28j60-1.3`, adopted 2026-09-20): it fixes, per class, what is in the recall denominator.
+`enc28j60-1.4`, adopted 2026-09-20), read with `SCORING-FACTS.md`, which is frozen alongside it: it
+fixes, per class, what is in the recall denominator.
 
 (This paragraph was added 2026-09-19 after a review found the class table above and the original
 scoring sentence in conflict: the table said an implementation choice is "present so a candidate is
@@ -220,7 +227,7 @@ print the same percentage.
    name **bounded** exceptions — a listed set of ids scored as composite units under a stated
    verdict rule, never an open-ended category. This ledger's are the 141 ids in
    `SCORING-POLICY.md` → "Composite scoring units", each carrying the frozen number of facts it
-   holds; the policy arrived at them by enumerating the independently checkable facts in every
+   holds, with those facts written out one ordered list per unit in `SCORING-FACTS.md`; the policy arrived at them by enumerating the independently checkable facts in every
    active row rather than by collecting the rows a reviewer named, so a row is atomic exactly when
    that enumeration returned one. Every row not in the list is still governed by this rule, and
    the walk is what makes a row's absence from the list a judgment rather than an oversight.
