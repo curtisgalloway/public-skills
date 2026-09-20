@@ -16,11 +16,72 @@ test quality right on something cheap before the method is pointed at a complex 
 | `corpus.yaml` | 1 | the frozen reference corpus: every source the gold ledger may be authored from, pinned by commit or document hash |
 | `corpus_check.py` | 1 | re-fetches every pin and reports drift |
 | `LEDGER-FORMAT.md` | 2 | what a gold-ledger row is, and why its IDs come from the corpus rather than from any document's headings |
+| `ledger.yaml` | 2 | the gold ledger: authored blind by two independent readers from `corpus.yaml` alone, merged with every disagreement preserved; **not yet frozen** |
+| `LEDGER-CONFLICTS.md` | 2 | the merge's conflict log: every reader disagreement, one-sided critical row, overlap, and correction applied since, for the adjudicator |
+| `ADJUDICATION.md` | 2 | the decisions a person must make before the freeze, each answerable with a letter or number |
+| `ledger_check.py` | 2 | the mechanical gate on the ledger: schema, ids, classes, derivations against the corpus pins; `--freeze` for the freeze rules; `--lock` to check a frozen ledger against its lock |
 
-The ledger itself is not written yet. It must be authored **from `corpus.yaml` alone, before any
-generated specification is read** — that independence is what makes the recall number mean anything,
-and it cannot be recovered after the fact. `LEDGER-FORMAT.md` is deliberately settled first, because
-the one decision that cannot be retrofitted is how a requirement is identified.
+## State of the ledger
+
+Authored 2026-09-19. Two readers, A and B, each wrote a full ledger from the pinned corpus in a
+fresh context, without sight of each other or of any generated specification; there was no
+ENC28J60 candidate spec anywhere in this repository at the time, so the blind rule held by
+construction. A merger, not an author, combined the drafts (175 and 171 rows) into one file under
+written rules: nothing dropped, A's ids kept, weight disputes recorded rather than settled. The
+proposal's author reviewed the result through the `consult` skill; the row-level corrections that
+review established from the sources, and a clause-level overlap pass, were then applied and
+logged. Every step is in `LEDGER-CONFLICTS.md`.
+
+What remains before the freeze is adjudication: `ADJUDICATION.md` holds the decisions, and
+`ledger_check.py --freeze` counts what is still provisional. The ledger is usable now for reading;
+it is not usable for scoring until it is frozen.
+
+## Freezing the ledger
+
+Run in this directory (the checker needs PyYAML):
+
+```bash
+uv run --with pyyaml python3 ledger_check.py ledger.yaml --freeze   # must report 0 errors
+python3 corpus_check.py                                              # must report 0 drifted
+python3 ../../skills/os-investigator/scripts/leak_scan.py \
+  ledger.yaml LEDGER-CONFLICTS.md ADJUDICATION.md \
+  --whitelist leak-scan-whitelist.txt \
+  --against <your cache>/enc28j60.c <your cache>/enc28j60_hw.h    # must report no findings
+```
+
+The ledger is a clean-side artifact: it describes what the reference driver does and never quotes
+it, so it has to pass the scanner the same way a clean-room spec does. The whitelist holds the two
+file names the corpus pins, because a row cites them in `derivation.source` by name.
+
+Then write `ledger.lock` with the ledger's and the manifest's sha256 (the checker prints the
+first; `shasum -a 256 corpus.yaml` gives the second), the `frozen` date, the name and version of
+the scoring policy that decides whether observed-behavior and inference rows enter recall, and
+the adjudicator's attestation:
+
+> This revision contains one active scoring representation per atomic requirement. All
+> provisional merge decisions have recorded dispositions. Each critical requirement has
+> independent supporting derivations or an explicitly unresolved disposition. The ledger and
+> corpus digests were recorded before candidate generation; subsequent candidate-informed
+> corrections belong to a separately identified benchmark revision.
+
+From then on `ledger_check.py ledger.yaml --lock ledger.lock` refuses an edited ledger, and a
+candidate run names the lock it was scored against. A row added after a candidate has been read
+is not part of that denominator and says so.
+
+## Input history
+
+Entries a reader of a score needs, in order:
+
+- **2026-09-19, before any freeze or candidate.** `corpus.yaml` recorded DS80349C silicon issue 1
+  (MAC registers unreliable with a slow asynchronous SPI clock) as affecting B5 and B7. One of the
+  blind readers, working from the extracted text, saw the marks under B1 and B4 and flagged the
+  disagreement instead of following the manifest; the rendered Table 2 and the issue's own box
+  confirmed B1 and B4. Corrected in the manifest, and in the one ledger row that cites the issue
+  (`ENC28J60-SPI-017`). The pinned documents did not change. No score used the earlier manifest,
+  because no candidate has been scored.
+- **2026-09-19.** The remaining affected-revision lists (issues 2, 4 to 7, 9 to 12, 14 to 19) and
+  Table 3's three conformance issues were added to the manifest from the same page, so the map is
+  the source of those lists rather than the drafts.
 
 ## Checking the pins
 
