@@ -469,6 +469,27 @@ class ScoringTests(unittest.TestCase):
         self.assertEqual(lint, [])
         self.assertNotEqual(forged, rebuilt)
         self.assertEqual(forged['inventory_sha256'], rebuilt['inventory_sha256'])
+        # Bind the review to the forged packet, so nothing but the rebuild can refuse the run.
+        forged_bytes = score.canonical(forged)
+        self.review['preparation']['packet_sha256'] = score.digest(forged_bytes)
+        for response in self.review['preparation']['responses']:
+            response['packet_sha256'] = score.digest(forged_bytes)
+        self.claim(self.entry('REG-001')['facts'][0])['weight'] = 'critical'
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = Path(tmp)
+            for name, data in (('candidate.md', self.candidate),
+                               ('review.json', score.canonical(self.review)),
+                               ('packet.json', forged_bytes),
+                               ('inventory.json', self.inventory_bytes)):
+                (tmp / name).write_bytes(data)
+            run = subprocess.run(
+                [sys.executable, str(ROOT / 'score.py'), 'score',
+                 '--candidate', str(tmp / 'candidate.md'), '--review', str(tmp / 'review.json'),
+                 '--packet', str(tmp / 'packet.json'), '--inventory', str(tmp / 'inventory.json'),
+                 '--output', str(tmp / 'attempt')], capture_output=True, text=True)
+            self.assertEqual(run.returncode, 3)
+            self.assertIn('not the packet this inventory produces', run.stderr)
+            self.assertFalse((tmp / 'attempt').exists())
 
     def test_a_manifest_only_response_is_not_an_independent_technical_review(self):
         claim = self.claim(self.entry('REG-001')['facts'][0])
