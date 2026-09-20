@@ -49,7 +49,9 @@ used these tools cannot follow the plan without them.
   themselves. An adjudication item is not a pass and not a failure; it is a question waiting for a
   person.
 
-## The measurement, in four steps
+See the repository [glossary](../../GLOSSARY.md) for shared terms.
+
+## The documentary measurement, in four steps
 
 The order matters more than any individual step, because the independence of the answer key is what
 makes the numbers mean anything.
@@ -69,7 +71,24 @@ makes the numbers mean anything.
    still needs support, and an unsupported one counts against precision.
 
 Steps 3 and 4 run in opposite directions and measure different things. Collapsing them loses the
-recall number entirely — see the next section for why.
+recall number entirely — see "Why the answer key cannot come from the verifier" below.
+
+## Downstream measurement: reconstruct a driver
+
+The [reconstruction protocol](RECONSTRUCTION.md) adds an implementation test using the exact
+frozen specs from both generation arms. Fresh isolated implementers build replacement drivers
+on the selected reference OS; evaluators then compare requirements and observable behavior with
+the original. Linux is an initial coverage assumption to verify per device, not a guaranteed
+best reference. BSD or another OS may be selected. Cross-OS porting is a separate experiment.
+
+Freeze the scope, independent checks, and implementation conditions before inspecting paired
+candidates. Keep the original source, hardware documents, answer key, and review feedback out
+of implementer access. Report reconstruction outcomes and failure attribution separately from
+recall and precision; neither a successful driver nor a coding failure overrides document scores.
+
+The [ENC28J60 run guide](evals/enc28j60/RECONSTRUCTION-RUN.md) is preparation guidance only.
+No reconstruction experiment has run and no execution runner is implemented. The frozen
+corpus already selects Linux for this pilot; that choice does not constrain future devices.
 
 ## Why the answer key cannot come from the verifier
 
@@ -107,7 +126,21 @@ explicit mapping are what make the later merge possible, and both are cheap to d
 | 3 | `claude plugin eval` case: with-skill and without-skill arms plus diagnostics | phase 1 |
 | 4 | Coverage scoring (gold → candidate) as a reviewed manual pass | phases 2 and 3 |
 | 5 | Claim verification (candidate → sources) via `spec-verifier` | phase 3 |
-| 6 | Extend `spec-verifier` to score both directions against the ledger | phases 4 and 5, and a decision that it earns its cost |
+| R1a | Freeze reconstruction brief, scope, environment recipe, isolation, independent check definitions, and attribution rules | phases 1–2; before inspecting paired candidates; no hardware required |
+| R1b | Implement and qualify executable checks, reference results, and mutation tests | R1a; hardware where needed; independent of candidates and before inspecting their execution results |
+| R2 | Reconstruct a driver from each frozen spec under identical implementer conditions | phase 3 and R1a; build environment available; R1b is not required for partial build/source-review results; can overlap phases 4–5 without review feedback |
+| R3 | Compare frozen implementations, execute independent checks, and attribute failures | R2 and R1b for executed comparisons; physical results require fixture |
+| 6 | Extend `spec-verifier` to score both directions against the ledger | phases 4 and 5, and a decision that it earns its cost; lower priority than reconstruction, not hardware-gated |
+
+Prioritize the reconstruction track ahead of optional phase 6 integration, but do not make
+fixture delays a hard dependency for that tooling decision. R1a may be qualified
+with a separately labeled procedure trial using the old practice candidate; that trial cannot
+be one arm of the paired experiment. Generate the pair only after the protocol is frozen.
+Generation, documentary review, reconstruction, execution, and optional repair need separate
+budget estimates and run authorization. No paid benchmark is launched by adopting this plan.
+The existing practice candidate's fresh documentary re-review remains independent work.
+Evaluator-authored reconstruction checks test driver behavior; the broader objective of an
+implementer authoring meaningful tests from the spec remains unmeasured by this stage.
 
 The hardware purchase in the proposal's first action — two ENC28J60 modules, about $4 each — was
 made on 2026-09-19 and the parts are on order; nothing above assumes them, and nothing above waits
@@ -121,7 +154,8 @@ as awaiting it — not skipped, and not scored as though it had run.
 Each is a change to shipped text, listed with what it breaks if left alone. **Changes 1 and 2
 landed with the verification phase** (PR #53); they are kept here because the reasoning is what
 justifies them, and a reader asking why the tag set has an `[inference]` class or why a
-disagreement is not a failure should find the answer in one place. Change 3 is still open.
+disagreement is not a failure should find the answer in one place. Change 3 is implemented;
+the paired run remains pending.
 
 ### 1. A verifier disagreement is an adjudication item, not a failure — *done*
 
