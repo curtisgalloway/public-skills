@@ -127,6 +127,33 @@ def policy_identity(policy_bytes: bytes | None) -> tuple[str | None, str | None]
     return (m.group(1) if m else None), hashlib.sha256(policy_bytes).hexdigest()
 
 
+def composite_ids(policy_bytes: bytes | None) -> tuple[set[str], int | None]:
+    """The ids the policy names as composite scoring units, and the total it claims.
+
+    The policy writes them without the device prefix (``REG-008``), in one section. Parsing them
+    is what lets the checker refuse a list that has drifted from the ledger: the policy asserts
+    the inventory is exhaustive as of a date, and an id that no longer exists, or that names a
+    withdrawn row, is the first sign that assertion has gone stale.
+    """
+    if policy_bytes is None:
+        return set(), None
+    text = policy_bytes.decode("utf-8", "replace")
+    m = re.search(r"^##\s+Composite scoring units\s*$(.*?)(?=^##\s|\Z)", text, re.M | re.S)
+    if not m:
+        return set(), None
+    section = m.group(1)
+    # Only the table rows are the list. The section's prose names withdrawn rows when it explains
+    # why something was not split, and those are commentary, not entries.
+    ids: set[str] = set()
+    for line in section.splitlines():
+        line = line.strip()
+        if not line.startswith("|") or "Total" in line or line.startswith("|---"):
+            continue
+        ids |= {f"ENC28J60-{t}" for t in re.findall(r"\b(?:" + "|".join(FACETS) + r")-\d{3}\b", line)}
+    total = re.search(r"\*\*Total\*\*\s*\|[^|]*\|\s*\*\*(\d+)\*\*", section)
+    return ids, (int(total.group(1)) if total else None)
+
+
 def check(
     ledger: dict,
     corpus: dict,
@@ -316,11 +343,24 @@ def check(
     counts["policy_version"] = policy_version
     counts["policy_sha256"] = policy_digest
     counts["format_sha256"] = format_digest
+    comp_ids, comp_total = composite_ids(policy_bytes)
+    counts["composite_units"] = len(comp_ids)
+    if comp_ids:
+        active_ids = {r["id"] for r in rows if isinstance(r, dict) and r.get("status") == "active"}
+        all_ids = {r["id"] for r in rows if isinstance(r, dict)}
+        for cid in sorted(comp_ids - all_ids):
+            errors.append(f"policy: composite list names {cid}, which is not a row in this ledger")
+        for cid in sorted((comp_ids & all_ids) - active_ids):
+            errors.append(f"policy: composite list names {cid}, which is withdrawn")
+        if comp_total is not None and comp_total != len(comp_ids):
+            errors.append(f"policy: composite list prints a total of {comp_total} but names {len(comp_ids)} distinct ids")
     if freeze:
         if policy_bytes is None:
             errors.append("freeze: no scoring policy; which classes are in the recall denominator must be named before a candidate exists")
         elif not policy_version:
             errors.append("freeze: the scoring policy declares no 'Version:' line, so a lock cannot name a version")
+        elif not comp_ids:
+            errors.append("freeze: the scoring policy names no composite scoring units; a policy whose bounded exception is empty cannot be checked against the ledger")
     if lock is not None:
         if not isinstance(lock, dict):
             errors.append("lock: not a mapping")

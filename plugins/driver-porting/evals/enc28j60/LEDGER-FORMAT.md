@@ -181,7 +181,7 @@ against a candidate. The classes are not all requirements, and the denominators 
   rows do not multiply an error, which is why the freeze gate refuses undisposed overlaps.
 
 The versioned policy this ledger's freeze lock names is `SCORING-POLICY.md` (version
-`enc28j60-1.1`, adopted 2026-09-20): it fixes, per class, what is in the recall denominator.
+`enc28j60-1.2`, adopted 2026-09-20): it fixes, per class, what is in the recall denominator.
 
 (This paragraph was added 2026-09-19 after a review found the class table above and the original
 scoring sentence in conflict: the table said an implementation choice is "present so a candidate is
@@ -207,10 +207,11 @@ a distinct failure from one that is 50% missing and both can print the same perc
    row derived from a document that has since drifted is a row derived from an unknown document.
 3. **Atomic.** If a reviewer can agree with half a row, split it. The run's scoring policy may
    name **bounded** exceptions — a listed set of ids scored as composite units under a stated
-   verdict rule, never an open-ended category. This ledger's are the sixteen register bit-layout
-   rows in `SCORING-POLICY.md` → "Composite scoring units" (seven named in policy version
-   `enc28j60-1.0`, nine more in `enc28j60-1.1`); every other composite row is still governed by
-   this rule.
+   verdict rule, never an open-ended category. This ledger's are the 113 ids in
+   `SCORING-POLICY.md` → "Composite scoring units", which that policy arrived at by walking every
+   active row rather than by collecting the rows a reviewer named; every row not in the list is
+   still governed by this rule, and the walk is what makes a row's absence from the list a
+   judgment rather than an oversight.
 4. **Two readers on `critical` rows**, independently, with disagreements recorded as
    `unresolved-conflict` rather than settled by whoever wrote first — the same rule
    `spec-verifier` applies to a claim, applied to the answer key. Who counts as a reader is

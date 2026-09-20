@@ -889,3 +889,237 @@ REG-005 and INIT-024, each a critical active row with one reader and no structur
 with the reclass). The leak scan over `ledger.yaml`, `SCORING-POLICY.md`, `LEDGER-CONFLICTS.md`,
 `ADJUDICATION.md` and `README.md` against the pinned driver files is clean. Every group of
 `ADJUDICATION.md` is now answered.
+
+## Pre-freeze repairs 2026-09-20
+
+An outside reviewer read the ledger at commit `01ca0ae` read-only, reproduced the clean mechanical
+gate and the 161-row denominator, and **refused the freeze on semantic grounds**: the atomic-row
+contract, the overlap contract, and several claims stronger than their evidence. This pass clears
+those blockers. Every change below names the row or file it touches and the finding it answers.
+IDs omit `ENC28J60-`. No row's weight or class was changed by this pass.
+
+### 1. The composite inventory
+
+**The finding.** `SCORING-POLICY.md` exempted sixteen ids by name and said the atomic-row rule
+still bound every other row. The reviewer found that untrue in practice — it named REG-029,
+PHY-020, PHY-032, REG-015, and as further examples REG-001 to REG-004, REG-013 to REG-015,
+REG-017, REG-019, REG-020, REG-023, PHY-006 and RX-020 — and said its own list was not
+exhaustive. A scorer therefore had no authorized rule for a partially correct version of those
+rows.
+
+**What was done.** Every active row was walked, not only the rows the reviewer named, and each
+was judged against a test now written into the policy: a row is composite when it states two or
+more facts that can each be checked, and found right or wrong, on their own; a row is atomic when
+it states one requirement, even where the statement also carries the mechanism that produces it,
+its value, its condition or its consequence. **202 rows walked, 113 composite, 89 atomic**; after
+the two splits below the ledger holds 204 active rows, 113 composite and 91 atomic.
+
+- **`SCORING-POLICY.md`, bumped to `enc28j60-1.2`** — the composite list goes from 16 ids to 113,
+  with the test written down, the per-facet counts printed so a reader can check the list against
+  `ledger.yaml`, and a sentence saying the inventory was made by walking every active row on
+  2026-09-20 and is meant to be exhaustive rather than illustrative. Every row's verdict rule can
+  change with the list, so the bump is mandatory, not cosmetic. Per facet: REG 25, INIT 12, TX 13,
+  RX 15, IRQ 10, PHY 20, SPI 10, ELEC 7, ERR 1.
+- **`SCORING-POLICY.md`** — the verdict rule now also says what it means for the eleven composite
+  units no recall denominator contains (REG-007, RX-026, IRQ-018, INIT-010, RX-021, RX-025,
+  TX-018, IRQ-016, ELEC-004, ELEC-005, ELEC-007): a precision probe is `misstated` when at least
+  one enumerated fact is asserted as a hardware requirement, on the same threshold, and not only
+  when the whole row is.
+- **`LEDGER-FORMAT.md` authoring rule 3** — its live reference to "the sixteen register bit-layout
+  rows" and to policy version `enc28j60-1.1` is now the 113-id list and `enc28j60-1.2`, with the
+  walk named as what makes a row's absence from the list a judgment rather than an oversight. The
+  `enc28j60-1.0` and `enc28j60-1.1` references inside historical records here and in
+  `ADJUDICATION.md` are left alone; the three live references inside `ledger.yaml` row notes were
+  updated.
+
+**Enumerated, 95 rows.** Every row that is one register's definition, one document table, or one
+mechanism a reader looks up in one place, which is the shape the owner approved for the original
+seven. REG-029 (EIR bit positions), PHY-020 (PHLCON layout), PHY-032 (LED codes) and REG-015
+(EREVID with its revision-code table) are in this group, which is where the reviewer's four named
+blockers land.
+
+**Split, 2 rows, each leaving its remainder enumerated.** Splitting was used only where a row
+bundled things a reader would look up in different places:
+
+- **PHY-006 to PHY-033.** The reserved-bit write rule is read in a register's own definition, not
+  in the PHY register summary that lists implemented addresses. PHY-033 is a new atomic row
+  (`documented-hardware-requirement`, `important`, readers inherited from PHY-006, `supersedes`
+  unset because PHY-006 survives).
+- **TX-019 to TX-024.** Half-duplex backpressure is a different mechanism from the pause frames
+  the rest of the row describes. TX-024 is a new atomic row
+  (`documented-hardware-requirement`, `minor`, readers inherited from TX-019, `supersedes` unset).
+
+**Deliberately not split.** REG-023 bundles five MAC timing and limit registers, but the
+2026-09-19 merge folded the withdrawn REG-030 and REG-031 into it, so splitting would reopen a
+settled merge; the same reason already protects RX-019 from being split back into RX-034. Both
+are enumerated instead, and the policy says why.
+
+### 2. The remaining clause overlaps
+
+The reviewer's six pairs, resolved by giving each clause one owner and leaving a cross-reference
+rather than a second scored clause:
+
+- **REG-005 / SPI-009 / SPI-016, and REG-003.** REG-005 is narrowed to the grouping rule: group
+  membership follows the data sheet's name prefixes, and bank 3 holds members of different groups.
+  SPI-009 owns the dummy byte and the read framing; SPI-016 owns the 210 ns CS hold time; REG-003
+  loses the clause saying every bank 2 register needs a dummy read byte and keeps the bank 2
+  address map. REG-005's structured `independent_review` is kept intact and its **disposition
+  gains a clause** saying which part of reader C's reading supports the narrowed row: the section
+  3.1 name-prefix rule with the bank 3 column of Table 3-1 and Register 3-4 settle membership,
+  while the framing that reading took from Figures 4-3 and 4-4 and the hold times from Table 16-6
+  now support SPI-009 and SPI-016.
+- **INIT-007 / INIT-008.** INIT-007 owns the sequence. INIT-008 is restated as post-reset
+  verification and retry, referring to INIT-007 for the preceding steps.
+- **TX-004 / IRQ-008 / TX-007.** TX-004 loses the success clause, the abort path and — the
+  reviewer's table names this too — the clause setting EIR.TXIF. IRQ-008 owns judging success
+  including the condition that the host did not itself clear TXRTS; TX-007 owns what an abort
+  does. Both gained a note recording the ownership.
+- **RX-012 / IRQ-007.** IRQ-007 owns that PKTIF clears only when PKTDEC brings EPKTCNT to zero.
+  RX-012 keeps the decrement the host owes after each packet.
+- **PHY-031 / PHY-006.** PHY-006 owns the nine implemented PHY addresses; PHY-031 keeps
+  MIREGADR's width and reset value, with the rest in notes.
+- **SPI-014 / SPI-018.** SPI-018 owns the most-significant-bit-first rule for every command;
+  SPI-014 keeps the streaming behavior.
+
+**The sweep beyond the named list.** Clauses were compared rather than `overlaps` markers read, as
+the reviewer asked. Nine more duplications were found and resolved the same way:
+
+- **INIT-002 / INIT-001** — both listed the operations forbidden before the device is ready.
+  INIT-001 owns the list; INIT-002 refers to it and owns the CLKRDY poll.
+- **INIT-007 / INIT-003** — both stated the 1 ms post-reset wait. INIT-003 owns the figure;
+  INIT-007 keeps the step and cites it, so the sequence stays complete.
+- **INIT-005 / REG-011 and REG-017** — the System Reset exception list repeated each register's
+  own reset behavior. INIT-005 names the two exempt registers and cites their rows.
+- **INIT-014 / TX-016** — both stated that an oversize frame is aborted on transmit unless huge
+  frames are enabled. TX-016 owns the transmit case and its two overrides; INIT-014 keeps the
+  programming requirement and the receive side.
+- **INIT-019 / REG-011** — both stated that setting PWRSV clears CLKRDY. REG-011 owns it.
+- **IRQ-006 / IRQ-007** — IRQ-006 restated that PKTIF still clears the documented way. Removed;
+  what IRQ-006 keeps of the erratum's limits is the INT pin's continued reliability.
+- **RX-008 and RX-013 / IRQ-010** — both set out when RXERIF is set. IRQ-010 owns the flag's set
+  conditions; the two RX rows cite it and keep their own rules.
+- **PHY-011 / PHY-012** — both carried the obligation to program PDPXMD explicitly. PHY-012, the
+  `inference` row whose whole subject it is, owns it; PHY-011 keeps the reset-value derivation.
+- **IRQ-011 / PHY-016 and PHY-017** — IRQ-011 said where the present link state is read, which
+  those two rows define. Now a cross-reference.
+
+Also from the reviewer's corpus sample rather than its overlap table: **RX-017 / RX-008**, whose
+one-unused-byte explanation repeats RX-008's write-boundary rule. Kept as a cross-reference, not
+a scored clause, as the reviewer asked.
+
+**Examined and left, with the reason.** REG-019 / INIT-012 — one states the PADCFG encodings and
+the TXCRCEN pairing rule, the other recommends a configuration; they touch but neither restates
+the other. TX-001 / TX-016 — TX-016 uses the per-packet override as a condition rather than
+restating the control byte's layout. SPI-013 / SPI-015 — two different wrap cases, not one clause
+twice.
+
+### 3. Claim corrections the reviewer established from the corpus
+
+- **PHY-006** — "reserved bits are written as 0" contradicts Register 2-2, which requires PHLCON
+  bits 13-12 written as 1; section 3.3's general wording does not override a register's own
+  definition. Withdrawn and replaced by PHY-033, which defers to the register-specific rule and
+  names PHLCON as the case in point.
+- **PHY-030** — restated: the driver aborts initialization when its PHLCON write does not complete
+  before its own timeout. The diagnosis of an absent PHY was a reading of intent rather than of
+  behavior, and the clause saying any check or none is permitted went with it, because the corpus
+  prescribing no check does not establish that every check is permitted.
+- **TX-004** — the bare "success is judged by TXABRT being clear" is removed; DS39662E section
+  12.1.4 also requires that the host did not clear TXRTS, and IRQ-008 states the two together.
+- **INIT-008** — the ESTAT check keeps its status as issue 19's *example* of a verification, with
+  the row stating the general obligation (verify an expected reset state, retry if it fails) and
+  saying the issue does not exclude other state a host could check.
+- **REG-026** notes — now point at ERR-001's unqualified vendor instruction not to use the DMA
+  module for checksum calculations at all, instead of paraphrasing it as a prohibition only while
+  reception is possible.
+- **TX-010** notes — calling the driver's full-duplex application of the TXRST workaround
+  "harmless" exceeds the evidence. Both the merged note and reader B's note now mark it
+  unresolved: nothing in the corpus says what pulsing TXRST costs outside issue 12's conditions.
+- **PHY-024** — "software cannot compensate" is stronger than issue 7 supports. Now: the published
+  workaround is correct TPIN wiring, and the corpus supplies no software workaround.
+- **PHY-020** — the reset value was `0x342x`, which leaves the whole low nibble unknown. Table 3-3
+  prints `0011 0100 0010 001x`, so the row now gives the binary form and says 0x3422 with bit 0
+  alone unknown.
+- **RX-038** — the vendor recommendation is context referring to RX-018, not a second scored
+  hardware clause. The statement keeps the driver's policy and that alternatives are permitted;
+  the notes carry the recommendation as the evidence that they are.
+
+### 4. The operating envelope behind two critical weights
+
+**The finding.** Under the necessity-adjusted weight rule, `critical` means a working driver
+cannot avoid the requirement — but INIT-024's own third-reader derivation notes that reception
+does not depend on MAADR in promiscuous mode, which is a counterexample to the universal
+consequence. PHY-018's half-duplex rationale has the same gap.
+
+**Neither weight changed.** The envelope the weights assume is now explicit in two places:
+
+- **`SCORING-POLICY.md`** gains "The operating envelope the weights assume", beside the weight
+  discussion: a driver that brings up an ordinary Ethernet interface, receiving frames addressed
+  to its own unicast address and to broadcast, transmitting, and interoperating with a link
+  partner in either duplex. A requirement a driver can avoid only by operating outside that
+  envelope, such as running permanently in promiscuous mode, is still `critical`. The section also
+  says what the envelope is not: it bounds the necessity argument, it is not a scope rule, and the
+  optional-feature cap still applies.
+- **INIT-024** and **PHY-018** each gained a `notes` clause naming that envelope clause as what
+  their weight rests on — for INIT-024 the unicast reception the envelope requires against the
+  promiscuous counterexample, for PHY-018 that half duplex is inside the envelope and is the
+  device's reset default.
+
+### 5. Scoring policy ambiguities
+
+All six the reviewer listed are applied in `SCORING-POLICY.md`, in its own voice:
+
+- **Out-of-scope precision** (Eligibility) — scope, recoverability and withdrawal filter the
+  ledger's recall and probe rosters only; precision evaluates every claim the candidate makes. An
+  incorrect wake-on-LAN claim is a precision error although IRQ-016 is out of scope.
+- **Unsupported, contradicted, misattributed** (Precision adjudication) — a necessity claim is
+  contradicted when the corpus establishes a valid alternative, unsupported when the corpus is
+  silent, and an attribution error when credited to a named source that does not state it,
+  whether or not the requirement is true.
+- **Inference versus `misstated`** (Uncertainty) — correct inference content presented as
+  documented fact is covered content with a separate precision attribution error, explicitly not a
+  `misstated` recall row.
+- **Table segmentation** (Precision adjudication) — count semantic assertions independent of
+  formatting; a label and its value form one assertion, so a candidate cannot move its precision
+  by reformatting.
+- **Context and implication** (Precision adjudication) — a row's `statement` is the scoring
+  target and its `notes`, locators and cross-references are not; and a candidate stating a
+  concrete value from which a row's content follows covers that row, with RX-029 and
+  `ERXST = 0x0000` as the worked example.
+- **The precision formula** (Precision adjudication) — written out as `(N - errors) / N`, with
+  unsupported and partial claims staying in `N` and not counted as errors, and `n/a (0 claims)`
+  for `N = 0`.
+
+### 6. Stale statements
+
+- **`README.md`** open-work paragraph and **`SCORING-POLICY.md`** Binding paragraph both still
+  said the checker does not enforce the policy version and hash. Both now say what it does
+  enforce, including that two absent versions no longer compare equal, that `LEDGER-FORMAT.md`'s
+  bytes are pinned, and that a repository revision is required.
+- **`README.md`** freeze instructions now list every field the lock must carry, as a table:
+  `frozen`, `revision`, `sha256`, `corpus_sha256`, `policy_version`, `policy_sha256`,
+  `format_sha256`.
+- **`README.md`** attestation takes the reviewer's revised opening, which acknowledges authorized
+  composites — "Each scored proposition has one active scoring representation, except any
+  duplicated contributions explicitly enumerated by the frozen policy. Multi-proposition scoring
+  units are explicitly enumerated and use that policy's verdict rule." The rest of the attestation
+  is unchanged.
+
+### Counts after this pass
+
+**211 -> 213 rows; 202 -> 204 active, 9 withdrawn.** Two rows minted (PHY-033, TX-024), none
+withdrawn. Twenty-four rows had a statement narrowed or corrected and twenty-two gained notes
+recording why. Classes: 178 documented-hardware-requirement, 19 implementation-choice, 13
+observed-software-behavior, 3 inference, 0 unresolved-conflict. Weights: 66 critical, 64
+important, 83 minor; 180 rows carry both readers. Composite scoring units: **16 -> 113**, against
+91 atomic rows. Scoring policy: `enc28j60-1.1` -> `enc28j60-1.2`.
+
+**The recall denominator moves from 161 rows to 163** — 64 critical, 58 important, 41 minor —
+because PHY-033 and TX-024 are new in-scope `documented-hardware-requirement` rows. Recall
+percentages under `enc28j60-1.2` are not comparable with any computed under the earlier versions,
+which is what the version bump records. No candidate has been scored under any of them.
+
+`ledger_check.py ledger.yaml` and `ledger_check.py ledger.yaml --freeze` both report 0 errors and
+0 warnings; the leak scan over `ledger.yaml`, `SCORING-POLICY.md`, `LEDGER-CONFLICTS.md`,
+`ADJUDICATION.md` and `README.md` against the pinned driver files is clean; the checker's unit
+tests pass. `ledger.lock` was **not** written: the freeze is a separate step, and the attestation
+it carries is the adjudicator's to sign.

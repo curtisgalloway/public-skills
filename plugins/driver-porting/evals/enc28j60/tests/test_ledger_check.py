@@ -89,7 +89,14 @@ rows:
 """
 
 
-POLICY = "# Test policy\n\nVersion: test-1.0\nAdopted: 2026-09-20\n"
+POLICY = (
+    "# Test policy\n\nVersion: test-1.0\nAdopted: 2026-09-20\n\n"
+    "## Composite scoring units\n\n"
+    "| Facet | Composite scoring units | Count |\n|---|---|---|\n"
+    "| `RX` | RX-001 | 1 |\n"
+    "| **Total** | | **1** |\n\n"
+    "## Something else\n\nnot part of the list: INIT-001\n"
+)
 
 
 def run(text: str, *extra: str, corpus: Path = CORPUS, policy: str | None = POLICY):
@@ -107,8 +114,8 @@ def run(text: str, *extra: str, corpus: Path = CORPUS, policy: str | None = POLI
         return code, json.loads(out.getvalue())
 
 
-def errors_of(text: str, *extra: str) -> str:
-    code, data = run(text, *extra)
+def errors_of(text: str, *extra: str, **kw) -> str:
+    code, data = run(text, *extra, **kw)
     return "\n".join(data["errors"])
 
 
@@ -215,6 +222,24 @@ class LedgerCheckTest(unittest.TestCase):
         # Without --freeze none of these are errors.
         code, data = run(GOOD.replace("readers: [A, B]", "readers: [A]"))
         self.assertEqual(code, 0, data["errors"])
+
+    def test_composite_list_is_checked_against_the_ledger(self):
+        # The good policy names RX-001, which is active, and only counts ids inside its own section.
+        code, data = run(GOOD)
+        self.assertEqual(code, 0, data["errors"])
+        self.assertEqual(data["counts"]["composite_units"], 1)
+        # An id no row carries.
+        msgs = errors_of(GOOD, policy=POLICY.replace("RX-001", "RX-099"))
+        self.assertIn("composite list names ENC28J60-RX-099, which is not a row", msgs)
+        # An id whose row is withdrawn.
+        msgs = errors_of(GOOD, policy=POLICY.replace("| `RX` | RX-001 | 1 |", "| `RX` | RX-002 | 1 |"))
+        self.assertIn("composite list names ENC28J60-RX-002, which is withdrawn", msgs)
+        # A printed total that does not match the ids.
+        msgs = errors_of(GOOD, policy=POLICY.replace("**Total** | | **1**", "**Total** | | **7**"))
+        self.assertIn("prints a total of 7 but names 1 distinct ids", msgs)
+        # A policy with no composite section blocks a freeze.
+        msgs = errors_of(GOOD, "--freeze", policy="# Test policy\n\nVersion: test-1.0\n")
+        self.assertIn("names no composite scoring units", msgs)
 
     def test_freeze_needs_a_versioned_scoring_policy(self):
         # No policy file at all.

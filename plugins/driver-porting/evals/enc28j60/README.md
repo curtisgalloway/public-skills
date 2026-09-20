@@ -54,28 +54,40 @@ The ledger is a clean-side artifact: it describes what the reference driver does
 it, so it has to pass the scanner the same way a clean-room spec does. The whitelist holds the two
 file names the corpus pins, because a row cites them in `derivation.source` by name.
 
-Then write `ledger.lock` with the ledger's and the manifest's sha256 (the checker prints the
-first; `shasum -a 256 corpus.yaml` gives the second), the `frozen` date, the name and version of
-the scoring policy that decides whether observed-behavior and inference rows enter recall, and
-the adjudicator's attestation:
+Then write `ledger.lock`. The checker requires **all seven** of these fields, and refuses a lock
+that omits one — `ledger_check.py ledger.yaml --json` prints the five digest and version values
+it computes, so the lock can be filled from its output:
 
-> This revision contains one active scoring representation per atomic requirement. All
-> provisional merge decisions have recorded dispositions. Each critical requirement has
-> independent supporting derivations or an explicitly unresolved disposition. The ledger and
-> corpus digests were recorded before candidate generation; subsequent candidate-informed
-> corrections belong to a separately identified benchmark revision.
+| Field | What it holds |
+|---|---|
+| `frozen` | the date the ledger was frozen |
+| `revision` | the repository revision that holds the checker, the adjudication record and the authoring brief; a digest identifies bytes, a revision makes them recoverable |
+| `sha256` | `ledger.yaml`'s digest |
+| `corpus_sha256` | `corpus.yaml`'s digest, the manifest the check ran against |
+| `policy_version` | the scoring policy's `Version:` string, currently `enc28j60-1.2` |
+| `policy_sha256` | `SCORING-POLICY.md`'s digest, because a version label on a mutable file binds nothing |
+| `format_sha256` | `LEDGER-FORMAT.md`'s digest, because the verdict definitions and authoring rules the policy builds on live there |
+
+and the adjudicator's attestation:
+
+> Each scored proposition has one active scoring representation, except any duplicated
+> contributions explicitly enumerated by the frozen policy. Multi-proposition scoring units are
+> explicitly enumerated and use that policy's verdict rule. All provisional merge decisions have
+> recorded dispositions. Each critical requirement has independent supporting derivations or an
+> explicitly unresolved disposition. The ledger and corpus digests were recorded before candidate
+> generation; subsequent candidate-informed corrections belong to a separately identified
+> benchmark revision.
 
 From then on `ledger_check.py ledger.yaml --lock ledger.lock` refuses an edited ledger, and a
 candidate run names the lock it was scored against. A row added after a candidate has been read
 is not part of that denominator and says so.
 
-**Open work, and a prerequisite to freezing and to generating any candidate:** `ledger_check.py`
-validates the ledger and corpus digests in the lock, but does **not** yet require or validate the
-scoring policy's version string and sha256. Until it does, `SCORING-POLICY.md` is a mutable file
-carrying a fixed version label, which binds nothing — the text can move under the label and no
-check notices, so a score would cite a policy nobody can reconstruct. This is not a later
-improvement to make once runs are under way: no freeze and no candidate generation until the
-checker enforces it.
+**What the lock check now enforces.** `ledger_check.py --lock` validates the ledger and corpus
+digests **and** the scoring policy's version string and sha256, refusing a lock that omits either
+and a policy file that declares no `Version:` line — two absent versions no longer compare equal
+and pass by accident. It also pins `LEDGER-FORMAT.md`'s bytes and requires a repository revision,
+so a score cites a policy, a format and a tree that can all be reconstructed. This was open work
+and a stated prerequisite to freezing; it is closed.
 
 ## Input history
 
