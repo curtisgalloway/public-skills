@@ -1,27 +1,42 @@
 #!/usr/bin/env python3
 # SPDX-FileCopyrightText: 2026 contributors
 # SPDX-License-Identifier: Apache-2.0
-"""Check an ENC28J60 gold ledger against LEDGER-FORMAT.md, and optionally against its freeze lock.
+"""Check an ENC28J60 gold ledger against LEDGER-FORMAT.md, and gate its freeze.
 
 Usage:
-    python3 ledger_check.py ledger.yaml [--lock ledger.lock] [--corpus corpus.yaml] [--json]
+    python3 ledger_check.py ledger.yaml [--corpus corpus.yaml] [--lock ledger.lock] [--freeze] [--json]
 
 What fails (exit 1):
+  * the corpus manifest cannot be found (default: corpus.yaml beside the ledger): without it the
+    source and revision checks would silently not run, so its absence is an error, never a skip
   * a row without one of the required fields, or with an id that does not match
-    ENC28J60-<FACET>-<NNN> for a facet LEDGER-FORMAT.md defines
-  * a duplicate id
-  * a class, weight, or status outside the vocabulary
-  * an inference row without premises, confidence, and settled_by
-  * a derivation entry whose source is not a pin the corpus manifest names, or whose locator is a
-    bare page number (a page is an edition's property; the locator has to survive the edition)
-  * an applicability block that does not have exactly the three columns, or a vendor_confirmed
-    revision the corpus does not know
-  * a withdrawn row without notes saying why
-  * with --lock, a ledger whose sha256 differs from the lock: the ledger was edited after freezing
+    ENC28J60-<FACET>-<NNN> for a facet LEDGER-FORMAT.md defines; a duplicate id
+  * a class, weight, or status outside the vocabulary; a statement that is not a non-empty string
+  * an inference row without a non-empty premises list, a confidence, and a settled_by
+  * a derivation entry whose source is not a pin the corpus manifest names (an edition id such as
+    DS80349C, a driver path, or the driver commit), or whose locator is empty, not a string, or a
+    bare page reference (a page is an edition's property; the locator has to survive the edition)
+  * an applicability block missing one of its three columns, a vendor_confirmed revision the corpus
+    does not know, or a non-boolean implementation_observed or unresolved
+  * a withdrawn row, an out-of-scope row, or an unrecoverable row without notes saying why
+  * a readers list that is not a list of distinct names
+  * with --lock: a lock without a frozen date, a lock whose ledger sha256 differs from the file
+    (the ledger was edited after freezing), or a lock whose corpus sha256 differs from the
+    manifest the check ran against
+  * with --freeze: any row still carrying a provisional merge marker (weight_disputed,
+    class_disputed, in_scope_disputed) or an active row whose notes say it overlaps another
+    active row without a disposition; a critical active row with fewer than two distinct readers
+    and no `independent_review` note. The freeze gate is what LEDGER-FORMAT.md rule 5 means by
+    "frozen": nothing provisional, nothing double-counted, every critical row read twice.
 
 What warns (reported, exit stays 0):
   * a gap in a facet's numbering with no withdrawn row to account for it
   * an unresolved-conflict row whose statement does not present both readings
+  * extra keys on a row beyond the schema and the merge conventions (typos hide here)
+
+Beyond LEDGER-FORMAT.md's explicit schema this checker also requires the header keys the authoring
+brief asked for (pilot, corpus_frozen, authored, author, authoring_rule); they are what a score
+report cites.
 
 Exit 3: the file could not be parsed, or PyYAML is not importable. The ledger uses block
 scalars and nested mappings, so this checker needs a real YAML parser:
@@ -48,8 +63,13 @@ CLASSES = (
 WEIGHTS = ("critical", "important", "minor")
 STATUSES = ("active", "withdrawn")
 REQUIRED = ("id", "statement", "class", "derivation", "applicability", "weight", "in_scope", "recoverable", "status")
+OPTIONAL = (
+    "notes", "premises", "confidence", "settled_by", "readers", "weight_disputed", "class_disputed",
+    "in_scope_disputed", "replaced_by", "supersedes", "independent_review", "overlaps",
+)
 APPLICABILITY = ("vendor_confirmed", "implementation_observed", "unresolved")
-PAGE_ONLY_RE = re.compile(r"^\s*(p\.?|page)\s*\d+\s*$", re.IGNORECASE)
+PROVISIONAL = ("weight_disputed", "class_disputed", "in_scope_disputed")
+PAGE_ONLY_RE = re.compile(r"^\s*(?:p{1,2}\.?|pages?)?\s*\d+(?:\s*[-–]\s*\d+)?\s*$", re.IGNORECASE)
 HEADER = ("pilot", "corpus_frozen", "authored", "author", "authoring_rule")
 
 
@@ -67,26 +87,40 @@ def load_yaml(path: Path):
         sys.exit(3)
 
 
-def corpus_sources(corpus: dict | None) -> tuple[set[str], set[str]]:
+def corpus_sources(corpus: dict) -> tuple[set[str], set[str]]:
     """The derivation sources a row may cite, and the silicon revisions it may name."""
-    if not corpus:
-        return set(), set()
     sources: set[str] = set()
-    docs = corpus.get("documents", {})
+    docs = corpus.get("documents", {}) or {}
     for key in ("datasheet", "errata"):
-        doc = docs.get(key, {})
-        for ed in doc.get("editions", []):
+        doc = docs.get(key, {}) or {}
+        for ed in doc.get("editions", []) or []:
             sources.add(f"{doc.get('id')}{ed.get('rev')}")
-    for f in corpus.get("driver", {}).get("files", []):
-        sources.add(f.get("path"))
-    revisions = set(corpus.get("silicon_revisions", {}).get("values", {}).keys())
+    driver = corpus.get("driver", {}) or {}
+    for f in driver.get("files", []) or []:
+        sources.add(str(f.get("path")))
+    if driver.get("commit"):
+        sources.add(str(driver["commit"]))
+    revisions = set((corpus.get("silicon_revisions", {}) or {}).get("values", {}) or {})
     return sources, revisions
 
 
-def check(ledger: dict, corpus: dict | None, lock: dict | None, ledger_bytes: bytes) -> tuple[list[str], list[str], dict]:
+def _nonempty_str(v) -> bool:
+    return isinstance(v, str) and bool(v.strip())
+
+
+def check(
+    ledger: dict,
+    corpus: dict,
+    ledger_bytes: bytes,
+    corpus_bytes: bytes,
+    lock: dict | None = None,
+    freeze: bool = False,
+) -> tuple[list[str], list[str], dict]:
     errors: list[str] = []
     warnings: list[str] = []
     sources, revisions = corpus_sources(corpus)
+    if not sources:
+        errors.append("corpus: manifest names no sources; nothing to validate derivations against")
 
     if not isinstance(ledger, dict):
         return ["ledger is not a mapping"], [], {}
@@ -100,7 +134,7 @@ def check(ledger: dict, corpus: dict | None, lock: dict | None, ledger_bytes: by
     seen: dict[str, int] = {}
     per_facet: dict[str, list[int]] = {f: [] for f in FACETS}
     withdrawn_per_facet: dict[str, set[int]] = {f: set() for f in FACETS}
-    counts = {"rows": 0, "class": {}, "weight": {}, "facet": {}, "in_scope": 0, "recoverable": 0, "readers_both": 0}
+    counts: dict = {"rows": 0, "active": 0, "class": {}, "weight": {}, "facet": {}, "in_scope": 0, "recoverable": 0, "readers_both": 0, "provisional": 0}
 
     for i, row in enumerate(rows):
         where = f"rows[{i}]"
@@ -112,6 +146,9 @@ def check(ledger: dict, corpus: dict | None, lock: dict | None, ledger_bytes: by
         for key in REQUIRED:
             if key not in row:
                 errors.append(f"{where}: missing {key!r}")
+        extra = sorted(k for k in row if k not in REQUIRED and k not in OPTIONAL)
+        if extra:
+            warnings.append(f"{where}: unexpected keys {extra}")
         m = ID_RE.match(rid)
         if not m:
             errors.append(f"{where}: id does not match ENC28J60-<FACET>-<NNN>")
@@ -126,22 +163,31 @@ def check(ledger: dict, corpus: dict | None, lock: dict | None, ledger_bytes: by
         seen[rid] = i
 
         cls = row.get("class")
+        status = row.get("status")
+        notes_ok = _nonempty_str(row.get("notes"))
         if cls not in CLASSES:
             errors.append(f"{where}: class {cls!r} not in {CLASSES}")
         if row.get("weight") not in WEIGHTS:
             errors.append(f"{where}: weight {row.get('weight')!r} not in {WEIGHTS}")
-        if row.get("status") not in STATUSES:
-            errors.append(f"{where}: status {row.get('status')!r} not in {STATUSES}")
-        if row.get("status") == "withdrawn" and not str(row.get("notes", "")).strip():
+        if status not in STATUSES:
+            errors.append(f"{where}: status {status!r} not in {STATUSES}")
+        if status == "withdrawn" and not notes_ok:
             errors.append(f"{where}: withdrawn without notes saying why")
         for key in ("in_scope", "recoverable"):
             if key in row and not isinstance(row[key], bool):
                 errors.append(f"{where}: {key} must be a boolean")
-        if not str(row.get("statement", "")).strip():
-            errors.append(f"{where}: empty statement")
+        if row.get("in_scope") is False and not notes_ok:
+            errors.append(f"{where}: in_scope false without notes saying why")
+        if row.get("recoverable") is False and not notes_ok:
+            errors.append(f"{where}: recoverable false without notes saying why")
+        if not _nonempty_str(row.get("statement")):
+            errors.append(f"{where}: statement must be a non-empty string")
         if cls == "inference":
-            for key in ("premises", "confidence", "settled_by"):
-                if not row.get(key):
+            prem = row.get("premises")
+            if not isinstance(prem, list) or not prem or not all(_nonempty_str(p) for p in prem):
+                errors.append(f"{where}: inference row needs a non-empty premises list of strings")
+            for key in ("confidence", "settled_by"):
+                if not _nonempty_str(row.get(key)):
                     errors.append(f"{where}: inference row without {key!r}")
         if cls == "unresolved-conflict":
             s = str(row.get("statement", ""))
@@ -156,34 +202,66 @@ def check(ledger: dict, corpus: dict | None, lock: dict | None, ledger_bytes: by
                 if not isinstance(d, dict) or "source" not in d or "locator" not in d:
                     errors.append(f"{where}: derivation[{j}] needs source and locator")
                     continue
-                if sources and d["source"] not in sources:
+                if str(d["source"]) not in sources:
                     errors.append(f"{where}: derivation[{j}] source {d['source']!r} is not a corpus pin")
-                if PAGE_ONLY_RE.match(str(d["locator"])):
-                    errors.append(f"{where}: derivation[{j}] locator is a bare page number")
+                loc = d["locator"]
+                if isinstance(loc, (int, float)) and not isinstance(loc, bool):
+                    errors.append(f"{where}: derivation[{j}] locator is a bare page reference")
+                elif not _nonempty_str(loc):
+                    errors.append(f"{where}: derivation[{j}] locator must be a non-empty string")
+                elif PAGE_ONLY_RE.match(loc):
+                    errors.append(f"{where}: derivation[{j}] locator is a bare page reference")
 
         app = row.get("applicability")
-        if not isinstance(app, dict) or tuple(sorted(app)) != tuple(sorted(APPLICABILITY)):
-            errors.append(f"{where}: applicability must have exactly {APPLICABILITY}")
+        if not isinstance(app, dict):
+            errors.append(f"{where}: applicability must be a mapping with {APPLICABILITY}")
         else:
+            for key in APPLICABILITY:
+                if key not in app:
+                    errors.append(f"{where}: applicability missing {key!r}")
+            extra_app = sorted(k for k in app if k not in APPLICABILITY)
+            if extra_app:
+                warnings.append(f"{where}: applicability has extra keys {extra_app}")
             vc = app.get("vendor_confirmed")
             if not isinstance(vc, list):
                 errors.append(f"{where}: applicability.vendor_confirmed must be a list")
-            elif revisions:
+            else:
                 for rev in vc:
                     if rev not in revisions:
                         errors.append(f"{where}: applicability.vendor_confirmed names unknown revision {rev!r}")
             for key in ("implementation_observed", "unresolved"):
-                if not isinstance(app.get(key), bool):
+                if key in app and not isinstance(app.get(key), bool):
                     errors.append(f"{where}: applicability.{key} must be a boolean")
 
+        readers = row.get("readers")
+        if readers is not None:
+            if not isinstance(readers, list) or not all(_nonempty_str(r) for r in readers):
+                errors.append(f"{where}: readers must be a list of names")
+            elif len(set(readers)) != len(readers):
+                errors.append(f"{where}: readers lists the same reader twice")
+        n_readers = len(set(readers)) if isinstance(readers, list) else 0
+
+        provisional = [k for k in PROVISIONAL if k in row]
+        if provisional:
+            counts["provisional"] += 1
+        if freeze and status == "active":
+            if provisional:
+                errors.append(f"{where}: freeze: provisional markers still present {provisional}")
+            if row.get("overlaps") and not row.get("replaced_by"):
+                errors.append(f"{where}: freeze: overlaps {row.get('overlaps')} with no disposition")
+            if row.get("weight") == "critical" and n_readers < 2 and not _nonempty_str(row.get("independent_review")):
+                errors.append(f"{where}: freeze: critical row with fewer than two readers and no independent_review")
+
         counts["rows"] += 1
+        if status == "active":
+            counts["active"] += 1
         counts["class"][cls] = counts["class"].get(cls, 0) + 1
         counts["weight"][row.get("weight")] = counts["weight"].get(row.get("weight"), 0) + 1
         if row.get("in_scope") is True:
             counts["in_scope"] += 1
         if row.get("recoverable") is True:
             counts["recoverable"] += 1
-        if isinstance(row.get("readers"), list) and len(row["readers"]) >= 2:
+        if n_readers >= 2:
             counts["readers_both"] += 1
 
     for facet, nums in per_facet.items():
@@ -195,29 +273,43 @@ def check(ledger: dict, corpus: dict | None, lock: dict | None, ledger_bytes: by
             warnings.append(f"{facet}: numbering gap at {sorted(gaps)} with no withdrawn row to account for it")
 
     digest = hashlib.sha256(ledger_bytes).hexdigest()
+    corpus_digest = hashlib.sha256(corpus_bytes).hexdigest()
     counts["sha256"] = digest
+    counts["corpus_sha256"] = corpus_digest
     if lock is not None:
-        if lock.get("sha256") != digest:
-            errors.append(f"lock: ledger sha256 {digest[:12]}... differs from lock {str(lock.get('sha256'))[:12]}...; the ledger was edited after freezing")
-        counts["frozen"] = lock.get("frozen")
+        if not isinstance(lock, dict):
+            errors.append("lock: not a mapping")
+        else:
+            if not lock.get("frozen"):
+                errors.append("lock: missing frozen date")
+            if lock.get("sha256") != digest:
+                errors.append(f"lock: ledger sha256 {digest[:12]}... differs from lock {str(lock.get('sha256'))[:12]}...; the ledger was edited after freezing")
+            if lock.get("corpus_sha256") != corpus_digest:
+                errors.append(f"lock: corpus sha256 {corpus_digest[:12]}... differs from lock {str(lock.get('corpus_sha256'))[:12]}...; the manifest is not the one frozen with the ledger")
+            counts["frozen"] = lock.get("frozen")
     return errors, warnings, counts
 
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("ledger", type=Path)
-    ap.add_argument("--lock", type=Path, help="freeze record with sha256 and frozen date")
-    ap.add_argument("--corpus", type=Path, help="corpus.yaml; defaults to the one beside the ledger if present")
+    ap.add_argument("--corpus", type=Path, help="corpus.yaml; defaults to the one beside the ledger")
+    ap.add_argument("--lock", type=Path, help="freeze record with frozen, sha256, and corpus_sha256")
+    ap.add_argument("--freeze", action="store_true", help="also apply the freeze gate: no provisional rows, no undisposed overlaps, every critical row read twice")
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args(argv)
 
     ledger_bytes = args.ledger.read_bytes()
     ledger = load_yaml(args.ledger)
     corpus_path = args.corpus or args.ledger.parent / "corpus.yaml"
-    corpus = load_yaml(corpus_path) if corpus_path.exists() else None
+    if not corpus_path.exists():
+        print(f"ledger_check: corpus manifest not found at {corpus_path}; pass --corpus", file=sys.stderr)
+        return 1
+    corpus_bytes = corpus_path.read_bytes()
+    corpus = load_yaml(corpus_path)
     lock = load_yaml(args.lock) if args.lock else None
 
-    errors, warnings, counts = check(ledger, corpus, lock, ledger_bytes)
+    errors, warnings, counts = check(ledger, corpus, ledger_bytes, corpus_bytes, lock=lock, freeze=args.freeze)
     if args.json:
         json.dump({"errors": errors, "warnings": warnings, "counts": counts}, sys.stdout, indent=1)
         print()
@@ -227,7 +319,7 @@ def main(argv: list[str] | None = None) -> int:
         for e in errors:
             print(f"error: {e}")
         status = "FAIL" if errors else "OK"
-        print(f"{status}: {counts.get('rows', 0)} rows, {len(errors)} error(s), {len(warnings)} warning(s); sha256 {counts.get('sha256', '')[:12]}")
+        print(f"{status}: {counts.get('rows', 0)} rows ({counts.get('active', 0)} active, {counts.get('provisional', 0)} provisional), {len(errors)} error(s), {len(warnings)} warning(s); sha256 {counts.get('sha256', '')[:12]}")
     return 1 if errors else 0
 
 

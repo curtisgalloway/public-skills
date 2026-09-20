@@ -135,7 +135,25 @@ and is reported separately: it measures the corpus, not the candidate.
 
 ## Scoring, gold to candidate
 
-Each in-scope, recoverable, active row gets exactly one verdict against a candidate:
+Each in-scope, recoverable, active row **whose class is a requirement** gets exactly one verdict
+against a candidate. The classes are not all requirements, and the denominators differ:
+
+- `documented-hardware-requirement` and `unresolved-conflict` rows are the **recall denominator**.
+  (An unresolved conflict is scored `covered` when the candidate states the conflict, not when it
+  picks a side.)
+- `observed-software-behavior` and `inference` rows are scored for recall only when the scoring
+  policy for the run says so, and are always reported as their own counts; a candidate is not
+  penalized for omitting a driver behavior no document requires.
+- `implementation-choice` rows are **precision probes and never in a recall denominator**: they
+  exist so a candidate that states the driver's choice as a hardware requirement is scored
+  `misstated`, and one that omits it is scored nothing at all.
+- Precision is computed over the candidate's own claims, including claims with no ledger row. A
+  candidate claim that matches several ledger rows is one claim and counts once; overlapping ledger
+  rows do not multiply an error, which is why the freeze gate refuses undisposed overlaps.
+
+(This paragraph was added 2026-09-19 after a review found the class table above and the original
+scoring sentence in conflict: the table said an implementation choice is "present so a candidate is
+not penalized for omitting it", while the scoring sentence gave every active row a verdict.)
 
 | Verdict | Meaning |
 |---|---|
