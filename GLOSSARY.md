@@ -34,6 +34,10 @@ evaluation; add other terms as the documents that use them are updated.
 | Fixture | The prepared hardware and connections used to execute repeatable tests. |
 | Fault injection | Deliberately provoking a failure condition to test recovery. |
 | Mutation check | Deliberately introducing a defect to verify that a test detects it. |
+| Acceptance gate | A predefined condition that must be met before an artifact advances or is accepted. |
+| Regression test | A repeatable check that detects the return of a previously prevented defect. |
+| Test model | A simplified executable description of expected behavior; its assumptions also need validation. |
+| Convergence | Progress toward predefined acceptance conditions as defects and uncertainty are resolved; repeated agreement alone does not establish correctness. |
 | Adjudication | Resolving conflicting readings of evidence, with unresolved questions kept explicit. |
 | Clean-room boundary | Separation of source-reading and implementation contexts, controlling which evidence crosses. |
 | SPI | Serial Peripheral Interface, a bus used to communicate with a peripheral. |

@@ -149,6 +149,10 @@ off to these by name.
 
 ## Evaluating specification quality
 
+[Faster driver development with evidence we can test](DRIVER-QUALITY.md) explains the problem,
+the proposed workflow, and how independent checks could reduce human review while improving
+driver quality and test coverage. It is written for programmers new to driver development.
+
 The [evaluation plan](EVAL-PLAN.md) measures both document quality and downstream usability.
 The [OS-neutral reconstruction protocol](RECONSTRUCTION.md) defines how isolated implementers
 build drivers from generated specs and evaluators compare them with the selected reference.
