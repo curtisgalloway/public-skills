@@ -30,6 +30,10 @@ test quality right on something cheap before the method is pointed at a complex 
 
 ## Planned reconstruction track
 
+The [procedure-trial preparation record](RECONSTRUCTION-TRIAL.md) drafts R1a for the frozen
+practice spec, with a neutral implementation brief, isolation plan, proposed checks, and pending
+launch decisions. The trial precedes preparation of the paired run.
+
 The [shared OS-neutral protocol](../../RECONSTRUCTION.md) adds driver reconstruction from each
 frozen spec. The [pilot run guide](RECONSTRUCTION-RUN.md) describes the environment, scope,
 checks, isolation, and budgets to establish before running. Linux is selected by this pilot's
