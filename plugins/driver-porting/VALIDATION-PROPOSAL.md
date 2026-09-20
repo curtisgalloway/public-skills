@@ -3,22 +3,63 @@ SPDX-FileCopyrightText: 2026 contributors
 SPDX-License-Identifier: Apache-2.0
 -->
 
-# Proposal: evidence-driven hardware specs and Fuchsia validation
+# Evidence-driven hardware specification validation: ENC28J60 pilot
 
-Status: proposed for collaborator review, 2026-09-19. No implementation is authorized by this document.
+Status: revised after review, 2026-09-19. No implementation is authorized by this document.
+
+## Terms
+
+Definitions first, so a reader who has not used these tools can follow the proposal.
+
+- **Ledger:** the answer key, atomic hardware requirements authored from frozen sources before
+  reading a candidate.
+- **Candidate:** the generated specification being evaluated.
+- **Reference corpus:** the source documents and code, pinned to known editions and revisions, used
+  to author the ledger.
+- **Verification record:** the file of claim verdicts that `spec-verifier` writes beside a spec; its
+  latest status is replaceable.
+- **Checker:** `board-expert/scripts/spec_check.py`, the program that checks specs and verification
+  records.
+- **Overlay:** a file that adds facts or configuration to a baseline spec without copying it.
+- **Layer:** an overlay's position in configuration merge order, not a confidentiality label.
+- **Adjudication:** a human decision resolving conflicting readings; an adjudication item awaits
+  that decision.
+- **Capability graph:** a map of hardware functions and the prerequisites each depends on.
+- **Evidence channel:** a means of collecting an observation, such as a serial connection or network
+  peer.
+- **Test envelope:** the allowed hardware configuration, operations, rates, duration, and other
+  limits of a test.
+- **Attempt:** one identified verification or execution try, with preserved inputs, scope, verdicts,
+  and evidence references.
+- **Strict acceptance:** the policy that separately decides whether a spec is ready, an
+  implementation is validated, and hardware is validated.
+- **Validation contract:** the reviewed test requirements, expected outcome and decision rule,
+  setup, observations, and limits.
+- **Disposition:** a recorded status and reason, scoped to the claim, capability, or observation it
+  concerns.
+- **Applicability:** the hardware revisions and operating conditions for which a requirement or
+  verdict holds.
+- **Provenance:** where a claim or artifact came from and the evidence supporting it.
+- **Digest:** a content hash used to detect changes; it neither preserves the content nor grants
+  access to it.
+- **Precision:** the fraction of candidate claims that are correct and supported.
+- **Recall:** the fraction of ledger requirements the candidate covers, measured separately from
+  precision.
+- **Fixture:** the connected equipment and configuration used to exercise and observe the hardware.
+- **Mutation:** a deliberate fault or change used to check whether a test can detect it.
+- **SoC / IP:** a system on a chip / a reusable hardware block, such as a peripheral controller.
 
 ## 1. Outcome and scope
 
-Produce hardware specifications that support a Fuchsia port, executable tests that exercise the
-resulting implementation, and reproducible evidence describing what is established and what remains
-unknown. Routine acceptance should not require a person to read generated specs. Domain experts
-must nevertheless be able to challenge any spec, requirement, skill, test, or verdict and contribute
-corrections through the same recorded process.
+Calibrate evidence-driven specification validation on the public-only ENC28J60 pilot: an independent
+ledger, scored candidate specs, executable tests, and preserved evidence of what is established and
+what remains unknown. Routine acceptance should not require reading generated specs. Experts can
+challenge requirements, tests, and verdicts through recorded reviews.
 
-One public set of board, SoC, and IP specs remains the baseline. Private vendor packages add evidence,
-facts, and tool access without maintaining a second complete platform description. Validation is
-always scoped to a hardware configuration and capability, never an unqualified claim that a platform
-is correct.
+Validation is scoped to a hardware configuration and capability. The public board, SoC, and IP
+baseline supports later OS integration and private overlays; full vendor workflows and Fuchsia
+integration are separately gated follow-ons. The requirements below describe the design direction;
+section 10 limits pilot delivery.
 
 Requirements:
 
@@ -34,71 +75,61 @@ Requirements:
 | R8 | Expert feedback is optional, durable, actionable, and invalidates affected acceptance when warranted. |
 | R9 | Fuchsia-specific integration stays in Fuchsia skills; contracts and evaluation machinery remain useful to other OS ports. |
 
-Non-goals: proving arbitrary hardware correct, building a universal simulator, automatically making
-restricted information public, or replacing instrument calibration with an agent's confidence.
-Comprehensive means coverage of a declared capability and fault model, with omissions visible.
+Non-goals: universal hardware proof, a universal simulator, or automatic disclosure of restricted
+information. Coverage is limited to declared capabilities and faults, with omissions visible.
 
 ## 2. Existing machinery and specific gaps
 
 This proposal extends [EVAL-PLAN.md](EVAL-PLAN.md); it does not replace its frozen-corpus pilot or
-independent gold ledger. The [ENC28J60 ledger format](evals/enc28j60/LEDGER-FORMAT.md) already defines
+independent gold ledger. The [ENC28J60 ledger format](evals/enc28j60/LEDGER-FORMAT.md) already
+defines
 stable IDs, independent authoring, applicability, precision, and recall. The pilot README says that
 the ledger itself is not yet written. Complete that work before treating the pilot as an answer key.
 
-Existing components to retain:
+Gaps and the resolved checker finding:
 
-- `board-expert` resolves and composes hardware specs and vendor overlays.
-- `board-spec-scaffold` authors those references and requests verification.
-- `cleanroom-spec` and `anchored-peripheral-spec` produce peripheral implementation specs.
-- `spec-verifier` checks claims against pinned authorities and records disagreement separately.
-- Mechanical checkers and clean-room tooling enforce format, anchors, and transfer boundaries.
-- Companion Fuchsia bench and boot-test skills provide useful procedures for collecting results.
-
-Gaps that prevent the intended outcome today:
-
-1. Most verifier claim identities follow document structure. They do not expose undisclosed omissions
-   or remain stable enough for long-lived claim-to-test relationships.
+1. Most verifier claim identities follow document structure, a limitation already documented in
+   EVAL-PLAN.md. Stable IDs support lasting claim-to-test links but alone do not detect omissions;
+   an independent inventory and coverage scoring do.
 2. A missing/stale verification record can be a warning; zero `FAIL` can coexist with unresolved
    critical claims. There is no capability-specific acceptance policy.
-3. Independent verification and human adjudication exist, but there is no bounded automatic
-   resolution workflow or first-class expert feedback artifact.
-4. No shared contract connects requirements, test oracles, generated tests, fixture capabilities,
-   execution evidence, and acceptance decisions.
+3. Clean-room boundary repair already stops after two failures on the same section. Accuracy
+   verification lacks a consistent bounded repair workflow across spec kinds; structured expert
+   feedback is also absent.
+4. No shared contract connects requirements, expected outcomes and decision rules, generated tests,
+   fixture capabilities, execution evidence, and acceptance decisions.
 5. Overlay precedence handles configuration, but cannot by itself establish which contradictory
    factual statement is correct or which derived artifact may be published.
-6. Verification records are overwritten. Longitudinal model comparisons require immutable run
-   records and preserved evidence, not just the latest verdict.
+6. Git preserves committed verification snapshots. Validation must additionally identify and retain
+   every attempt, its input revisions, scope, verdicts, and evidence references. A later attempt
+   must not replace an earlier attempt's evidence.
+7. The checker returned on a stale hash before checking the FAIL count, hiding failures behind a
+   stale-record warning. This bug was fixed in this branch in commit `4e4069a`; it is not open work.
 
 ## 3. Architecture and ownership
 
-Use small, composable skills around a deterministic validation tool. Agents research, draft,
-interpret, and propose repairs; scripts resolve manifests, check schemas and links, calculate
-coverage, verify hashes, and evaluate acceptance policy. A model never self-certifies by writing
-`accepted: true` into a report.
+Agents research, draft, interpret, and propose repairs. Deterministic scripts check schemas and
+links, calculate coverage, verify hashes, and apply acceptance policy. A model cannot self-certify
+by writing `accepted: true`.
 
-Proposed changes in this plugin:
+For the pilot, evaluation material lives under `evals/`; extend `spec-verifier` and
+`board-expert/scripts` in place with versioned interfaces for consumers. Shared schemas belong
+beside the ledger, and checking scripts beside `spec_check.py`. Do not create `hardware-validation`
+or `hardware-spec-eval` now; mint those skills only when a second device shows the reuse.
 
-| Component | Change |
+| Component | Responsibility |
 |---|---|
-| `board-expert/SPEC-FORMAT.md`, reader, and checker | Add optional stable claim IDs, applicability, and references to validation manifests. Reject ambiguous composition in strict validation mode. |
-| `board-spec-scaffold` | Produce claim mappings and source inventory references; preserve ordinary lightweight scaffolding. |
-| `cleanroom-spec` | Require accuracy as well as boundary verification for acceptance; attach requirement and test mappings; bounded repair followed by unresolved status. |
-| `anchored-peripheral-spec` | Emit the same requirement/test mappings while retaining source anchors and its different source-access rules. |
-| `spec-verifier` | Retain per-claim checking; add independent-ledger coverage, stable identities, immutable run records, and a separate acceptance decision. |
-| `board-expert/VENDOR-GUIDE.md` and vendor template | Define evidence classification, capability declarations, scoped factual overrides, and public-only execution. |
-| New `hardware-validation` skill | Own shared schemas, checker/acceptance tooling, validation-plan generation, oracle review, execution contracts, and evidence ingestion. |
-| New `hardware-spec-eval` skill | Own blind corpus/ledger construction, frozen campaigns, mutation cases, model comparison, and expert-feedback processing. |
+| `evals/enc28j60/` | Blind corpus/ledger construction, scoring, validation contracts, and mutation cases. |
+| `spec-verifier` | Accuracy checks, coverage against the independent ledger, per-claim dispositions, preserved attempts, and bounded repair. |
+| `board-expert/scripts` | Mechanical checks, strict acceptance, freshness, and policy-version checks. |
+| Existing spec authoring skills | Claim mappings and applicable accuracy and clean-room checks, preserving their source-access rules. |
+| `board-expert/VENDOR-GUIDE.md` | Clarify derived-artifact restrictions in section 5; full vendor workflow remains deferred. |
 
-The new skills would live under `plugins/driver-porting/skills/`; supporting schemas and scripts
-belong beside their owning skill, with a versioned interface for consumers. Register them in both
-READMEs and run the existing registration checker when implementation lands.
-
-In the companion Fuchsia skill package, propose a `fuchsia-port-validation` skill that consumes
-these contracts: surveys the pinned target tree, generates/builds appropriate Fuchsia tests, maps
-capabilities to existing drivers and test facilities, and invokes existing bench tools. Exact APIs
-and commands must be derived from that checkout, not hardcoded in this proposal. The existing
-hardware-bench and boot-test skills remain execution adapters. Changes to that separate package
-are a follow-on workstream, not edits implicitly authorized here.
+In the companion Fuchsia skill package, a separately gated follow-on could consume these contracts,
+survey a pinned checkout, generate/build Fuchsia tests, and invoke the existing hardware-bench and
+boot-test adapters. It must first name a board, image, peripheral, fixture, and external observation
+method. Derive APIs and commands from that checkout. Neither changes to that package nor a new
+Fuchsia skill are authorized here.
 
 ## 4. Artifacts and schemas
 
@@ -106,7 +137,7 @@ Keep Markdown for readable hardware and implementation specs. Use versioned YAML
 manifests and canonical JSON for machine-produced records. Reuse the ENC28J60 ledger vocabulary
 and IDs; define an explicit schema migration rather than a second incompatible requirement format.
 
-Proposed layout in a consuming target project:
+Illustrative layout in a consuming target project, including the `runs/<run-id>/` tree:
 
 ```text
 docs/hardware/<platform>/
@@ -126,8 +157,15 @@ docs/hardware/<platform>/
     artifacts.json
 ```
 
-This is a default for new projects, not a forced migration of existing `docs/<device>-spec.md`
-files. The platform manifest points to existing locations. Existing clean-room provenance maps
+The directory shape is not required; the platform manifest can point to existing locations.
+
+Preserve each verification attempt and its input revisions, verification scope, verdicts, and
+evidence references before updating the replaceable latest-status record. The latest-status record
+identifies the attempt or attempts supporting its verdicts. Carried-forward verdicts retain their
+originating attempt and applicability to the current revision.
+
+Attempt files beside the record or retained commits both satisfy this rule. A git tag alone does
+not, since tags can move or be deleted. Existing clean-room provenance maps
 retain their restricted location and access rules. Large logs/captures can live in an artifact
 store referenced by digest; run metadata must record availability and retention rather than promise
 that a hash makes missing evidence reproducible. Private runs and their artifacts live in separate
@@ -143,25 +181,31 @@ Minimal contracts:
   acquisition status, classification, access adapter, and redistribution constraints. A digest pins
   content but does not grant access or copying rights.
 - **Requirement ledger:** existing immutable IDs and classes, augmented with capability links,
-  prerequisite IDs, applicability predicates, and validation obligations. Changes in meaning mint a
-  new ID with `supersedes`; numbering never follows Markdown section order.
+  prerequisite IDs, applicability conditions, and explicit, versioned `validation` fields:
+  `documentary`, `physical`, `either`, or `both`, with rationale. `both` requires a documentary
+  check
+  and a physical test. Changes in meaning mint a new ID with `supersedes`; numbering never follows
+  Markdown section order.
 - **Claim mapping:** stable claim IDs mapped to Markdown anchors, requirement IDs, source locators,
   scope, and supporting evidence. Extra candidate claims still receive precision checks. Schema
   tooling detects missing/duplicate IDs and dangling links; semantic extraction audits detect prose
   claims the author failed to register.
-- **Validation contract:** test ID, requirement IDs, purpose, expected outcome and its independent
+- **Validation contract:** test ID, requirement IDs, purpose, expected outcome and decision rule
+  with independent
   authority, stimulus, observations, tolerance, setup/cleanup, fixture capabilities, timeouts,
   repetition plan, failure modes, and generated test artifact/revision.
-- **Run manifest:** all input digests, composed spec digest, policy version, model/provider/version
-  identifier as exposed, prompts and skill revisions, tool versions, budget, timestamps, seeds where
+- **Run manifest:** all input digests, composed spec digest, validation contract digest, acceptance
+  and scoring policy versions, model/provider/version identifier as exposed, prompts and skill
+  revisions, tool versions, budget, timestamps, seeds where
   supported, access profile, and actor roles. Unknown model details remain unknown.
-- **Results:** separate claim verdicts, coverage dispositions, test verdicts, and acceptance decisions.
+- **Results:** separate claim verdicts, coverage dispositions, test verdicts, and acceptance
+  decisions.
   No blended confidence score substitutes for these.
 
-A single register claim must not stand for an entire complex init sequence. Requirements and claims
-are atomic enough to fail independently. Coverage includes boot chain, CPU/SMP, timers, interrupt
-controllers, memory/DMA, clocks/resets/power, buses, peripheral behavior, and Fuchsia integration,
-as applicable to the declared capability graph.
+Check the validation contract's digest at scoring. Changing the contract requires renewed review.
+
+Requirements and claims must fail independently; one register claim cannot cover an entire
+initialization sequence. Coverage follows the declared capability graph.
 
 ## 5. Independent generation and acceptance
 
@@ -176,18 +220,16 @@ The workflow has explicit boundaries:
 4. Run mechanical checks, independent accuracy verification, ledger-to-spec coverage, and applicable
    clean-room checks. Continue to check claims outside the ledger.
 5. Author validation expectations from the independently established requirements and authorities.
-   A separate agent reviews whether each oracle could reject a plausible faulty implementation.
-   Test implementers can consume accepted specs; they cannot silently change the oracle to make a
-   failing implementation pass.
+   A separate agent reviews whether each expected outcome and decision rule could reject a
+   plausible faulty implementation. Test implementers can consume accepted specs; they cannot
+   silently change the expected outcome and decision rule to make a failing implementation pass.
 6. Build and execute tests, preserving raw results. Apply deterministic capability acceptance rules.
 7. Publish the accepted revision or an explicit incomplete result with blocked capabilities and
    proposed next investigations. Subsequent edits create new revisions and invalidate dependent
    decisions until checked again.
 
-Fresh contexts prevent shared drafting history, not correlated model errors. Use different model
-families for critical independent checks when available, record when unavailable, and prioritize
-different evidence channels over simply buying more votes. Agreement is never a substitute for a
-located authority or a measured result.
+Fresh contexts do not prevent correlated errors. Prefer different evidence channels and, when
+available, model families; record limitations. Agreement cannot replace authority or measurement.
 
 Maintain separate acceptance dimensions:
 
@@ -197,10 +239,18 @@ Maintain separate acceptance dimensions:
 | Implementation validated | Spec ready; required host and target integration tests pass against the recorded implementation revision. |
 | Hardware validated | Required physical tests pass on the named configuration within the declared test envelope; instrument and image identity checks pass. |
 
-Requirements may be satisfied through documentary checks instead of physical tests where physical
-observation is infeasible, but the obligation and rationale are set before execution. Source-only
-uncertainties remain visible; a platform may support exploratory bring-up without earning strict
-acceptance. Unknowns cannot be removed from the denominator because the agent could not solve them.
+Criticality follows the ledger's consequence-based weight. For board specs, the minimum critical
+set is the two-verifier set already named by `spec-verifier`: addressing model, boot chain and entry
+state, debug UART, and debug console. A selective strict check needs per-claim machine-readable
+dispositions or a record-body parser, a mapping to the critical set, and detection of missing
+expected claims. `--strict` implies `--require-verified` and rejects missing or stale verification
+and critical `UNVERIFIABLE` or `ADJUDICATE` claims.
+
+Documentary checks can substitute for physical tests only as allowed by the ledger's versioned
+validation obligation and rationale, established before execution. A `both` obligation requires
+each.
+Exploratory bring-up need not earn strict acceptance; unresolved requirements stay in the
+denominator.
 
 Preserve `PASS`, `FAIL`, `GAP`, `UNVERIFIABLE`, and `ADJUDICATE` as claim verdicts. Hardware tests
 use `PASS`, `FAIL`, `INCONCLUSIVE`, `UNAVAILABLE`, and `NOT_APPLICABLE` with reasons. Applicability
@@ -208,24 +258,32 @@ decisions are frozen inputs subject to review. A capability is `accepted`, `bloc
 each dimension. Disagreement is not a factual failure, but it blocks a capability that requires the
 unresolved claim. Zero `FAIL` alone is never an acceptance rule.
 
-For automated repair, allow two repair/reverification rounds per issue per run by default, bounded
-by a recorded cost/time budget. Persist unresolved findings after that. A fresh investigation may
-use another authority or a safe distinguishing experiment; majority vote is not adjudication.
-Preserve an optional expert resolution path. A clean-room boundary failure cannot be waived by
-changing a verdict: repair/reverification or a separately authorized change of workflow is required.
+Evidence channels have run-scoped fitness dispositions separate from strict acceptance of the
+hardware capability that implements them. A channel is usable for a named observation only when its
+predefined checks establish the identity, freshness, integrity, and completeness needed for that
+observation. Readable output alone is insufficient. An unresolved claim about the channel's hardware
+implementation blocks dependent observations only when it undermines those checks or their
+evidentiary assumptions.
+
+Channel dispositions are `usable`, `inconclusive`, or `unavailable`, with observation scope
+recorded.
+A UART can hold both roles; qualifying it as a channel does not accept it as a capability.
+
+For automated accuracy repair, stop after two failed checks on the same section, consistently across
+spec kinds, with a recorded cost/time budget. Two failed checks are not two repair-and-reverify
+rounds; the clean-room boundary workflow already uses the former bound. Preserve unresolved findings
+for expert resolution or a fresh investigation. Boundary failures require repair/reverification or
+a separately authorized workflow change, not a relabeled verdict.
 
 ## 6. Tests and actual hardware
 
-Each capability gets normal, boundary, failure/recovery, repeated-operation, and interaction cases
-where applicable. Examples include interrupt clearing/retriggering, queue wraparound, DMA alignment
-and coherency, timeout handling, reset during traffic, and suspend/resume. Declare unsupported or
-unobservable cases explicitly. A peripheral happy-path test cannot establish whole-system health.
+Test normal, boundary, recovery, repeated-operation, and interaction behavior per capability.
+Declare unsupported or unobservable cases; a peripheral happy path cannot establish system health.
 
-Fixture adapters expose capabilities rather than machine identities: `power.cycle`, `serial.capture`,
-`uart.peer`, `usb.capture`, `network.peer`, `scope.measure`, or a vendor reference instrument.
-Their contract includes preflight, exclusive resource lease, operation, timeout, evidence capture,
-cleanup, and recovery. Concrete hostnames and credentials stay in local/private configuration.
-External instruments also need recorded configuration and calibration status where relevant.
+Fixture adapters expose operations such as `power.cycle`, `serial.capture`, and `network.peer`.
+Contracts cover preflight, exclusive leases, timeouts, capture, cleanup, and recovery. Keep
+hostnames
+and credentials in local/private configuration; record instrument configuration and calibration.
 
 Every physical run establishes an exclusive fixture lease and fresh capture window before boot,
 records a unique run token and target/image identity, confirms the expected image actually booted,
@@ -233,10 +291,13 @@ then runs the test. If image identity cannot be established, the result is incon
 serial logs, external captures, and instrument results. Retries are separate linked attempts; a
 later pass does not erase an earlier failure. Report flakiness and repetition counts separately.
 
-The runner may operate unattended within a preconfigured envelope: reset/power operations, allowed
-interfaces, maximum duration/rate, and disposable test storage. Persistent-data destruction,
-irreversible provisioning, and operation outside hardware limits require separate explicit scope.
-Fixture loss and cleanup failure quarantine the fixture rather than trigger uncontrolled retries.
+Host-captured serial is independent capture, not independent evidence. A verdict must rest on
+something the host observed, such as traffic on a peer interface, a loopback the host drives, or an
+instrument reading, never on a target-printed pass marker.
+
+Unattended operations stay within the approved test envelope. Destruction of persistent data,
+irreversible provisioning, or exceeding hardware limits requires separate explicit scope.
+Fixture loss or cleanup failure quarantines the fixture.
 
 Test the tests with deliberate faults: wrong interrupt routing, missing acknowledgment, incorrect
 length, stale serial verdict, wrong boot image, truncated capture, and broken recovery. Use host or
@@ -246,38 +307,27 @@ fault detected by a mock is useful evidence about the test, not proof of physica
 
 ## 7. Public and vendor composition
 
-Keep `public → ip-vendor → soc-vendor → product → local` for configuration precedence. Add separate
-fields for access classification and permitted output audience: layer is not a confidentiality
-label, and ownership of a document does not determine its licensing.
+The pilot is public-only. Reuse the three enforcement layers ranked by `cleanroom-spec`:
+environment restrictions first, then hooks, then instructions. Controlled source mounts and tool
+and network access must exclude private inputs; an environment role alone is not enough. Generate
+public artifacts in clean public contexts. Sanitizing private prose afterward is insufficient.
 
-Vendor packages supply overlay roots, access skills, evidence, test contracts, fixture adapters,
-and optional reference implementations/tools. They depend on versioned public IDs; they do not
-copy public specs. Generic IP behavior belongs in the IP spec, placement in the SoC instance,
-connector/wiring in the board, and private evidence in the appropriate overlay.
+For restrictions on what may leave a private root, including derived artifacts, see
+[board-expert/VENDOR-GUIDE.md section
+5](skills/board-expert/VENDOR-GUIDE.md#5-classify-what-may-leave).
+The full authorized-private workflow is deferred; its composition design remains:
 
-Factual overrides name the replaced claim ID, evidence, and applicability predicate. Differing
-values with overlapping applicability become a recorded conflict unless an explicit supported
-supersession resolves them. No silent last-writer-wins for facts. Reject same-layer ambiguity in
-strict composition. A vendor change to a public requirement's meaning gets a linked revision or
-scoped additional requirement, not an invisible mutation of the baseline.
-
-Two execution profiles use the same tooling:
-
-- **Public-only:** only public roots, sources, tools, and clean public-run contexts are available.
-  Missing evidence is reported as a public limitation; private resource names need not be exposed.
-- **Authorized-private:** explicitly allowlisted roots and tools contribute additional facts and
-  tests. Outputs inherit all applicable restrictions of their inputs. Conflicting permissions block
-  export; no single ordering of vendor layers is treated as a permission hierarchy.
-
-Public artifacts are generated in a run without private context, with controlled source mounts and
-tool/network access. Sanitizing private prose afterward is insufficient. Private findings may
-motivate investigation, but a public claim requires independent public support and a clean public
-derivation; vendor-authorized publication is a separate explicit process. Public and private test
-results are reported separately, even when they implement the same logical test ID. A private pass
-does not repair a missing public citation or make private evidence publicly reproducible.
-
-Vendor model/tool approval rules are part of the private execution profile. Context separation
-alone provides neither authorization nor confidentiality enforcement.
+- Keep `public → ip-vendor → soc-vendor → product → local` for configuration precedence. Access
+  classification and permitted output audience are separate fields; layer is not confidentiality.
+- Vendor packages add overlays, evidence, and tools through versioned public IDs without copying
+  baseline specs. IP behavior belongs in IP specs, placement in SoC instances, wiring in boards.
+- Factual overrides name the replaced claim, evidence, and applicability. Overlapping contradictory
+  facts remain conflicts unless supported supersession resolves them. Strict composition rejects
+  same-layer ambiguity; configuration precedence cannot decide factual truth.
+- Public and private results remain separate. A private pass cannot repair a missing public
+  citation.
+  Private profiles must enforce source restrictions and model/tool approvals; context separation
+  alone supplies neither authorization nor confidentiality enforcement.
 
 ## 8. Expert feedback without mandatory expert review
 
@@ -291,15 +341,15 @@ Feedback is processed as a versioned change proposal:
 1. Check the target revision and preserve the original comment.
 2. Reproduce the issue or record why it cannot yet be established. An expert observation is valid
    evidence with its stated limits; it is not silently relabeled as a documented universal fact.
-3. Mark affected acceptance disputed while a credible critical challenge is unresolved; propagate
-   to dependent tests/capabilities. Do not invalidate unrelated peripherals.
+3. A merged review targeting a critical-weight row or claim, with a reproduction or located
+   authority, suspends dependent acceptance. Authority comes from repository authorization controls
+   (protected branch, required reviewers), not the commit author field. Anything else is an
+   adjudication item. Do not invalidate unrelated peripherals.
 4. A separate author proposes a correction; independent checks and affected tests run again.
 5. Record accepted, rejected-with-reason, or unresolved disposition and link the new evidence.
 
-An authorized expert may settle an interpretation or explicitly accept a limited exception. Record
-this as expert adjudication or waiver, never as an automated verification or hardware pass. The
-default strict profile does not count waivers as satisfying its obligations. Expert changes to
-skill text trigger skill regression cases, including a case demonstrating the reported failure.
+Record expert resolutions as adjudication or waivers, never automated or hardware passes. Strict
+acceptance does not count waivers. Skill corrections require a regression case for the failure.
 
 For benchmark feedback, freeze a new ledger/corpus revision and rescore preserved old candidates.
 Never improve a model's apparent performance by silently changing its answer key. Candidate-informed
@@ -307,19 +357,21 @@ findings go into a future benchmark revision, labeled as such, rather than the c
 
 ## 9. Repeatable evaluation and evidence lifetime
 
-Retain the existing ENC28J60 pilot as the first calibration device; do not substitute a new UART
-benchmark and discard its work. Add a Fuchsia UART slice afterward to test OS integration and the
-board/SoC/IP composition path. Pixel 10 is a subsequent applicability/partial-evidence case, not a
-prerequisite for proving the machinery works. Hardware availability must be established before
-promising any physical campaign.
+ENC28J60 remains the first calibration device. Fuchsia UART is a separately gated follow-on under
+section 3's five prerequisites; Pixel 10 is a later partial-evidence case. Establish hardware
+availability before promising physical campaigns.
 
-Two campaigns:
+Evaluation modes, with full campaign infrastructure deferred:
 
 - **Frozen:** same corpus, scope, independently authored ledger, fixture configuration, budget, and
   scoring policy; compare model/skill versions and with-skill versus baseline. Repeat runs and
   report variation. Keep held-out error cases separate from examples used to tune skills.
 - **Maintenance:** update selected inputs intentionally, calculate affected dependencies, reverify
   and rerun. Preserve the previous accepted snapshot and explain the changed result.
+
+Refuse comparisons across acceptance or scoring policy versions with an explicit version check.
+After a ledger revision, report scores against both the run's frozen revision and the current one;
+label candidate-informed corrections. A changed answer key must not appear as a model regression.
 
 Report precision, recall per criticality, unresolved/unrecoverable requirements, test coverage,
 mutation detection, false acceptance/rejection on adjudicated fixtures, hardware availability,
@@ -328,69 +380,59 @@ answer key is independently established, label the corresponding measurement pro
 
 Evidence is immutable by run ID. A small latest-status index may be replaced, but historical runs
 and verdicts are retained. Invalidation includes changes to a dependency's content, applicability,
-policy, test/oracle, relevant target implementation, firmware, and fixture configuration. Start with
-conservative invalidation; optimize only with tested dependency mappings. Missing archived inputs
+policy, tests, expected outcome and decision rule, implementation, firmware, and fixture
+configuration.
+Start with conservative invalidation; optimize only with tested dependency mappings. Missing
+archived inputs
 make replay unavailable, not successful. Record source/tool nondeterminism rather than promise
 bit-identical agent outputs.
 
-Normal offline CI checks schemas, graph links, composition, policy decisions, and synthetic fixture
-parsing. Scheduled or explicitly invoked campaigns pay for models and hardware. Public CI must not
-depend on vendor credentials. Model campaigns use the existing plugin-eval entry point where it fits,
-with a harness-neutral manifest/result contract around it; additional harnesses need adapters.
+Offline CI checks schemas, links, composition, policy, and synthetic fixtures without vendor
+credentials. Paid campaigns require scheduling or explicit invocation; reuse plugin-eval where
+it fits with harness-neutral manifest/result contracts.
 
 ## 10. Proposed delivery sequence and acceptance experiments
 
-This is a proposed ordering for review, not an executable milestone plan. Detailed implementation
-tasks follow agreement on the contracts and boundaries.
+Delivery is B, A, C, D. This document authorizes neither implementation nor a paid campaign. The
+public-only pilot retains frozen input hashes, preserved attempts, explicit score versions,
+conservative invalidation, and freshness checks from the first score onward.
 
-| Stage | Deliverable | Decisive experiment |
+| Stage | Deliverable and entry condition | Decisive experiment |
 |---|---|---|
-| A | Shared schemas, ledger integration, deterministic acceptance tool, immutable records | A candidate with zero failures but one missing critical requirement is blocked; stale or unresolved evidence cannot pass. |
-| B | Complete existing ENC28J60 independent ledger and evaluation path | Remove a whole functional section and show recall falls; introduce a wrong constant and show precision falls; preserve disagreement separately. |
-| C | Validation contracts, test generation/review, synthetic fixture adapter | An independent oracle rejects a plausible faulty implementation; wrong image, stale log, missing tool, and truncated capture never pass. |
-| D | ENC28J60 physical campaign and a Fuchsia UART integration slice | Capture externally observed traffic, detect a safe injected fault, reproduce a cold-start result, and retain every attempt. Fuchsia test build/execution must be real, not a prose plan. |
-| E | Public/private profiles and expert feedback | Synthetic private overlay composes without duplication; public run cannot access it; a critical expert correction invalidates only dependent acceptance. |
-| F | Frozen campaigns and maintenance replay | Compare repeated model/skill runs; change one pinned input and show the correct dependent results become stale. |
+| B | Complete the existing ENC28J60 independent ledger, authored blind and frozen | Independently derive critical rows; adjudicate conflicts and freeze the inventory before reading candidates. |
+| A | Smallest ledger scoring and strict acceptance tools in existing locations; entry condition: ledger authored blind and frozen | Remove a functional section and recall falls; insert a wrong constant and precision falls; zero failures with a missing critical requirement is blocked, as are stale or unresolved critical verdicts. |
+| C | Validation contracts, test generation/review, synthetic fixture adapter | An independently supported expected outcome and decision rule reject a plausible fault; wrong image, stale log, missing tool, and truncated capture never pass. |
+| D, ENC28J60 | Physical validation, gated on an established fixture | Observe traffic externally, detect a safe injected fault, reproduce a cold-start result, and retain every attempt. |
+| D, Fuchsia | Separately gated UART follow-on, after naming board, image, peripheral, fixture, and external observation method | Build and execute real Fuchsia tests; host observations establish the verdict under the same identity and freshness checks. |
 
-Classification and access boundaries are designed and tested synthetically in A; E adds the complete
-vendor workflow. Do not run real private evidence through an interim system without enforcement.
-Each stage includes unit/contract tests and adversarial cases. Hardware absence can leave D pending
-without preventing useful earlier work, but must never be described as hardware validation.
+Stages E and F are deferred to a follow-on proposal written after the first score exists. E contains
+the full vendor workflow and feedback automation; F contains campaign infrastructure and optimized
+dependency replay. Their deferral does not remove the pilot's evidence retention or version checks.
 
-Existing specs continue to work in legacy reader mode. Strict acceptance requires explicit migration
-to IDs, mappings, locks, and policy. Legacy verification records remain historical evidence; no
-conversion script upgrades them to strict acceptance without doing the missing checks. Preserve the
-current EVAL-PLAN history, and reconcile its human-only adjudication/manual scoring steps with this
-proposal once the design is agreed.
+Test public-only access boundaries synthetically in A. Each stage includes relevant contract checks
+and adversarial cases. Hardware absence can leave either D deliverable pending without blocking
+earlier work, but cannot be described as hardware validation.
 
-## 11. Alternatives and review questions
+Existing specs continue in legacy reader mode. Strict acceptance requires IDs, mappings, locks,
+policy, and the missing checks; converting an old record cannot confer acceptance. Preserve
+EVAL-PLAN history and reconcile its manual scoring/adjudication steps during implementation design.
 
-Markdown plus additional reviewer prompts is cheaper initially, but cannot reliably enforce links,
-coverage, or evidence freshness. Fully structured register specifications would enable more code
-generation but impose substantial modeling work too early. The proposed compromise is structured
-identities, dependencies, policies, and results alongside prose specs.
+## 11. Alternatives and open design choices
 
-A large autonomous controller could own everything; small skills with a deterministic contract tool
-fit the existing repository and permit different harnesses and vendor adapters. The tradeoff is
-explicit versioning between components. Multiple model votes alone are simpler than evidence-driven
-adjudication, but cannot resolve shared errors or missing public information.
+Markdown plus reviewer prompts cannot reliably enforce coverage or freshness. Fully structured
+register specifications impose modeling work too early. Keep structured identities, dependencies,
+policies, and results alongside prose, with versioned interfaces between existing components.
 
-Questions for the colleague reviewing this proposal:
+Open design choices:
 
-1. Can the independent ledger/oracle workflow still allow a spec and test to share an undetected
-   false assumption? Which concrete mutation or external observation would expose it?
-2. Is the strict acceptance policy implementable without turning every source limitation into a
-   platform-wide blocker? Are capability boundaries and dependency propagation specific enough?
-3. Do the public/private execution and composition rules prevent disclosure through reports, test
-   expectations, logs, and shared model contexts, as well as through spec prose?
-4. Are the shared schemas and two new generic skills justified, or should an existing owner absorb
-   one responsibility? Avoid both a monolithic skill and unnecessary micro-skills.
-5. What is the smallest real Fuchsia/hardware slice that can validate the full chain with available
-   equipment? What instrumentation is needed to make its verdict independent of driver self-report?
-6. Which expert feedback should immediately suspend acceptance, and what authenticated project
-   policy prevents an arbitrary comment from invalidating all results?
-7. Are model comparison, benchmark corrections, and evidence retention strong enough to distinguish
-   genuine improvement from answer-key drift, selective retries, or changed hardware?
-
-The requested review should return concrete failure scenarios, proposed edits, and unresolved design
-choices. No implementation or paid model/hardware campaign is implied by reviewing this document.
+- **Board and SoC claim IDs:** choose facets and who assigns them, beyond the ENC28J60 vocabulary.
+- **Acceptance policy location:** platform manifest, repository, or checker defaults. Refusing
+  comparisons across policy versions is settled; storage is not.
+- **Record compatibility:** sidecar or in-place migration for run metadata and per-claim
+  dispositions,
+  preserving every attempt while keeping the latest record replaceable.
+- **Public-only enforcement:** choose the concrete environment restrictions, hooks, and
+  instructions;
+  the three-layer order and insufficiency of an environment role alone are settled.
+- **Stage D equipment:** establish the ENC28J60 host and fixture, including how the SPI host is
+  qualified, and separately name all five prerequisites for the Fuchsia UART slice.

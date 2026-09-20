@@ -113,6 +113,10 @@ that report:
   If a fact turns out to be publicly documented, cite the public document and add it to the public
   spec on its own merits.
 
+"May leave" means transfer into a report within the authorized private workflow, subject to the
+source's restrictions. It does not authorize public disclosure. Reports, tests, logs, and other
+derived artifacts retain those restrictions.
+
 ## 6. Install and test
 
 1. Link or install `<vendor>-board-tools` wherever the expert subagent's skills come from.
