@@ -398,42 +398,57 @@ DXT-48-1536 GPU and a Samsung Exynos 5400 modem; treat those as unverified.
 
 ## Quick-facts
 
-- **Addressing model.** Flat 64-bit: the root node is `#address-cells = 2` / `#size-cells = 2`,
-  and in the series the peripherals sit under a `soc@0` bus (also 2/2) with an identity `ranges`
-  and `dma-ranges` covering `0x0`–`0x10_0000_0000`, so every peripheral `reg` is the CPU physical
-  address as written (the debug UART at `0x0DB6_2000`, the GIC distributor at `0x0588_0000`). The
-  production blob has no single `soc` container, and most peripherals — the debug UART, the GIC,
-  the GIA aggregators, the SMMUs — are direct children of `/` with a 64-bit `reg` that is
-  CPU-physical as written. Some nodes this spec gives addresses for sit deeper without being
-  translated, and for two different reasons. The USB pair under `simple_usb_bus` and the
-  reserved-memory regions under `/reserved-memory` sit beneath containers carrying an empty identity
-  `ranges;`, so their `reg` passes through unchanged. The early-hardlockup detector's register
-  windows — including the `0x200C_0504` one named in Quick-facts/3 — sit one level down under a
-  parent that declares **one** address cell and **no `ranges` property at all**, so their `reg` is a
-  single 32-bit cell that is CPU-physical because nothing maps it. Only nodes under the eight
-  wrappers carry a `reg` that is an offset. **Eight `simple-bus` wrappers are the exception**, each mapping child address 0 onto
-  the CPU-physical base in its own unit address, so a `reg` beneath one is an offset, not an
-  address: `sswrp_dpu@ec00000`, `sswrp_g2d@3f200000`, `sswrp_aur@38000000`,
-  `sswrp_codec3p@3f000000` and `sswrp_tpu@36000000` (one address cell), and
-  `sswrp_ispfe@F000000`, `sswrp_ispbe@3E400000` and `sswrp_gsw@3EC00000` (two), all with one size
-  cell. Nineteen MMIO nodes sit below them — for example the display controller under
-  `sswrp_dpu`, whose `reg` of `0x20_0000` is CPU-physical `0x0EE0_0000`. A further 21 `reg`-bearing
-  descendants are `port@N`/`endpoint@N` graph nodes under `ports` containers, whose `reg` is a port
-  index and not an address at all. `simple_usb_bus` and `odm` are `simple-bus` too but carry an
-  empty, identity `ranges;`, and the two `pcie@*` nodes are identity once the three-cell PCI
-  `phys.hi` tag is separated from the address — a naive three-cell read misclassifies them as
-  translating. The addresses agree between the trees wherever a node exists in both. DRAM starts
-  at `0x8000_0000` (the production blob's `memory@80000000` placeholder, which the bootloader
-  overwrites), and reserved-memory `alloc-ranges` reach `0x8_8000_0000`–`0xA_0000_0000`, so DRAM
-  extends above the 32-bit boundary. (The five 12-cell `alloc-ranges` properties that establish
-  that span decode sensibly only as two address cells plus **one** size cell, under a container
-  declaring two of each; a sixth in the same container, on `google_gem_dma_region`, is four cells
-  and decodes cleanly as 2+2 — the blob is internally inconsistent here, and the `0xA_0000_0000`
-  top endpoint follows only from the 2+1 reading.) The series GIC node declares no `ranges` (removed in v3
-  review); the production blob's carries an empty, identity `ranges;`. `[DT]` (`lga.dtsi`, series
-  v4), `[DT]` (`lga-b0.dtb`, laguna-kernel-prebuilts; the full bus walk, tied to that blob's
-  sha256, is in `resources/tensor-g5.addressing.txt`). `TODO (verify on hardware)`: the DRAM map
-  beyond its base.
+- **Addressing model.** A `reg` in this tree is not always an address, and the node's own unit
+  address is not always its register base, so decode rather than read. **The procedure**, which is
+  the rule; the table below is only what this tree happens to contain. (1) Size the entries from
+  the **parent's** `#address-cells`/`#size-cells`, never the node's own, and check that the cell
+  count divides evenly — a ragged result means the parent declared nothing and the 2/1 spec default
+  is wrong for it. (2) If the parent's `#size-cells` is 0, the value is an index or an identifier,
+  not an address; stop. (3) Look at `ranges` **on the parent**: absent means no translation exists,
+  so the value is CPU-physical only if the parent is the root, and otherwise is an offset into
+  whatever the parent is; present-but-empty is identity, add zero; present and non-empty means
+  parse the triples and add parent − child. (4) Repeat to the root, and record any level where the
+  chain broke, because that is the difference between a derived address and an assumed one.
+  **Every `reg`-bearing node in the production blob**, classified by what the value means. Apply the rows in order and take the first that matches. Two rows are contained in another -- the DRAM extent inside root-level MMIO, and the reserved-memory carve-out inside identity-container MMIO -- so each narrower row is listed above the row containing it; those are the only overlaps, and counting every match instead of the first double-counts exactly 41 nodes (the 40 reserved-memory children, plus the one memory node).
+  | Class | `reg` means | Parent signature | Count |
+  |---|---|---|---|
+  | DRAM extent | base and length | root, plus `device_type = "memory"` | 1 |
+  | Root-level MMIO | CPU-physical as written | root; 2/2; no `ranges` (root's space is the CPU space) | 409 |
+  | Reserved-memory carve-out | CPU-physical region | `/reserved-memory`; 2/2; empty `ranges;` | 40 |
+  | Identity-container MMIO | CPU-physical as written | a container with an empty `ranges;` (seven of them, one two hops deep) | 7 |
+  | Translating-window offset | offset into the wrapper's window | a root-level `sswrp_*` `simple-bus`, 1/1, non-empty `ranges` | 11 |
+  | Whole-aperture mapping | the wrapper aperture, **not** the device base | an `sswrp_*` wrapper, 2/1; node is `google,lwis-ioreg-device` with `reg-valid-ranges` | 8 |
+  | NVMEM cell offset | byte offset and length into a 1152-byte OTP shadow, which is not a bus | `nvmem-layout` (`fixed-layout`), 1/1, no `ranges`, inside the carve-out at `0x053D_1000` | 111 |
+  | Graph index | a port or endpoint index | `ports`/`in-ports`/`out-ports`/`port@N`; one cell; well-formed containers declare 1/0 | 44 |
+  | CPU identifier | MPIDR affinity (`0x000`–`0x700`), the PSCI target | `/cpus`; 1/0; no `ranges` | 8 |
+  | Convention-only absolute | CPU-physical, but no bus authority says so | parent has no `ranges` and is not root, `/cpus`, a graph container or a layout: `/ehld-coreinstr` and `/cap_sysfs` | 6 |
+  These ten account for **645 of the 645** `reg`-bearing nodes among the blob's 2774, so a class
+  this table omits shows up as arithmetic that no longer sums rather than as a sentence that is
+  quietly wrong. **Five traps**, none of which the structure alone resolves. The two `pcie@*` nodes
+  declare 3/2, so sizing from the node instead of the parent yields `0x0C50_0000_0000_0000` for
+  `0x0C50_0000`, and their `ranges` need the three-cell PCI `phys.hi` tag separated before the
+  identity shows; `device_type = "pci"` is the discriminator, and neither node has a `reg`-bearing
+  child. Four containers of `reg`-bearing nodes declare no cell counts at all, and the 2/1 default is wrong for every one
+  — for `/cap_sysfs`'s two children, whose `reg` is four cells, a 2/1 reader gets the address right
+  (`0x2191_0008`, and `0x8B20_F000` for the second) and the size wrong at `0x0`, with a spare cell
+  left over; 4 is not divisible by 3, which is exactly what the divisibility check catches. Both
+  read cleanly as 2+2: `0x2191_0008`/`0x13F8` and `0x8B20_F000`/`0x1000`. For 87 nodes the unit address is not
+  the register base, including 22 each of `uart@X`, `spi@X` and `i3c-master@X` whose registers sit
+  at `X + 0x1000`, `X + 0x2000` and `X + 0x3000` because the three siblings share one combo-block
+  unit address. The four children of `sswrp_ispbe@3E400000` carry byte-identical `reg` and
+  `reg-names`, so anything keyed on `reg` silently loses three devices. And the GIC's `reg` has
+  five entries whose last three are all zero — optional CPU-interface, HYP and VCPU slots, the only
+  all-zero address-and-size entries in the blob — so it has two windows, not five, and must be indexed positionally
+  per the binding. The **series** tree is a different shape and only 14 nodes carry `reg`: its
+  peripherals sit under a `soc@0` `simple-bus` whose `ranges` is non-empty but 1:1 over
+  `0x0`–`0x10_0000_0000`, a translation step the blob has no equivalent of, since the blob has no
+  `soc` container at all. The same block is also named differently between them — series
+  `serial@db62000` against blob `uart@db61000`, both with registers at `0x0DB6_2000` — so cross-
+  referencing the two trees by node name fails where matching on `reg` succeeds. Where a node
+  exists in both trees, the addresses agree. `[DT]`
+  (`lga.dtsi`, series v4), `[DT]` (`lga-b0.dtb`, laguna-kernel-prebuilts; the full bus walk, tied
+  to that blob's sha256, is in `resources/tensor-g5.addressing.txt`).
+
 - **Boot chain and entry state.** Closed firmware: boot ROM → Google's closed early stages,
   including an EL3 runtime that the production blob reserves a "BL31 memory log" buffer for at
   `0x8B60_0000` (2 MiB) → the Android bootloader (ABL), which loads Android boot images (a v4
@@ -453,9 +468,15 @@ DXT-48-1536 GPU and a Samsung Exynos 5400 modem; treat those as unverified.
   laguna-kernel-prebuilts, `reserved-memory` and `chosen`), `[doc]` (series v4 cover letter and
   patch 3/4 message; Android boot image header page; Android DTB/DTBO partitions page;
   pixelscripts Makefile), `[standard]` (arm64 `booting.rst`, the entry contract a Linux Image
-  expects). `TODO (verify on hardware)`: the exception level, MMU and cache state, and x0 at
-  hand-off are not stated in any public document; the production command line enables protected
-  KVM, which needs an EL2 entry, but read CurrentEL before assuming it.
+  expects), `[inference]` (premises, `[source-observed]`, established by reading the production
+  command line in every reachable public blob and searching every overlay entry besides: it
+  carries a protected-KVM module list and SMMU-under-KVM options,
+  and carries no parameter that switches protected mode on. Derivation: those options exist to be
+  consumed by a hypervisor, and a hypervisor on arm64 entails an EL2 entry — but their presence
+  shows the kernel was built to expect one, not that the firmware delivered it. Confidence:
+  an indication only; settled by reading `CurrentEL` at entry).
+  `TODO (verify on hardware)`: the exception level, MMU and cache state, and x0 at hand-off, none
+  of which any public document states — read `CurrentEL` rather than assuming EL2.
 - **Silicon revisions and SoC id.** B0 silicon is what mass-production phones carry and what the
   upstream device tree targets; A0 silicon shipped on EVT devices, and the same device tree boots
   on them so far. The bootloader identifies the SoC by a 16-bit product id `0x0005` plus a major
@@ -489,10 +510,13 @@ DXT-48-1536 GPU and a Samsung Exynos 5400 modem; treat those as unverified.
   partition 1 the single Cortex-X4. GICv3 means a system-register CPU interface (`ICC_*`),
   per-core redistributor wake, and affinity routing; no GICv2 MMIO CPU interface exists. Most
   low-speed peripherals do not reach the GIC directly: Google "GIA" level aggregators
-  (`google,level-gia`, one interrupt cell, a 16-byte register window, one GIC SPI each) fan them
-  in, and a peripheral's `interrupts-extended` names the aggregator and a line. There are 90 of
-  them in the production blob, all direct children of `/`; the three that serve the low-speed UART
-  islands are LSIO-S at `0x3BD6_0400` → SPI 694, LSIO-E at `0x3A16_0400` → SPI 704, and LSIO-N at
+  (`google,level-gia`, one interrupt cell, a 16-byte register window, one upstream line each) fan
+  them in, and a peripheral's `interrupts-extended` names the aggregator and a line. There are 90 of
+  them in the production blob, all direct children of `/`, but the fan-in is a tree rather than a
+  single level: 37 present their upstream line to the GIC, and the other 53 name another aggregator
+  as their interrupt parent, so resolving a peripheral's interrupt means following the chain until
+  it reaches the GIC rather than assuming the first aggregator is the last. The three that serve
+  the low-speed UART islands reach the GIC directly: LSIO-S at `0x3BD6_0400` → SPI 694, LSIO-E at `0x3A16_0400` → SPI 704, and LSIO-N at
   `0x0D96_0400` → SPI 684.
   `[DT]` (`lga.dtsi`, series v4, gic node), `[DT]` (`lga-b0.dtb`, laguna-kernel-prebuilts, gic
   and aggregator nodes), `[standard]` (GICv3/v4 IHI 0069). `TODO (verify on hardware)`: the
@@ -506,15 +530,18 @@ DXT-48-1536 GPU and a Samsung Exynos 5400 modem; treat those as unverified.
   the public tree. It is the only one of the 22 UARTs wired straight to the GIC, and it belongs to
   "CLI" (configurable low-speed interface) block 16 of the LSIO-N island: the CLI block sits at
   `0x0DB6_0000`, its I2C personality at `+0x1000`, the UART at `+0x2000`, SPI at `+0x3000` and
-  the I3C master at `+0x4000` (a `0x2A0` window); every personality node is named after the
-  `+0x1000` address rather than its own base, and every other CLI follows the same layout. The series leaves the node `status = "disabled"`: the
+  the I3C master at `+0x4000` (a `0x2A0` window). Every personality node is named after the
+  block's `+0x1000` address rather than its own base, which for the I2C personality happens to be
+  its own base and for the UART, SPI and I3C nodes does not; every other CLI follows the same
+  layout. The series leaves the node `status = "disabled"`: the
   bootloader enables the block when its console is on and programs the baud, so the DT never
   fixes one; `serial0` and `stdout-path` point at it. The production blob's node (`uart@db61000`,
   compatible `goog,goog-dw-apb-uart`, same `reg` and interrupt) names clocks `baudclk` (rates
   to 200 MHz) and `apb_pclk` from the CPM clock controller, a reset from the LSIO-N bank, a power
   domain, and a `cli16_uart` pin group. Console device `ttyS0`; `earlycon=uart8250,mmio32,0xdb62000`
   is what the production command line passes, at 115200n8; the upstream flow instead passes a
-  bare `earlycon` and lets `stdout-path` supply the console, and asks the bootloader for
+  bare `earlycon`, which `stdout-path` then resolves, alongside its own `console=pstore`; the real
+  `console=` is appended by the bootloader (Quick-facts/2). The flow asks the bootloader for
   3000000. Register model and
   the DesignWare busy quirk: see `dw-apb-uart`. `[DT]` (`lga.dtsi` and `lga-pixel-common.dtsi`,
   series v4), `[DT]` (`lga-b0.dtb`, laguna-kernel-prebuilts, `uart@db61000`, `aliases`, and
@@ -622,6 +649,18 @@ DXT-48-1536 GPU and a Samsung Exynos 5400 modem; treat those as unverified.
   (series v4 cover letter and patch 3/4 message; pixelscripts Makefile; Android locking and
   unlocking page for bootconfig), `[DT]` (`lga.dtsi`, series v4, `reserved-memory`), `[DT]`
   (`lga-b0.dtb`, laguna-kernel-prebuilts, `memory@80000000` and `chosen`).
+
+- **DRAM extent.** DRAM starts at `0x8000_0000`. The production blob's `memory@80000000` node
+  declares only 256 MiB, which is a bootloader-patched placeholder rather than a hardware fact —
+  the bootloader inserts the real `/memory` (see Quick-facts/2), so do not read a size from it.
+  DRAM does extend above the 32-bit boundary: reserved-memory `alloc-ranges` reach
+  `0x8_8000_0000`–`0xA_0000_0000`. That endpoint rests on a reading the blob is not consistent
+  about, and an implementer sizing DRAM from it should know why. Five 12-cell `alloc-ranges`
+  properties in that container decode sensibly only as two address cells plus **one** size cell,
+  while a sixth in the same container, on `google_gem_dma_region`, is four cells and decodes
+  cleanly as 2+2, under a container declaring two of each. The `0xA_0000_0000` top follows from the
+  2+1 reading alone. `[DT]` (`lga-b0.dtb`, laguna-kernel-prebuilts, `memory` and `reserved-memory`).
+  `TODO (verify on hardware)`: the DRAM map beyond its base.
 
 ## Gotchas
 

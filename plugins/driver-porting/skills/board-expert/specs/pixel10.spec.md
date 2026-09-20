@@ -65,9 +65,12 @@ resources:
         no README or licence, and whose one-line host description states only what it holds and not
         where the builds came from; the GrapheneOS source page is what states that
         its kernel builds are GrapheneOS builds from kernel_pixel_6.6, replacing the AOSP prebuilts.
-        The DTB and DTBO images are outputs of that same build (declared by name in the muzel and
-        rango build definitions, matching the shipped images entry for entry), compiled from
-        vendor-authored device-tree sources, so a [DT] value read from them is the vendor's.
+        The DTB and DTBO images are, on strong but not decisive evidence, outputs of that same
+        build rather than copied-in vendor blobs -- they are declared by name in the muzel and rango
+        build definitions and match the shipped images entry for entry; Quick-facts/7 carries the
+        same conclusion as an [inference] with its premises and confidence. Either way they are
+        compiled from vendor-authored device-tree sources and compiling a device tree does not
+        change its values, so a [DT] value read from them is the vendor's regardless of which it is.
         Byte-identity with a stock vendor artifact was not checked here: AOSP publishes no laguna
         kernel-prebuilt repository, so the only stock artifact to compare against is the DTBO image
         inside Google's published Pixel 10 factory or full-OTA image, which this spec did not
@@ -78,7 +81,7 @@ resources:
       license: "see the repository"
       verified: 2026-09-18
       fetch: ok
-      fetch_via: "project metadata and root listing only; no file contents read"
+      fetch_via: "project metadata, root listing, the per-device build definitions and the shared SoC-level constants file they load, and the device-tree directory history"
       note: >-
         The monolithic kernel source repository for 10th-generation Pixel devices, linked from
         the GrapheneOS source page as what the laguna prebuilts are built from. Its root carries
@@ -114,7 +117,7 @@ resources:
       verified: 2026-09-18
       fetch: partial
       fetch_via: "curl; the per-device image tables are rendered by script and were not readable"
-      note: "the unlock warning, the flash-all flow, and the May 2026 Pixel 10 bootloader anti-rollback note"
+      note: "the unlock warning and the May 2026 Pixel 10 bootloader anti-rollback note; the per-device image tables, and any flash-all text, are script-rendered and were not readable"
     - title: Android bootloader locking and unlocking (source.android.com)
       url: https://source.android.com/docs/core/architecture/bootloader/locking_unlocking
       access: public
@@ -197,14 +200,16 @@ the per-board device-tree selection, and the companion parts.
 - **What is on the board.** Google Tensor G5 SoC; Titan M2 security coprocessor; 12 GB RAM;
   128 GB or 256 GB storage; 5G sub-6 and (model GLBW0) mmWave; Wi-Fi 6E 2×2; USB Type-C 3.2.
   The production device tree names the modem as a Samsung Exynos cellular processor over PCIe
-  with a SPMI-attached modem PMIC, and press names the part as an Exynos 5400, the same as the
-  Pixel 9 family. `[doc]` (Google Store, Pixel 10 tech specs), `[DT]` (`dtbo.img` entry 12,
-  laguna-kernel-prebuilts, `samsung,exynos-cp` and `google,cp-pmic-spmi`), `[press]` (a
+  with a SPMI-attached modem PMIC, and names the part `s5400` in the modem node itself; press
+  reports the same part as an Exynos 5400, the same as the Pixel 9 family. `[doc]` (Google Store, Pixel 10 tech specs), `[DT]` (`dtbo.img` entry 12,
+  laguna-kernel-prebuilts: `samsung,exynos-cp` and `google,cp-pmic-spmi`, and the `mif,name`
+  property on the modem node that carries `s5400`), `[press]` (a
   9to5Google report of a prototype's baseband string, in `docs`). `TODO (verify on hardware)`: the
   modem part number.
 - **Partitions and boot images.** Android boot-image layout: the `boot` partition carries a v4
-  boot image (kernel plus generic ramdisk); the `vendor_boot` partition carries the DTB, the
-  vendor ramdisk(s), and bootconfig; production builds keep per-board overlays in a `dtbo`
+  boot image, which may hold a kernel and a generic ramdisk though this flow's own boot image
+  carries only a kernel; the `vendor_boot` partition carries the DTB, the vendor ramdisk fragments
+  (both of this flow's ramdisks are vendor fragments), and bootconfig; production builds keep per-board overlays in a `dtbo`
   partition as a dt table the bootloader matches by entry id and revision. The upstream flow
   builds `vendor_boot.img` with `mkbootimg --header_version 4` around the whole board DTB and a
   vendor bootconfig, erases `boot`, `dtbo`, and `vendor_boot` (and `vendor_kernel_boot` and
@@ -226,8 +231,9 @@ the per-board device-tree selection, and the companion parts.
 - **Physical console access.** The console is the SoC's DesignWare UART `serial@db62000`
   (see `tensor-g5`, instance `lsion_cli16_uart`), brought out on the USB-C connector and split
   from USB data by a "USB-Cereal" debug dongle set to 1.8 V (no orientation detection: flip the
-  plug if the line is silent). The bootloader enables the UART only after
-  `fastboot oem uart enable`; the upstream flow then sets the rate with
+  plug if the line is silent). The bootloader enables the UART only when its own
+  console is turned on, which the upstream flow does with `fastboot oem uart enable`; that setting
+  is persistent bootloader configuration rather than a per-boot step. The flow then sets the rate with
   `fastboot oem uart config 3000000` (the production command line says 115200n8), and the
   bootloader appends `console=` itself; the console tty is `ttyS0`. Fastboot is entered with power plus volume-down at power-on, and a
   60 s power plus volume-down press recovers a hung kernel; SysRq works over the line. `[doc]`
@@ -248,7 +254,7 @@ the per-board device-tree selection, and the companion parts.
 - **Device-tree selection by the bootloader.** The bootloader reads the SoC id and the board id,
   takes the SoC DTB from the vendor boot image, picks the overlay from the `dtbo` dt table whose
   `id`/`rev` match (the closest revision of the same product when there is no exact match, never
-  another product), and merges them. `board_id` = platform id `0x07` (the frankel/blazer/mustang
+  another product), and merges them. `board_id` = platform id `0x07` (in the v1 message's words the frankel/blazer/mustang
   family) `<< 16` | product id `<< 8` | stage (`0x02` Proto, `0x03` EVT, `0x04` DVT, `0x05`
   PVT, `0x06` MP); `board_rev` = major `<< 16` | minor `<< 8` | variant. The muzel `dtbo.img`
   has 34 entries (magic `0xd7b7ab1e`, 32-byte entries, page size 4096, all `custom` fields 0):
@@ -256,9 +262,10 @@ the per-board device-tree selection, and the companion parts.
   `0x010000` (entry 12)**, blazer at `0x0704xx` (MP entry 20), mustang at `0x0705xx` (MP entry
   30), a "deepspace" development board at `0x070101`, a pair of pre-silicon emulator board
   overlays at `0x078000` (`EMULATOR board based on LGA` and `SoC Hybrid emulator board based on
-  LGA`), which besides disabling the CoreSight trace path and several interrupt aggregators carry
-  the full pinctrl line-name tables, a virtual or emulated GPU marker and, for the hybrid entry,
-  virtio devices, and three id-0 build-variant overlays (`eng`, `user`, `userdebug`)
+  LGA`), which disable the CoreSight trace path and several interrupt aggregators and carry a
+  virtual or emulated GPU marker and, for the hybrid entry, virtio devices (the full pinctrl
+  line-name tables they also carry are in the ordinary board overlays too, so they do not
+  distinguish these entries), and three id-0 build-variant overlays (`eng`, `user`, `userdebug`)
   that set security and dump policy. Frankel PVT and MP overlays differ only in id and model;
   frankel and blazer MP differ in panels, touch, and display PMIC, among other things. `[DT]`
   (`dtbo.img` entries 0–33, laguna-kernel-prebuilts), `[doc]` (series v1 patch 1/4 message, for
@@ -275,8 +282,8 @@ the per-board device-tree selection, and the companion parts.
   vendor blobs. `[inference]` (premises, all `[source-observed]` from the two repositories' trees,
   build definitions and commit histories: the muzel and rango build definitions declare those blobs
   as named outputs and their declared entry counts match the shipped images exactly — 34 muzel
-  overlays, 11 rango, 2 DTBs, and the shipped entry order matches the declared order group for
-  group; the one muzel `dtbo.img` change in 17 commits follows a device-tree source change four days
+  overlays, 11 rango, 2 DTBs, and the shipped entry order matches the declared order entry for
+  entry; the one muzel `dtbo.img` change in 17 commits follows a device-tree source change four days
   earlier while the kernel image changed in all 17; and no vendor build directory remains in the
   tree. Derivation: a copied blob is neither a declared build output nor tracks the source tree's
   clock. Confidence: strong, convergent but not a hash comparison — a byte comparison against the
@@ -284,8 +291,8 @@ the per-board device-tree selection, and the companion parts.
   tree does not change its values, so `[DT]` values read from these blobs are the vendor's.
   Byte-identity with a stock vendor artifact was not checked here: AOSP publishes no laguna
   kernel-prebuilt repository, so the only stock artifact to compare against is the DTBO image inside
-  Google's published Pixel 10 factory or full-OTA image, which this spec did not unpack. That image
-  reports `6.6.143-android15-8-gcf06d8aff8ae-4k`
+  Google's published Pixel 10 factory or full-OTA image, which this spec did not unpack. The
+  GrapheneOS prebuilt kernel image in that directory reports `6.6.143-android15-8-gcf06d8aff8ae-4k`
   (built 2026-09-14) and its module set is loaded per board from `init.insmod.frankel.cfg` (a
   Broadcom Wi-Fi driver, a Cirrus haptics driver, and a FocalTech touch driver on top of the
   common set; the Pro models load a Synaptics touch driver instead). `[DT]`
@@ -318,10 +325,22 @@ the per-board device-tree selection, and the companion parts.
   `fastboot oem uart enable`.** A correct base address and a working driver print nothing until
   the bootloader has enabled the block; PL011 assumptions do not apply. `[DT]` (`lga.dtsi`,
   series v4, `serial@db62000`), `[doc]` (series v4 patch 3/4 message; pixelscripts Makefile)
-- **Keep `dtbo` and the DTB consistent with the flow you chose.** A production `dtbo` table
-  applied on top of an upstream DTB, or an upstream DTB without the `ufs0` alias, fails in the
-  bootloader; the upstream flow erases `dtbo` and patches the alias in. `[doc]` (pixelscripts
-  README and Makefile; series v4 cover letter)
+- **Keep `dtbo` and the DTB consistent with the flow you chose.** Two separate hazards, and only
+  one of them is documented. An upstream DTB without the `ufs0` alias is a fatal error in the
+  bootloader, and the upstream flow patches the alias in. Separately, upstream trees do not use the
+  Android overlay scheme, so the flow packages whole board DTBs into the vendor boot image and
+  erases the `dtbo` partition rather than relying on the table. What a shipped bootloader actually
+  does with a production `dtbo` table over an upstream DTB is nowhere stated; the nearest
+  documented data point runs the other way and is not near: some Pixel 6 bootloader versions crash
+  when no DTBO is present in flash, four generations before this board, so it bears on this
+  bootloader only weakly. `[doc]` (series v4 cover letter and the pixelscripts overlay source
+  comment, for the `ufs0` alias; pixelscripts README and Makefile, for the overlay incompatibility
+  and the erase, and the README's Pixel 6 bootloader section for the DTBO-absent crash), `[inference]` (premise, `[source-observed]`: a production
+  overlay's fixups reference labels an upstream tree does not define. Derivation: an overlay whose
+  target labels are absent cannot be resolved against that tree. Confidence: low on the outcome --
+  it says the overlay cannot apply, not what the bootloader does about it).
+  `TODO (verify on hardware)`: what a shipped bootloader does with a production `dtbo` table over
+  an upstream DTB.
 - **Do not flash a pre-May-2026 bootloader after the May 2026 update**: the anti-rollback
   version was raised and the device will not boot the older one. `[doc]` (factory images page)
 - **Unlocking wipes the phone** and is refused until OEM unlocking is enabled in developer
