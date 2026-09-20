@@ -38,7 +38,27 @@ What remains before the freeze is adjudication: `ADJUDICATION.md` holds the deci
 `ledger_check.py --freeze` counts what is still provisional. The ledger is usable now for reading;
 it is not usable for scoring until it is frozen.
 
-## Freezing the ledger
+## The ledger is frozen
+
+Frozen 2026-09-20, recorded in `ledger.lock`. From here on:
+
+```bash
+uv run --with pyyaml python3 ledger_check.py ledger.yaml --lock ledger.lock
+```
+
+refuses any edit to `ledger.yaml`, `corpus.yaml`, `SCORING-POLICY.md`, `LEDGER-FORMAT.md` or
+`SCORING-FACTS.md`, because the lock carries all five digests, the policy's version, and the
+repository revision whose tree holds those exact bytes. A correction found after a candidate has
+been read takes a new version and a declared rescoring procedure, never a quiet edit; the lock
+and `SCORING-POLICY.md` both say so.
+
+The lock also records what the freeze does and does not establish. It does not establish that the
+ledger is right: two readers can share a wrong belief, and a third reader checking two rows does
+not change that. It establishes that the answer key was written before any candidate existed,
+that its disagreements were preserved rather than settled quietly, and that its bytes cannot now
+change without saying so.
+
+## How it was frozen
 
 Run in this directory (the checker needs PyYAML):
 

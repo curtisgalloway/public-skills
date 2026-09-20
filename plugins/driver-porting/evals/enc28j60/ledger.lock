@@ -1,0 +1,59 @@
+# SPDX-FileCopyrightText: 2026 contributors
+# SPDX-License-Identifier: Apache-2.0
+#
+# The freeze record for the ENC28J60 gold ledger, EVAL-PLAN.md phase 2.
+#
+# From here on `ledger_check.py ledger.yaml --lock ledger.lock` refuses any edit to the ledger,
+# the corpus manifest, the scoring policy, the ledger format or the fact lists, and a scored run
+# cites this lock. A digest says whether bytes changed; the revision is how someone gets them
+# back. A correction found after a candidate has been read takes a new version and a declared
+# rescoring procedure, never a quiet edit here.
+
+frozen: 2026-09-20
+revision: 27cf5b2b2c72667686c5425359c59f08bab1d261
+
+sha256: 3479587b9ee0f174209a956c7bebeca8e1d53001df8156908d05d1787db070b2
+corpus_sha256: 73c74ecd63b2d0d048234eeb0e9f8b255275306de9f601e5971300a738fe4beb
+policy_version: enc28j60-1.4
+policy_sha256: 42561dee60b875879f0dfb6d879c62fb2aa1d52e62a418ef53b8fe543b7744fc
+format_sha256: 996e3f976c80e0822d8ee5187e155b539782e188fdc99455a994050420388ddc
+facts_sha256: 45bd5768f56b2d4aec519d98b1cdb7358add6e07ace0e97d3b7edcc1ff340aaa
+
+attestation: >-
+  This revision contains one active scoring representation per atomic requirement, except any
+  duplicated contributions explicitly enumerated by the frozen policy. Multi-proposition scoring
+  units are explicitly enumerated and use that policy's verdict rule. All provisional merge
+  decisions have recorded dispositions. Each critical requirement has independent supporting
+  derivations or an explicitly unresolved disposition. The ledger and corpus digests were recorded
+  before candidate generation; subsequent candidate-informed corrections belong to a separately
+  identified benchmark revision.
+
+authored_blind: >-
+  Two readers wrote full ledgers from corpus.yaml's pins alone, in fresh contexts, neither seeing
+  the other's file and neither having read any generated ENC28J60 specification; no such
+  specification existed in this repository at the time, so the rule held by construction rather
+  than by promise. A merger, forbidden from authoring, combined them with every disagreement
+  preserved. The two critical requirements only one reader found were derived a third time,
+  blind, by a reader with no sight of the row; both readings are recorded on those rows.
+
+adjudicated_by: >-
+  The repository owner, 2026-09-19 and 2026-09-20, answering ADJUDICATION.md groups A through G,
+  the partial-credit question, and the benchmark profile the critical weights rest on. The
+  profile was chosen before the two weights that depend on it were re-examined against it. Every
+  answer and its application is recorded in LEDGER-CONFLICTS.md.
+
+reviewed_by: >-
+  The validation proposal's author, through the consult skill, at five checkpoints: the merged
+  ledger, the group A decisions, and three pre-freeze passes. It refused the freeze four times
+  and agreed to it on the fifth, under a stated stopping rule: a finding blocks when it changes a
+  score, and anything else is recorded and corrected under the policy's version rule. Findings
+  and dispositions are in LEDGER-CONFLICTS.md. The review was sampled, not a certification of
+  every one of the 625 listed facts, and it verified decisions and artifacts rather than the
+  process claims above.
+
+what_this_does_not_establish: >-
+  That the ledger is right. Two readers can share a wrong belief, and a third reader checking two
+  rows does not change that. It records that the answer key was written before any candidate
+  existed, that its disagreements were preserved rather than settled quietly, and that its bytes
+  cannot now change without saying so. Whether its facts match the silicon is what the hardware
+  campaign is for.
