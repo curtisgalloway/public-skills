@@ -238,19 +238,53 @@ class LedgerCheckTest(unittest.TestCase):
             lock = Path(tmp) / "ledger.lock"
             base = [str(ledger), "--corpus", str(CORPUS), "--policy", str(policy), "--lock", str(lock)]
 
-            def write_lock(**over):
+            fmt = Path(tmp) / "LEDGER-FORMAT.md"
+            fmt.write_text("# format\n", encoding="utf-8")
+            base = base + ["--format", str(fmt)]
+
+            def write_lock(drop=(), **over):
                 fields = {
                     "frozen": "2026-09-20",
+                    "revision": "0123456789abcdef0123456789abcdef01234567",
                     "sha256": hashlib.sha256(GOOD.encode()).hexdigest(),
                     "corpus_sha256": hashlib.sha256(CORPUS.read_bytes()).hexdigest(),
                     "policy_version": "test-1.0",
                     "policy_sha256": hashlib.sha256(POLICY.encode()).hexdigest(),
+                    "format_sha256": hashlib.sha256(fmt.read_bytes()).hexdigest(),
                 }
                 fields.update(over)
+                for k in drop:
+                    fields.pop(k, None)
                 lock.write_text("".join(f"{k}: {v}\n" for k, v in fields.items()))
 
             write_lock()
             self.assertEqual(ledger_check.main(base), 0)
+
+            # An unversioned policy and a lock that also omits the version must not agree by accident.
+            policy.write_text("# Test policy\n\nno version here\n", encoding="utf-8")
+            write_lock(drop=("policy_version",))
+            out = io.StringIO()
+            with contextlib.redirect_stdout(out):
+                self.assertEqual(ledger_check.main(base), 1)
+            self.assertIn("declares no 'Version:' line", out.getvalue())
+            self.assertIn("missing policy_version", out.getvalue())
+            policy.write_text(POLICY, encoding="utf-8")
+
+            for field, needle in (("format_sha256", "missing format_sha256"), ("revision", "missing revision")):
+                write_lock(drop=(field,))
+                out = io.StringIO()
+                with contextlib.redirect_stdout(out):
+                    self.assertEqual(ledger_check.main(base), 1)
+                self.assertIn(needle, out.getvalue())
+
+            write_lock()
+            fmt.write_text("# format, quietly amended\n", encoding="utf-8")
+            out = io.StringIO()
+            with contextlib.redirect_stdout(out):
+                self.assertEqual(ledger_check.main(base), 1)
+            self.assertIn("LEDGER-FORMAT.md was edited after freezing", out.getvalue())
+            fmt.write_text("# format\n", encoding="utf-8")
+            write_lock()
 
             write_lock(policy_version="test-0.9")
             out = io.StringIO()
@@ -272,14 +306,19 @@ class LedgerCheckTest(unittest.TestCase):
             ledger.write_text(GOOD, encoding="utf-8")
             policy = Path(tmp) / "SCORING-POLICY.md"
             policy.write_text(POLICY, encoding="utf-8")
+            fmt = Path(tmp) / "LEDGER-FORMAT.md"
+            fmt.write_text("# format\n", encoding="utf-8")
             lock = Path(tmp) / "ledger.lock"
-            argv = [str(ledger), "--corpus", str(CORPUS), "--policy", str(policy), "--lock", str(lock)]
+            argv = [str(ledger), "--corpus", str(CORPUS), "--policy", str(policy),
+                    "--format", str(fmt), "--lock", str(lock)]
             good_lock = (
                 f"frozen: 2026-09-19\n"
+                f"revision: 0123456789abcdef0123456789abcdef01234567\n"
                 f"sha256: {hashlib.sha256(GOOD.encode()).hexdigest()}\n"
                 f"corpus_sha256: {hashlib.sha256(CORPUS.read_bytes()).hexdigest()}\n"
                 f"policy_version: test-1.0\n"
                 f"policy_sha256: {hashlib.sha256(POLICY.encode()).hexdigest()}\n"
+                f"format_sha256: {hashlib.sha256(fmt.read_bytes()).hexdigest()}\n"
             )
             lock.write_text(good_lock)
             self.assertEqual(ledger_check.main(argv), 0)

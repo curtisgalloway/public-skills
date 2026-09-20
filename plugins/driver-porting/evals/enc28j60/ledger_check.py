@@ -135,6 +135,7 @@ def check(
     lock: dict | None = None,
     freeze: bool = False,
     policy_bytes: bytes | None = None,
+    format_bytes: bytes | None = None,
 ) -> tuple[list[str], list[str], dict]:
     errors: list[str] = []
     warnings: list[str] = []
@@ -309,10 +310,12 @@ def check(
     digest = hashlib.sha256(ledger_bytes).hexdigest()
     corpus_digest = hashlib.sha256(corpus_bytes).hexdigest()
     policy_version, policy_digest = policy_identity(policy_bytes)
+    format_digest = hashlib.sha256(format_bytes).hexdigest() if format_bytes is not None else None
     counts["sha256"] = digest
     counts["corpus_sha256"] = corpus_digest
     counts["policy_version"] = policy_version
     counts["policy_sha256"] = policy_digest
+    counts["format_sha256"] = format_digest
     if freeze:
         if policy_bytes is None:
             errors.append("freeze: no scoring policy; which classes are in the recall denominator must be named before a candidate exists")
@@ -331,10 +334,26 @@ def check(
             if policy_bytes is None:
                 errors.append("lock: no scoring policy on disk to check the lock's policy fields against")
             else:
-                if lock.get("policy_version") != policy_version:
+                # Both sides must be present. Comparing two absent versions succeeds by accident,
+                # which is how an unversioned policy could once pass a lock check.
+                if not policy_version:
+                    errors.append("lock: the scoring policy on disk declares no 'Version:' line")
+                if not _nonempty_str(lock.get("policy_version")):
+                    errors.append("lock: missing policy_version")
+                elif lock.get("policy_version") != policy_version:
                     errors.append(f"lock: policy version {policy_version!r} on disk differs from lock {lock.get('policy_version')!r}")
-                if lock.get("policy_sha256") != policy_digest:
+                if not _nonempty_str(lock.get("policy_sha256")):
+                    errors.append("lock: missing policy_sha256")
+                elif lock.get("policy_sha256") != policy_digest:
                     errors.append(f"lock: policy sha256 {str(policy_digest)[:12]}... differs from lock {str(lock.get('policy_sha256'))[:12]}...; the policy was edited after freezing")
+            if not _nonempty_str(lock.get("format_sha256")):
+                errors.append("lock: missing format_sha256; LEDGER-FORMAT.md supplies the verdict definitions the policy refers to, so its bytes are pinned too")
+            elif format_bytes is None:
+                errors.append("lock: no LEDGER-FORMAT.md on disk to check the lock's format_sha256 against")
+            elif lock.get("format_sha256") != format_digest:
+                errors.append(f"lock: format sha256 {str(format_digest)[:12]}... differs from lock {str(lock.get('format_sha256'))[:12]}...; LEDGER-FORMAT.md was edited after freezing")
+            if not _nonempty_str(lock.get("revision")):
+                errors.append("lock: missing revision; a digest identifies bytes, a repository revision makes them recoverable")
             counts["frozen"] = lock.get("frozen")
     return errors, warnings, counts
 
@@ -344,6 +363,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("ledger", type=Path)
     ap.add_argument("--corpus", type=Path, help="corpus.yaml; defaults to the one beside the ledger")
     ap.add_argument("--policy", type=Path, help="the scoring policy; defaults to SCORING-POLICY.md beside the ledger")
+    ap.add_argument("--format", type=Path, help="the ledger format; defaults to LEDGER-FORMAT.md beside the ledger")
     ap.add_argument("--lock", type=Path, help="freeze record with frozen, sha256, corpus_sha256, policy_version, policy_sha256")
     ap.add_argument("--freeze", action="store_true", help="also apply the freeze gate: no provisional rows, no undisposed overlaps, every critical row read twice")
     ap.add_argument("--json", action="store_true")
@@ -363,9 +383,12 @@ def main(argv: list[str] | None = None) -> int:
         print(f"ledger_check: scoring policy not found at {policy_path}", file=sys.stderr)
         return 1
     policy_bytes = policy_path.read_bytes() if policy_path.exists() else None
+    format_path = args.format or args.ledger.parent / "LEDGER-FORMAT.md"
+    format_bytes = format_path.read_bytes() if format_path.exists() else None
 
     errors, warnings, counts = check(
-        ledger, corpus, ledger_bytes, corpus_bytes, lock=lock, freeze=args.freeze, policy_bytes=policy_bytes
+        ledger, corpus, ledger_bytes, corpus_bytes, lock=lock, freeze=args.freeze,
+        policy_bytes=policy_bytes, format_bytes=format_bytes,
     )
     if args.json:
         json.dump({"errors": errors, "warnings": warnings, "counts": counts}, sys.stdout, indent=1)
