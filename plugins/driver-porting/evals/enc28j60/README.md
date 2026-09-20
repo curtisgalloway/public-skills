@@ -22,6 +22,7 @@ test quality right on something cheap before the method is pointed at a complex 
 | `SCORING-POLICY.md` | 2 | the versioned scoring policy the freeze lock names: which classes are in the recall denominator, how precision is computed, how results are reported |
 | `SCORING-FACTS.md` | 2 | the credit-bearing facts of every composite scoring unit, one ordered list each: the numerator side of proportional partial credit, frozen with the policy |
 | `ledger_check.py` | 2 | the mechanical gate on the ledger: schema, ids, classes, derivations against the corpus pins; `--freeze` for the freeze rules; `--lock` to check a frozen ledger against its lock |
+| `prepare.py` | A | audits the claim inventory and builds neutral reviewer packets from an explicit field allowlist; prints the citable source vocabulary |
 | `score.py` | A | scores reviewed claims and frozen fact dispositions; archives attempts and applies strict documentary acceptance |
 | `SCORING-RUN.md` | A | review contract, CLI, policy, replay, and limits |
 
@@ -30,6 +31,13 @@ test quality right on something cheap before the method is pointed at a complex 
 The scoring tool is implemented and tested. The [first practice run](PRACTICE-RUN.md) exercised
 generation, review, scoring and replay; acceptance is blocked and the review remains incomplete.
 No blind paired benchmark has taken place. See [SCORING-RUN.md](SCORING-RUN.md) for the contract.
+
+That run's preparation failures are now gates rather than care: `prepare.py` refuses a packet
+carrying another reader's judgment vocabulary or built from an inventory still being segmented,
+the review schema is `enc28j60-review-2` with the frozen fact wording beside each numbered
+disposition, and `SCORING-RUN.md` settles what a review may cite — the corpus manifest indexes
+pins and is not itself one. The frozen answer key, policy and fact lists are unchanged; the
+practice run's archived attempts keep their own tools and replay as scored.
 
 ## State of the ledger
 

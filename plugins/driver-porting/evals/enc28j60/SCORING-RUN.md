@@ -64,7 +64,59 @@ before semantic re-review, and report unavailability honestly. Run the corpus pi
 real scored run as described in `README.md`; offline arithmetic does not establish upstream
 availability or re-verify the reviewers' source readings.
 
-## Review contract: `enc28j60-review-1`
+## Preparing a review
+
+`prepare.py` builds what the accuracy readers are given. The first practice run failed its
+independence check here rather than in scoring: a hand-assembled revision file carried one
+reader's verdict summaries into the second reader's packet, and the claim inventory was still
+being segmented while the review ran. Both are now mechanical gates.
+
+```sh
+uv run --with pyyaml python3 prepare.py sources                      # the citable pin names
+uv run --with pyyaml python3 prepare.py inventory \
+  --candidate <candidate.md> --inventory <inventory.json>            # settle before review
+uv run --with pyyaml python3 prepare.py packet \
+  --candidate <candidate.md> --inventory <inventory.json> --output <packet.json>
+```
+
+The inventory (`enc28j60-inventory-1`) is the reviewed proposition list: `id`, `proposition`,
+`weight`, `requirements`, candidate `evidence`, `status` (`active` or `retired`), `supersedes`
+and `notes`. `inventory` refuses one that does not describe this candidate, whose quotes do not
+match its lines, that repeats a proposition, that cites an unknown row, or whose retired parents
+and replacement children disagree; it *warns* where a proposition reads as more than one
+assertion or a retirement leaves assertions behind. A warning is an unanswered segmentation
+question, so `packet` refuses to build from one. Settle them and rerun; do not carry an inventory
+that is still being edited into a review.
+
+`packet` copies an explicit field allowlist — `id`, `proposition`, `weight`, `requirements`,
+`evidence` — out of each active record. It builds by copying named fields, never by deleting
+fields, so anything added to the inventory later is absent from the packet until someone adds it
+here deliberately. Notes, status and retirement links never reach a reviewer. The copied text is
+then scanned for judgment vocabulary (`PASS`, `FAIL`, `GAP`, `UNVERIFIABLE`, `ADJUDICATE`,
+`PENDING`, and phrases like "first reader" or "verdict"), and a hit refuses the packet. Where the
+candidate genuinely uses such a word, `--allow TOKEN` releases it after someone has looked. A
+packet binds the candidate and inventory digests and carries the citable source vocabulary, so a
+reviewer cites a name the scorer can represent. None of this establishes independent minds: it
+establishes that this pipeline did not hand one reader another's answers.
+
+## What a review may cite
+
+The review contract accepts exactly the pin names `corpus.yaml` declares: a data sheet or errata
+edition id, a pinned driver path, or the driver commit. `prepare.py sources` prints them, and
+`--check <names.json>` judges a proposed list and says what to cite instead.
+
+**`corpus.yaml` is a manifest of pins, not an authority, and is not citable.** Its `errata_map`
+and affected-revision lists are transcriptions of pages in DS80349B and DS80349C; a claim resting
+on them cites the edition and locates the table. A repository alias (`linux`) is likewise not a
+source: cite the pinned path or commit. This is the decision the first practice run left open,
+where 23 claims cited the manifest or an alias and could not be represented; those records were
+preserved without inventing citations. The rule follows the ledger's own: a row's
+`derivation.source` has always had to be a pin, and a review is judged against the documents the
+ledger was authored from, not against the index that names them. It also keeps the manifest from
+becoming a second answer key that no freeze covers. A reviewer who cannot reach a pinned document
+reacquires it with `corpus_check.py` and reports unavailability rather than citing the index.
+
+## Review contract: `enc28j60-review-2`
 
 The generated JSON is the schema template. Unknown fields and duplicate JSON keys are errors.
 The template starts with all facts pending, no claims and incomplete gates, so it cannot pass.
@@ -120,7 +172,7 @@ at least one agreeing review, and conflicting reviews must remain `ADJUDICATE`. 
 disagreements in a new attempt after review; preserve earlier attempts. Every critical claim
 needs two agreeing independent reviews for acceptance.
 
-Each fact has `number`, `state`, `claims` and `notes`. Numbers must follow the frozen order in
+Each fact has `number`, `text`, `state`, `claims` and `notes`. `text` is the frozen wording of that numbered fact, written by the template and re-derived from `SCORING-FACTS.md` when scoring: an edited copy is refused, so the text beside a judgment is never a second scoring authority. Numbers must follow the frozen order in
 `SCORING-FACTS.md`; an atomic row has one fact. Allowed states are `correct`, `underspecified`,
 `contradicted`, `absent` and `pending`. Stated facts require notes and links to claims, and each
 claim must map back to the requirement. A `correct` fact needs at least one linked `PASS` claim
@@ -160,9 +212,16 @@ The suite checks synthetic false acceptance/rejection cases and replay. It does 
 answer key, reviewer accuracy, physical hardware, or independence of reviewers. Model-generated
 judgments remain provisional evidence even when mechanically valid.
 
-## First follow-up
+## Schema history
 
-Before repeated scoring campaigns, put the frozen fact text beside each numbered disposition in
-the generated review template. The current review uses the full companion `SCORING-FACTS.md`;
-inline text would reduce fact-number alignment mistakes. Preserve the frozen lists and validate
-any generated text against them rather than making the copied text another scoring authority.
+`enc28j60-review-2` adds `text` to every fact: the frozen wording of the fact being judged, beside
+its number. The first practice run read dispositions against `SCORING-FACTS.md` in a separate
+file, which invites fact-number misalignment. The scorer re-derives each string from the frozen
+list and refuses a review whose copy differs, so the wording stays informative and never becomes
+authoritative. A composite unit's fact takes its listed entry; an atomic row's single fact takes
+the row's statement.
+
+Reviews written against `enc28j60-review-1` are refused rather than migrated: a template is cheap
+and copying old judgments onto a new schema is not a review. Attempts already archived keep their
+own copy of the scorer and replay unchanged. The scoring policy, the answer key and every frozen
+document are untouched by this change; `enc28j60-1.4` still binds them.

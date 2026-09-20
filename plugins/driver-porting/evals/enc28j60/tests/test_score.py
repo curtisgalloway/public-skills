@@ -21,10 +21,10 @@ class ScoringTests(unittest.TestCase):
             import yaml  # noqa: F401 - dependency is mandatory, not a skipped scoring suite
         except ImportError as exc:
             raise RuntimeError('Scorer tests require PyYAML; run with uv run --with pyyaml') from exc
-        cls.rows, cls.counts, cls.sources, cls.blobs = score.load_benchmark()
+        cls.rows, cls.counts, cls.facts, cls.sources, cls.blobs = score.load_benchmark()
         cls.candidate = b'Synthetic assertion; not a hardware specification.\n'
         cls.inputs = score.identity(cls.blobs, cls.candidate)
-        cls.base = score.template(cls.rows, cls.counts, cls.inputs)
+        cls.base = score.template(cls.rows, cls.counts, cls.facts, cls.inputs)
         cls.base['reviewers'] = ['reviewer-a', 'reviewer-b']
         cls.base['audit'] = {'reviewer': 'reviewer-a', 'complete': True,
                              'notes': 'Synthetic fixture: inventory declared complete.'}
@@ -50,7 +50,7 @@ class ScoringTests(unittest.TestCase):
         self.review = copy.deepcopy(self.base)
 
     def result(self):
-        return score.score(self.rows, self.counts, self.sources, self.inputs,
+        return score.score(self.rows, self.counts, self.facts, self.sources, self.inputs,
                            self.candidate, self.review)
 
     def entry(self, rid):
@@ -206,7 +206,7 @@ class ScoringTests(unittest.TestCase):
             self.result()
 
     def test_pending_template_never_accepts(self):
-        self.review = score.template(self.rows, self.counts, self.inputs)
+        self.review = score.template(self.rows, self.counts, self.facts, self.inputs)
         result = self.result()
         self.assert_blocked(result)
         self.assertIsNone(result['precision']['precision'])
@@ -310,6 +310,21 @@ class ScoringTests(unittest.TestCase):
             self.assertEqual((attempt / 'review.json').read_bytes(), original)
             result = json.loads((attempt / 'result.json').read_bytes())
             self.assertEqual(result['acceptance']['spec_ready']['status'], 'blocked')
+
+    def test_edited_fact_text_is_refused(self):
+        fact = self.entry('REG-001')['facts'][0]
+        fact['text'] = fact['text'].replace('0x00', '0x20')
+        with self.assertRaises(ValueError):
+            self.result()
+
+    def test_template_carries_the_frozen_fact_wording(self):
+        composite = self.entry('REG-001')['facts']
+        frozen = self.facts['ENC28J60-REG-001']
+        self.assertEqual([f['text'] for f in composite], frozen)
+        atomic = self.entry('REG-012')['facts']
+        row = next(r for r in self.rows if r['id'] == 'ENC28J60-REG-012')
+        self.assertEqual(len(atomic), 1)
+        self.assertEqual(atomic[0]['text'], row['statement'])
 
     def test_empty_bucket_is_null(self):
         self.assertIsNone(score.bucket([])['recall'])

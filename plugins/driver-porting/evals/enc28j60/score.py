@@ -27,7 +27,7 @@ if not ACCEPT_PATH.exists():
 spec = importlib.util.spec_from_file_location('strict_accept', ACCEPT_PATH)
 strict_accept = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(strict_accept)
-SCHEMA = 'enc28j60-review-1'
+SCHEMA = 'enc28j60-review-2'
 POLICY = 'enc28j60-1.4'
 FILES = ('ledger.yaml', 'ledger.lock', 'corpus.yaml', 'SCORING-POLICY.md',
          'SCORING-FACTS.md', 'LEDGER-FORMAT.md')
@@ -88,8 +88,13 @@ def load_benchmark(root=HERE):
     blobs['score.py'] = Path(__file__).read_bytes()
     blobs['ledger_check.py'] = Path(ledger_check.__file__).read_bytes()
     blobs['strict_accept.py'] = ACCEPT_PATH.read_bytes()
-    return ledger['rows'], ledger_check.policy_fact_counts(blobs['SCORING-POLICY.md']), \
-        ledger_check.corpus_sources(corpus)[0], blobs
+    counts = ledger_check.policy_fact_counts(blobs['SCORING-POLICY.md'])
+    facts = ledger_check.facts_text(blobs['SCORING-FACTS.md'])
+    # The template copies fact text; the copy is only safe while it is re-derivable from the
+    # frozen file, so a list whose length disagrees with the frozen count stops the run here.
+    for rid, n in counts.items():
+        require(len(facts.get(rid, [])) == n, f'{rid}: frozen fact list does not match its count')
+    return ledger['rows'], counts, facts, ledger_check.corpus_sources(corpus)[0], blobs
 
 
 def identity(blobs, candidate):
@@ -108,7 +113,14 @@ def eligible(row):
     return roster(row) and row['class'] in RECALL_CLASSES
 
 
-def template(rows, counts, inputs):
+def fact_text(row, counts, facts, number):
+    """The frozen wording of one numbered fact: the listed entry, or an atomic row's statement."""
+    if counts.get(row['id'], 1) > 1:
+        return facts[row['id']][number - 1]
+    return row['statement']
+
+
+def template(rows, counts, facts, inputs):
     return {
         'schema': SCHEMA, 'inputs': inputs,
         'run': {
@@ -124,7 +136,8 @@ def template(rows, counts, inputs):
         'claims': [],
         'coverage': [
             {'id': row['id'], 'facts': [
-                {'number': i, 'state': 'pending', 'claims': [], 'notes': ''}
+                {'number': i, 'text': fact_text(row, counts, facts, i),
+                 'state': 'pending', 'claims': [], 'notes': ''}
                 for i in range(1, counts.get(row['id'], 1) + 1)]}
             for row in rows if roster(row)
         ],
@@ -157,7 +170,7 @@ def bucket(rows):
     }
 
 
-def score(rows, counts, sources, inputs, candidate, review):
+def score(rows, counts, facts, sources, inputs, candidate, review):
     keys(review, ('schema', 'inputs', 'run', 'reviewers', 'audit', 'cleanroom', 'claims',
                   'coverage'), 'review')
     require(review['schema'] == SCHEMA, 'unsupported review schema')
@@ -255,8 +268,11 @@ def score(rows, counts, sources, inputs, candidate, review):
         require(isinstance(entry['facts'], list) and len(entry['facts']) == n,
                 f'{rid}: must judge exactly {n} frozen facts')
         for i, fact in enumerate(entry['facts'], 1):
-            keys(fact, ('number', 'state', 'claims', 'notes'), rid)
+            keys(fact, ('number', 'text', 'state', 'claims', 'notes'), rid)
             require(type(fact['number']) is int and fact['number'] == i, f'{rid}: fact order changed')
+            # A judgment carries the fact it was made against; edited text is a different fact.
+            require(fact['text'] == fact_text(row_by_id[rid], counts, facts, i),
+                    f'{rid}: fact {i} text differs from the frozen list')
             require(fact['state'] in FACT_STATES, f'{rid}: invalid fact state')
             unique_list(fact['claims'], rid)
             require(set(fact['claims']) <= claims.keys(), f'{rid}: dangling claim link')
@@ -360,18 +376,18 @@ def main(argv=None):
                         help='new review file for template; new attempt directory for score')
     args = parser.parse_args(argv)
     try:
-        rows, counts, sources, blobs = load_benchmark()
+        rows, counts, facts, sources, blobs = load_benchmark()
         candidate = args.candidate.read_bytes()
         candidate.decode('utf-8')
         inputs = identity(blobs, candidate)
         if args.command == 'template':
             with args.output.open('xb') as f:
-                f.write(canonical(template(rows, counts, inputs)))
+                f.write(canonical(template(rows, counts, facts, inputs)))
             return 0
         require(args.review is not None, '--review is required for scoring')
         review_bytes = args.review.read_bytes()
         review = read_json(review_bytes)
-        report = score(rows, counts, sources, inputs, candidate, review)
+        report = score(rows, counts, facts, sources, inputs, candidate, review)
         # Reserve once; never replace any prior attempt, even a failed partial write.
         args.output.mkdir(parents=True, exist_ok=False)
         blobs = dict(blobs, **{'candidate.md': candidate, 'review.json': review_bytes})
