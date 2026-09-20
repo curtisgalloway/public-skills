@@ -119,20 +119,26 @@ errata_map:
       6:  {module: Interrupts,                  summary: Receive Packet Pending interrupt flag (PKTIF) unreliable, affected: [B1, B4, B5, B7]}
       7:  {module: PHY,                         summary: TPIN+/- automatic polarity detection and correction unreliable, affected: [B1, B4, B5, B7]}
       8:  {module: PHY,                         summary: RBIAS resistor value differs between silicon revisions, affected: [B1, B4]}
-      9:  {module: PHY,                         summary: internal loopback in half-duplex unreliable}
-      10: {module: PHY,                         summary: full-duplex loopback mode}
-      11: {module: PHY LEDs,                    summary: PHLCON programming}
-      12: {module: Transmit Logic,              summary: half-duplex hardware transmission}
+      9:  {module: PHY,                         summary: internal loopback in half-duplex unreliable, affected: [B1, B4, B5, B7]}
+      10: {module: PHY,                         summary: full-duplex loopback mode, affected: [B1, B4, B5, B7]}
+      11: {module: PHY LEDs,                    summary: PHLCON programming, affected: [B1, B4, B5, B7]}
+      12: {module: Transmit Logic,              summary: half-duplex hardware transmission, affected: [B1, B4, B5, B7]}
       13: {module: PHY,                         summary: half-duplex transmission with some magnetics, affected: [B5, B7]}
-      14: {module: Memory (Ethernet Buffer),    summary: receive hardware may corrupt the circular buffer}
-      15: {module: Transmit Logic,              summary: collision after 64 bytes have been transmitted}
-      16: {module: PHY LEDs,                    summary: LED auto-polarity detection with some LEDs}
-      17: {module: DMA,                         summary: DMA operated in Checksum mode}
-      18: {module: Receive Filter,              summary: Pattern Match receive filter}
-      19: {module: SPI Interface,               summary: operation in Power Save mode}
+      14: {module: Memory (Ethernet Buffer),    summary: receive hardware may corrupt the circular buffer, affected: [B1, B4, B5, B7]}
+      15: {module: Transmit Logic,              summary: collision after 64 bytes have been transmitted, affected: [B1, B4, B5, B7]}
+      16: {module: PHY LEDs,                    summary: LED auto-polarity detection with some LEDs, affected: [B1, B4, B5, B7]}
+      17: {module: DMA,                         summary: DMA operated in Checksum mode, affected: [B1, B4, B5, B7]}
+      18: {module: Receive Filter,              summary: Pattern Match receive filter, affected: [B1, B4, B5, B7]}
+      19: {module: SPI Interface,               summary: operation in Power Save mode, affected: [B1, B4, B5, B7]}
     datasheet_clarifications:
       1: {module: Receive Filter, summary: "Section 8.2 Pattern Match Filter"}
-      note: "separate sequence restarting at 1; only the first is enumerated this pass"
+      note: "separate sequence restarting at 1; only the first is enumerated this pass. A clarification is not revision-specific; the affected column does not apply, and a ledger row citing one records all four revisions"
+    conformance_issues:
+      # Table 3 (Ethernet Conformance Issues) of DS80349C, page 2: a third numbering sequence,
+      # all three marked B1 and B4 only. Informational for B5 and later.
+      1: {summary: TP_IDL transmit waveform violates the IEEE 802.3 template, affected: [B1, B4]}
+      2: {summary: PHY accepts a receive packet in the Link Test Fail state, affected: [B1, B4]}
+      3: {summary: collision enforcement is delayed, affected: [B1, B4]}
 
 renumbering:
   # The worked example of why the edition matters. Same subject, different number.
