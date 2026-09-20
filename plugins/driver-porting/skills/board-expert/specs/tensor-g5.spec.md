@@ -409,13 +409,13 @@ DXT-48-1536 GPU and a Samsung Exynos 5400 modem; treat those as unverified.
   whatever the parent is; present-but-empty is identity, add zero; present and non-empty means
   parse the triples and add parent − child. (4) Repeat to the root, and record any level where the
   chain broke, because that is the difference between a derived address and an assumed one.
-  **Every `reg`-bearing node in the production blob**, classified by what the value means:
+  **Every `reg`-bearing node in the production blob**, classified by what the value means. Apply the rows in order and take the first that matches: each is the one above it plus a further condition, so read in any other order a reader double-counts 41 nodes.
   | Class | `reg` means | Parent signature | Count |
   |---|---|---|---|
   | Root-level MMIO | CPU-physical as written | root; 2/2; no `ranges` (root's space is the CPU space) | 409 |
   | DRAM extent | base and length | root, plus `device_type = "memory"` | 1 |
   | Reserved-memory carve-out | CPU-physical region | `/reserved-memory`; 2/2; empty `ranges;` | 40 |
-  | Identity-container MMIO | CPU-physical as written | a container with an empty `ranges;` (six of them; one case two hops deep) | 7 |
+  | Identity-container MMIO | CPU-physical as written | a container with an empty `ranges;` (seven of them, one two hops deep) | 7 |
   | Translating-window offset | offset into the wrapper's window | a root-level `sswrp_*` `simple-bus`, 1/1, non-empty `ranges` | 11 |
   | Whole-aperture mapping | the wrapper aperture, **not** the device base | an `sswrp_*` wrapper, 2/1; node is `google,lwis-ioreg-device` with `reg-valid-ranges` | 8 |
   | NVMEM cell offset | byte offset and length into a 1152-byte OTP shadow, which is not a bus | `nvmem-layout` (`fixed-layout`), 1/1, no `ranges`, inside the carve-out at `0x053D_1000` | 111 |
@@ -429,14 +429,16 @@ DXT-48-1536 GPU and a Samsung Exynos 5400 modem; treat those as unverified.
   `0x0C50_0000`, and their `ranges` need the three-cell PCI `phys.hi` tag separated before the
   identity shows; `device_type = "pci"` is the discriminator, and neither node has a `reg`-bearing
   child. Four containers declare no cell counts at all, and the 2/1 default is wrong for every one
-  — for `/cap_sysfs`'s two children a strict-default reader parses an address of `0x0` and a size
-  of `0x2191_0008`; only the divisibility check catches it. For 87 nodes the unit address is not
+  — for `/cap_sysfs`'s two children, whose `reg` is four cells, a 2/1 reader gets the address right
+  (`0x2191_0008`, and `0x8B20_F000` for the second) and the size wrong at `0x0`, with a spare cell
+  left over; 4 is not divisible by 3, which is exactly what the divisibility check catches. Both
+  read cleanly as 2+2: `0x2191_0008`/`0x13F8` and `0x8B20_F000`/`0x1000`. For 87 nodes the unit address is not
   the register base, including 22 each of `uart@X`, `spi@X` and `i3c-master@X` whose registers sit
   at `X + 0x1000`, `X + 0x2000` and `X + 0x3000` because the three siblings share one combo-block
   unit address. The four children of `sswrp_ispbe@3E400000` carry byte-identical `reg` and
   `reg-names`, so anything keyed on `reg` silently loses three devices. And the GIC's `reg` has
   five entries whose last three are all zero — optional CPU-interface, HYP and VCPU slots, the only
-  all-zero entries in the blob — so it has two windows, not five, and must be indexed positionally
+  all-zero address-and-size entries in the blob — so it has two windows, not five, and must be indexed positionally
   per the binding. The **series** tree is a different shape and only 14 nodes carry `reg`: its
   peripherals sit under a `soc@0` `simple-bus` whose `ranges` is non-empty but 1:1 over
   `0x0`–`0x10_0000_0000`, a translation step the blob has no equivalent of, since the blob has no
@@ -466,12 +468,14 @@ DXT-48-1536 GPU and a Samsung Exynos 5400 modem; treat those as unverified.
   laguna-kernel-prebuilts, `reserved-memory` and `chosen`), `[doc]` (series v4 cover letter and
   patch 3/4 message; Android boot image header page; Android DTB/DTBO partitions page;
   pixelscripts Makefile), `[standard]` (arm64 `booting.rst`, the entry contract a Linux Image
-  expects). `TODO (verify on hardware)`: the exception level, MMU and cache state, and x0 at
-  hand-off are not stated in any public document. The production command line carries
-  protected-KVM parameters (a protected-modules list and SMMU-under-KVM options), which implies a
-  hypervisor and therefore an EL2 entry, but no parameter that switches protected mode on appears
-  in any public blob, so this is an indication and not a statement of what the firmware does: read
-  `CurrentEL` at entry rather than assuming EL2.
+  expects), `[inference]` (premises, `[source-observed]` from the production command line in both
+  blobs and every overlay entry: it carries a protected-KVM module list and SMMU-under-KVM options,
+  and carries no parameter that switches protected mode on. Derivation: those options exist to be
+  consumed by a hypervisor, and a hypervisor on arm64 entails an EL2 entry — but their presence
+  shows the kernel was built to expect one, not that the firmware delivered it. Confidence:
+  an indication only; settled by reading `CurrentEL` at entry).
+  `TODO (verify on hardware)`: the exception level, MMU and cache state, and x0 at hand-off, none
+  of which any public document states — read `CurrentEL` rather than assuming EL2.
 - **Silicon revisions and SoC id.** B0 silicon is what mass-production phones carry and what the
   upstream device tree targets; A0 silicon shipped on EVT devices, and the same device tree boots
   on them so far. The bootloader identifies the SoC by a 16-bit product id `0x0005` plus a major
@@ -525,15 +529,18 @@ DXT-48-1536 GPU and a Samsung Exynos 5400 modem; treat those as unverified.
   the public tree. It is the only one of the 22 UARTs wired straight to the GIC, and it belongs to
   "CLI" (configurable low-speed interface) block 16 of the LSIO-N island: the CLI block sits at
   `0x0DB6_0000`, its I2C personality at `+0x1000`, the UART at `+0x2000`, SPI at `+0x3000` and
-  the I3C master at `+0x4000` (a `0x2A0` window); every personality node is named after the
-  `+0x1000` address rather than its own base, and every other CLI follows the same layout. The series leaves the node `status = "disabled"`: the
+  the I3C master at `+0x4000` (a `0x2A0` window). Every personality node is named after the
+  block's `+0x1000` address rather than its own base, which for the I2C personality happens to be
+  its own base and for the UART, SPI and I3C nodes does not; every other CLI follows the same
+  layout. The series leaves the node `status = "disabled"`: the
   bootloader enables the block when its console is on and programs the baud, so the DT never
   fixes one; `serial0` and `stdout-path` point at it. The production blob's node (`uart@db61000`,
   compatible `goog,goog-dw-apb-uart`, same `reg` and interrupt) names clocks `baudclk` (rates
   to 200 MHz) and `apb_pclk` from the CPM clock controller, a reset from the LSIO-N bank, a power
   domain, and a `cli16_uart` pin group. Console device `ttyS0`; `earlycon=uart8250,mmio32,0xdb62000`
   is what the production command line passes, at 115200n8; the upstream flow instead passes a
-  bare `earlycon` and lets `stdout-path` supply the console, and asks the bootloader for
+  bare `earlycon`, which `stdout-path` then resolves, alongside its own `console=pstore`; the real
+  `console=` is appended by the bootloader (Quick-facts/2). The flow asks the bootloader for
   3000000. Register model and
   the DesignWare busy quirk: see `dw-apb-uart`. `[DT]` (`lga.dtsi` and `lga-pixel-common.dtsi`,
   series v4), `[DT]` (`lga-b0.dtb`, laguna-kernel-prebuilts, `uart@db61000`, `aliases`, and
