@@ -123,6 +123,15 @@ only works if the ledger classes every row honestly, including the uncomfortable
 commit, plus a `locator` a reader can follow. **Never a page number alone** — a page number is an
 edition's property, and the locator has to survive the edition changing.
 
+A register's own definition is where its rules are read. A general sentence about a block of
+registers is qualified by each register's definition — DS39662E section 3.3 says PHY reserved bits
+are written as 0 while Register 2-2 requires PHLCON bits 13-12 written as 1 — so a row's locator
+points at the definition that governs, and a row stating a block-wide convention is wrong wherever
+a register overrides it. This was briefly a ledger row of its own (`ENC28J60-PHY-033`, withdrawn
+2026-09-20 into `ENC28J60-PHY-020`, which states PHLCON's rules): it is guidance for whoever
+derives a row, not a hardware requirement a candidate can state, so it belongs here rather than in
+a scored row.
+
 **`applicability`** — the three columns EVAL-PLAN Correction 2 requires, never collapsed into a
 boolean:
 
@@ -181,7 +190,7 @@ against a candidate. The classes are not all requirements, and the denominators 
   rows do not multiply an error, which is why the freeze gate refuses undisposed overlaps.
 
 The versioned policy this ledger's freeze lock names is `SCORING-POLICY.md` (version
-`enc28j60-1.2`, adopted 2026-09-20): it fixes, per class, what is in the recall denominator.
+`enc28j60-1.3`, adopted 2026-09-20): it fixes, per class, what is in the recall denominator.
 
 (This paragraph was added 2026-09-19 after a review found the class table above and the original
 scoring sentence in conflict: the table said an implementation choice is "present so a candidate is
@@ -195,9 +204,11 @@ not penalized for omitting it", while the scoring sentence gave every active row
 | `misstated` | present and wrong — counts as `missing` for recall **and** as an error for precision |
 
 **The denominator is the frozen in-scope set.** Not the candidate's sections, not its TODO list. A
-candidate that omits an entire facet incurs every omission in it. `partial` counts as half in the
-weighted recall and is always also reported as its own count, because a spec that is 100% partial is
-a distinct failure from one that is 50% missing and both can print the same percentage.
+candidate that omits an entire facet incurs every omission in it. `partial` counts as half in the weighted recall for an atomic row, and for a composite scoring
+unit as the fraction of that unit's frozen fact count the candidate stated correctly
+(`SCORING-POLICY.md` → "Composite scoring units"); it is always also reported as its own count,
+because a spec that is 100% partial is a distinct failure from one that is 50% missing and both can
+print the same percentage.
 
 ## Authoring rules
 
@@ -207,11 +218,12 @@ a distinct failure from one that is 50% missing and both can print the same perc
    row derived from a document that has since drifted is a row derived from an unknown document.
 3. **Atomic.** If a reviewer can agree with half a row, split it. The run's scoring policy may
    name **bounded** exceptions — a listed set of ids scored as composite units under a stated
-   verdict rule, never an open-ended category. This ledger's are the 113 ids in
-   `SCORING-POLICY.md` → "Composite scoring units", which that policy arrived at by walking every
-   active row rather than by collecting the rows a reviewer named; every row not in the list is
-   still governed by this rule, and the walk is what makes a row's absence from the list a
-   judgment rather than an oversight.
+   verdict rule, never an open-ended category. This ledger's are the 141 ids in
+   `SCORING-POLICY.md` → "Composite scoring units", each carrying the frozen number of facts it
+   holds; the policy arrived at them by enumerating the independently checkable facts in every
+   active row rather than by collecting the rows a reviewer named, so a row is atomic exactly when
+   that enumeration returned one. Every row not in the list is still governed by this rule, and
+   the walk is what makes a row's absence from the list a judgment rather than an oversight.
 4. **Two readers on `critical` rows**, independently, with disagreements recorded as
    `unresolved-conflict` rather than settled by whoever wrote first — the same rule
    `spec-verifier` applies to a claim, applied to the answer key. Who counts as a reader is

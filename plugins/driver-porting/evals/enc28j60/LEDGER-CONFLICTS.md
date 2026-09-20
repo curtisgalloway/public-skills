@@ -1123,3 +1123,150 @@ which is what the version bump records. No candidate has been scored under any o
 `ADJUDICATION.md` and `README.md` against the pinned driver files is clean; the checker's unit
 tests pass. `ledger.lock` was **not** written: the freeze is a separate step, and the attestation
 it carries is the adjudicator's to sign.
+
+## Pre-freeze repairs, second pass 2026-09-20
+
+The same outside reviewer read the ledger again at commit `f70e1ac`, read-only, reproduced the
+clean mechanical gate and the 163-row denominator, and **again refused the freeze**: the atomic
+inventory had counterexamples under its own written test, PHY-033 duplicated PHY-020, INIT-014 had
+acquired a factual regression during the first pass's narrowing, TX-016's formulation contradicted
+Figure 7-1, two precision rules still conflicted, and cross-referenced clauses were still written
+out beside their cross-references. This pass clears those. IDs omit `ENC28J60-`.
+
+**Held back deliberately.** The weights of INIT-024 and PHY-018, and the operating-envelope section
+of `SCORING-POLICY.md` the two rest on, are untouched: the owner is deciding the benchmark profile
+first and the weights follow from it. The review's finding that the envelope's promiscuous
+worked example is wrong on its own terms — promiscuous reception includes frames addressed to the
+interface itself, so "never accepts its own unicast address" does not describe a promiscuous
+driver — is recorded here and left for that decision. Nothing else in this pass depends on it.
+
+### 1. Proportional partial credit, and the fact-count inventory it rests on
+
+**The finding.** A composite row earned a flat 0.5 whatever fraction of it was right, so one
+correct field and every field but one scored the same; and the atomic/composite boundary was
+applied inconsistently, which matters because the two verdict rules give different outcomes for
+the same incomplete candidate. The reviewer named nine rows it believed misclassified.
+
+**What was done.** The classification problem is subsumed rather than argued: **every active row
+was walked and the independently checkable facts it asserts were enumerated and counted**, and the
+count decides the class by construction — 1 is atomic, 2 or more is a composite unit whose count is
+the denominator of its partial credit. The counting conventions are written into the policy so the
+walk is reproducible: an attribute rides with the element it qualifies; a mechanism, condition or
+consequence rides with the requirement it serves when contradicting it would falsify that
+requirement; a clause entailed by another fact in the same row, or one whose work is to record the
+row's class or provenance, is not counted.
+
+- **203 active rows, 689 facts, 141 composite units and 62 atomic rows.** Distribution: 62 rows at
+  1 fact, 30 at 2, 42 at 3, 20 at 4, 18 at 5, 11 at 6, 20 at 7 or more. The largest are TX-008 at
+  21, INIT-010 at 17, RX-011 at 15, REG-003 at 14, RX-019 at 12 and REG-001 at 12. Per facet the
+  composite units are REG 26, INIT 13, TX 17, RX 21, IRQ 13, PHY 27, SPI 16, ELEC 7, ERR 1.
+- **Twenty-eight rows moved from atomic to composite; none moved the other way.** REG-005;
+  INIT-014; TX-016, TX-017, TX-020, TX-024; RX-008, RX-010, RX-013, RX-033, RX-036, RX-037;
+  IRQ-002, IRQ-003, IRQ-005; PHY-005, PHY-010, PHY-023, PHY-024, PHY-025, PHY-027, PHY-028;
+  SPI-007, SPI-009, SPI-010, SPI-017, SPI-018, SPI-022.
+- **The counts live in the policy's composite table as a third column**, not in `ledger.yaml`: the
+  ledger stays readable and the counts are frozen policy text that only a new policy version can
+  change. For an atomic row nothing is recorded, and the absence of an entry is the claim that the
+  row holds one fact.
+- **The verdict rule** is now `covered` when every enumerated fact is stated correctly; `partial`
+  when at least one is correct, the rest omitted or underspecified and none contradicted, earning
+  the fraction correct over the row's frozen count; `missing` when none is stated; `misstated` when
+  at least one is contradicted, earning zero. The policy says explicitly that the frozen count and
+  not a scorer's own segmentation is the denominator. Atomic rows keep the ordinary 0.5, since
+  dividing one correct fact by a count of one would turn every partial into a coverage.
+
+**The reviewer's nine named rows: agreement on all nine.** REG-005 is three prefix mappings (the
+bank 3 examples follow from them and are not counted). PHY-005 is three prohibitions while BUSY.
+SPI-018 is read and write bit order. RX-010 is field position, byte order and what the count
+includes. PHY-027 is link-state reading and duplex reporting. TX-024 is FCEN0's mechanism and the
+vendor's deployment advice. INIT-014 is the programming requirement, the standard-frame value and
+the receive-side rejection, at 3. INIT-008 is atomic **after** the ESTAT example moved to notes, as
+the reviewer conditioned it. PHY-033 is withdrawn rather than classified. The walk also found
+nineteen further rows the review had not named, which is what an enumeration buys over a sample.
+
+**Two narrative errors corrected.** The "enumerated rather than split" paragraph said 111 of 113
+took the enumeration disposition; the table enumerates **all** of them, because PHY-006 and TX-019
+stayed composite after a clause was split out of each and the split rows joined the population
+rather than replacing entries. And "splitting would reopen a settled merge" is gone as a rationale:
+REG-023 is kept whole because the intended unit is the block of MAC timing and limit values a
+driver programs in one step from one table, and RX-019 because ERXFCON's bit positions and the
+combination semantics those bits select are read in one register definition and the ANDOR rule
+cannot be stated apart from the bits it combines.
+
+**Added, adapted from the review**: recall measures coverage of the frozen scoring units and not
+the fraction of independent hardware facts recovered, and atomic and composite verdict counts are
+reported separately alongside the weight buckets. It appears in both the composite section and
+"Reporting".
+
+**`SCORING-POLICY.md` is bumped to `enc28j60-1.3`** with the version history extended. Every
+partially covered row's contribution moves, so no recall number under it is comparable with one
+computed under `enc28j60-1.2`.
+
+### 2. Row repairs the review established from the corpus
+
+- **PHY-033, withdrawn into PHY-020** (`replaced_by`). Its hardware content is PHLCON's
+  reserved-as-1 rule, which PHY-020 already states and scores, so the pair put one proposition in
+  the denominator twice. What remained was an instruction about reading documentation — look a
+  register's write rule up in that register's own definition — which is authoring guidance and is
+  now in `LEDGER-FORMAT.md` beside the derivation rules. **The provenance point**: PHY-033's
+  `readers` were inherited from the PHY-006 clause that asserted the incorrect universal-zero rule,
+  and credit for a wrong statement does not establish independent derivation of its correction, so
+  the withdrawal credits no reader to PHY-020; PHY-020 keeps the readers its own statement earned.
+  Whether the original drafts support crediting a reader there is a separate finding to be made
+  from the drafts.
+- **INIT-014**, regression fixed. It said oversized frames are rejected on receive without
+  qualification; DS39662E Register 6-2 allows oversized reception when MACON3.HFRMEN is set. Now:
+  rejected on receive when HFRMEN is clear, with the transmit-side selection rule owned by TX-016.
+- **TX-016**, factual error fixed. The OR formulation permitted oversized transmission whenever
+  HFRMEN was set, including with POVERRIDE set and PHUGEEN clear, while Figure 7-1 makes the
+  per-packet setting override MACON3. Now a selection: PHUGEEN controls permission when POVERRIDE
+  is set, otherwise MACON3.HFRMEN does, and transmission aborts at the MAMXFL limit when the
+  selected control disallows huge frames.
+- **TX-004** says "on successful completion", so the row no longer silently re-covers the aborts
+  TX-007 owns.
+- **INIT-012** drops the parenthetical TXCRCEN pairing requirement and refers to REG-019, which
+  owns it.
+- **INIT-008** moves the ESTAT example register values into notes; the scored statement is the
+  verification-and-retry procedure alone.
+
+### 3. The two policy rules that were still wrong
+
+- **Implementation choices and necessity.** Eligibility made asserting an implementation choice as
+  necessary automatically `misstated`, and the composite rule extended that trigger to "at least
+  one" enumerated fact. Replaced, in the review's terms: an implementation-choice row is a
+  precision probe for the selected policy or value that row identifies; asserting its necessity is
+  an error only where the corpus establishes an alternative, and otherwise the unsupported rule
+  applies; constituent hardware requirements inside such a sequence remain independently valid and
+  are judged against the rows that own them. **PHY-030's notes** are corrected with it: they called
+  a required-initialization claim `misstated` categorically, although the corpus prescribing no
+  liveness check establishes the absence of a prescription, not the presence of an alternative.
+- **Cross-references.** Both halves of the review's proposal are applied. The policy now says a
+  clause explicitly assigned to another row is scored only in the owner row, even where it is
+  reproduced beside its cross-reference, and is not an enumerated fact of the row reproducing it.
+  And the restated wording is removed where the sentence still reads without it: **INIT-007** now
+  says to observe the post-reset wait INIT-003 specifies instead of writing out the 1 ms, and
+  **INIT-005** cites the exceptions REG-011 and REG-017 state instead of naming them again.
+
+### Counts after this pass
+
+**213 rows, 203 active (was 204), 10 withdrawn.** One row withdrawn (PHY-033), none minted. Seven
+rows had a statement corrected or narrowed (INIT-005, INIT-007, INIT-008, INIT-012, INIT-014,
+TX-004, TX-016) and eleven gained or changed notes recording why. Classes over all
+rows are unchanged at 178 documented-hardware-requirement, 19 implementation-choice, 13
+observed-software-behavior, 3 inference; active rows are 168, 19, 13 and 3. Weights over all rows
+are unchanged at 66 critical, 64 important, 83 minor; 180 rows carry both readers. Composite
+scoring units: **113 -> 141**, against 62 atomic rows. Scoring policy: `enc28j60-1.2` ->
+`enc28j60-1.3`.
+
+**The recall denominator moves from 163 rows to 162** — 64 critical, 57 important, 41 minor —
+because PHY-033 was withdrawn. Of the 162, 127 are composite units and 35 atomic; fourteen of the
+141 composite units sit outside every recall denominator and are scored only for precision.
+Recall percentages under `enc28j60-1.3` are not comparable with any computed under an earlier
+version, which is what the bump records. No candidate has been scored under any of them.
+
+`ledger_check.py ledger.yaml` and `ledger_check.py ledger.yaml --freeze` both report 0 errors and 0
+warnings, and the checker reads 141 composite ids from the new three-column table, so the added
+column did not trip the list-versus-total check. The leak scan over `ledger.yaml`,
+`SCORING-POLICY.md`, `LEDGER-CONFLICTS.md`, `ADJUDICATION.md` and `README.md` against the pinned
+driver files is clean, and the checker's unit tests pass. `ledger.lock` was **not** written: the
+freeze is the adjudicator's step, and the two held-back weights are still open.

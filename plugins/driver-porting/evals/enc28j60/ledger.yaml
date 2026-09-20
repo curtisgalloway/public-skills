@@ -294,7 +294,7 @@ rows:
     the two readers, and the unresolved-conflict class is for two sources that disagree with no
     reading to settle them. The reword also clears the checker's warning that the statement did not
     present both readings, which it could never do. As an observed row it is outside the recall
-    denominator under policy enc28j60-1.2 and is reported as its own count.
+    denominator under policy enc28j60-1.3 and is reported as its own count.
 - id: ENC28J60-REG-008
   statement: >-
     ECON1 bit layout: TXRST bit 7 (hold transmit logic in reset), RXRST bit 6 (hold receive logic
@@ -1162,10 +1162,10 @@ rows:
     Merged with draft B ENC28J60-INIT-005.
 - id: ENC28J60-INIT-005
   statement: >-
-    A System Reset (RESET pin or SPI reset command) returns all registers to their reset values except
-    ESTAT.CLKRDY and ECOCON, whose own reset behavior is ENC28J60-REG-011 and ENC28J60-REG-017, and
-    performs the transmit-only and receive-only resets. The buffer memory keeps
-    its contents through a System Reset but is undefined after a Power-on Reset.
+    A System Reset (RESET pin or SPI reset command) returns all registers to their reset values apart
+    from the exceptions ENC28J60-REG-011 and ENC28J60-REG-017 state, and performs the transmit-only
+    and receive-only resets. The buffer memory keeps its contents through a System Reset but is
+    undefined after a Power-on Reset.
   class: documented-hardware-requirement
   derivation:
   - source: DS39662E
@@ -1187,6 +1187,11 @@ rows:
   notes: >-
     The driver writes ECON1 to zero right after its soft reset; since ECON1 resets to zero this write
     is redundant, and it also resets the driver's cached bank number.
+
+
+    Restated 2026-09-20 (second pre-freeze pass): the row named the two exempt registers beside the
+    cross-reference to the rows that own their reset behavior, so those clauses were written out
+    twice and a scorer had to infer which words were not scored. It now cites the owners only.
 
 
     Reader B adds: The driver reinitializes everything after each reset and never assumes buffer contents.
@@ -1227,8 +1232,8 @@ rows:
   statement: >-
     The SPI System Reset Command has no effect while ECON2.PWRSV is set; before resetting a device
     that is or may be in power-save mode the host must clear PWRSV with a Bit Field Clear and wait
-    at least 300 us for the regulator to stabilize, then issue the reset and observe the 1 ms wait of
-    ENC28J60-INIT-003.
+    at least 300 us for the regulator to stabilize, then issue the reset and observe the post-reset
+    wait ENC28J60-INIT-003 specifies.
   class: documented-hardware-requirement
   derivation:
   - source: DS80349C
@@ -1256,6 +1261,11 @@ rows:
     because PWRSV is clear after a Power-on Reset; a warm re-probe of a sleeping device would be affected.
 
 
+    Restated 2026-09-20 (second pre-freeze pass): the row wrote out the 1 ms beside its
+    cross-reference to ENC28J60-INIT-003, so that row's clause was scored in both places. The step
+    stays and the value stays with its owner.
+
+
     Reader B adds: This issue has no counterpart in DS80349B. The driver's open path leaves power
     save (clearing PWRSV and polling CLKRDY) before the initialization that issues the reset, so the
     ordering holds on every open; at probe it issues the reset without first clearing PWRSV, which
@@ -1268,9 +1278,7 @@ rows:
   statement: >-
     After resetting a device whose state is unknown, the host should verify that the device reached
     an expected reset state and repeat the reset procedure of ENC28J60-INIT-007 from the start if the
-    verification fails. DS80349C silicon issue 19 gives one example of such a verification, reading
-    ESTAT and checking that CLKRDY is set and the unimplemented bit 3 is clear; it presents that as
-    an example and does not exclude other reset state a host could check instead.
+    verification fails.
   class: documented-hardware-requirement
   derivation:
   - source: DS80349C
@@ -1295,6 +1303,15 @@ rows:
   status: active
   notes: >-
     The driver performs no post-reset ESTAT verification and does not retry.
+
+
+    The example moved here 2026-09-20 (second pre-freeze pass): DS80349C silicon issue 19 illustrates
+    such a verification by reading ESTAT and checking that CLKRDY is set and the unimplemented bit 3
+    is clear, and presents that as an example rather than the prescribed check. As part of the
+    statement it made the row assert two example register values and their attribution alongside the
+    obligation; as a note it is context for the scorer, and the scored statement is the
+    verification-and-retry procedure alone. Other reset state a host could check instead is not
+    excluded.
 
 
     Narrowed 2026-09-20: the preceding sequence (clear PWRSV, wait 300 microseconds, reset, wait
@@ -1413,10 +1430,10 @@ rows:
     Merged with draft B ENC28J60-INIT-008.
 - id: ENC28J60-INIT-012
   statement: >-
-    MACON3 should be programmed for automatic padding to at least 60 bytes with CRC appended (and
-    TXCRCEN set); if not, the host must supply padding and CRC itself because the MAC will transmit
-    undersize or CRC-less frames as given. FULDPX must be set for a full-duplex link and clear otherwise.
-    FRMLNEN may be set for length status reporting.
+    MACON3 should be programmed for automatic padding to at least 60 bytes with CRC appended, subject
+    to the pairing rule ENC28J60-REG-019 states; if not, the host must supply padding and CRC itself
+    because the MAC will transmit undersize or CRC-less frames as given. FULDPX must be set for a
+    full-duplex link and clear otherwise. FRMLNEN may be set for length status reporting.
   class: documented-hardware-requirement
   derivation:
   - source: DS39662E
@@ -1436,6 +1453,11 @@ rows:
   recoverable: true
   status: active
   notes: >-
+    Narrowed 2026-09-20 (second pre-freeze pass): the parenthetical requiring TXCRCEN alongside a
+    CRC-generating PADCFG repeated ENC28J60-REG-019's pairing rule, which owns it. What stays here is
+    the configuration this row recommends.
+
+
     Reader B adds: The driver uses PADCFG = 001 (pad to 60), TXCRCEN, FRMLNEN, and FULDPX per its
     duplex setting.
 
@@ -1474,8 +1496,8 @@ rows:
 - id: ENC28J60-INIT-014
   statement: >-
     MAMXFL must be programmed with the maximum frame length to be transmitted or received; 1518 bytes
-    accommodates standard frames. Frames larger than MAMXFL are also rejected on receive; the
-    transmit case and the two overrides that escape it are ENC28J60-TX-016.
+    accommodates standard frames. Frames larger than MAMXFL are rejected on receive when
+    MACON3.HFRMEN is clear; the transmit-side selection rule is ENC28J60-TX-016.
   class: documented-hardware-requirement
   derivation:
   - source: DS39662E
@@ -1495,6 +1517,12 @@ rows:
   status: active
   notes: >-
     The driver writes 1518.
+
+
+    Corrected 2026-09-20 (second pre-freeze pass): the first pass narrowed the row and left the
+    receive clause unqualified, which asserts that oversized frames are always rejected on receive.
+    DS39662E Register 6-2 allows oversized reception when MACON3.HFRMEN is set, so the qualification
+    is restored; the transmit side stays with ENC28J60-TX-016.
 
 
     Reader B adds: The driver writes 1518. The reset default is 1536, so a driver that skips this
@@ -1835,10 +1863,11 @@ rows:
 
 
     Weight recorded 2026-09-20 against the operating envelope in `SCORING-POLICY.md` ("The
-    operating envelope the weights assume"): a driver that receives frames addressed to its own
-    unicast address cannot avoid programming MAADR, and the unicast filter is enabled out of reset.
-    The promiscuous-mode qualification the review above records is a driver operating outside that
-    envelope, so it does not make the requirement avoidable and the weight stays critical.
+    operating envelope the weights assume"): the envelope requires the device's own unicast filter,
+    programmed with the interface's address, and that filter is enabled out of reset. A promiscuous
+    receiver does accept frames addressed to the interface, so promiscuous operation is a real way
+    to run without MAADR; the weight rests on the envelope excluding it, not on denying it. The
+    adjudicator chose that envelope before this weight was re-examined against it.
 - id: ENC28J60-INIT-025
   statement: >-
     The reference driver writes ECON1 to zero with a full register write immediately after the soft
@@ -2010,7 +2039,7 @@ rows:
   notes: Merged with draft B ENC28J60-TX-004.
 - id: ENC28J60-TX-004
   statement: >-
-    Transmission is started by setting ECON1.TXRTS. When the transmission ends the hardware clears
+    Transmission is started by setting ECON1.TXRTS. On successful completion the hardware clears
     TXRTS and writes the transmit status vector, and it leaves ETXST and ETXND unchanged.
   class: documented-hardware-requirement
   derivation:
@@ -2039,6 +2068,11 @@ rows:
     is ENC28J60-TX-007's. A clear TXABRT alone does not establish success (DS39662E section 12.1.4),
     which is why the judgment is stated once, where the qualification lives. Where the status vector
     is written is ENC28J60-TX-002's.
+
+
+    Restated 2026-09-20 (second pre-freeze pass): "when the transmission ends" still covered the
+    abort path, so the row silently re-covered what ENC28J60-TX-007 owns. This row is the success
+    path.
 
 
     Reader B adds: The driver reads the status vector from ETXND + 1.
@@ -2421,8 +2455,9 @@ rows:
   notes: Merged with draft B ENC28J60-TX-016.
 - id: ENC28J60-TX-016
   statement: >-
-    A frame larger than MAMXFL is aborted during transmission unless MACON3.HFRMEN is set or the per-packet
-    control byte sets both POVERRIDE and PHUGEEN.
+    For oversized transmission, PHUGEEN controls permission when the per-packet control byte sets
+    POVERRIDE, and otherwise MACON3.HFRMEN controls it. Transmission aborts at the MAMXFL limit when
+    the selected control disallows huge frames.
   class: documented-hardware-requirement
   derivation:
   - source: DS39662E
@@ -2440,7 +2475,14 @@ rows:
   in_scope: true
   recoverable: true
   status: active
-  notes: Merged with draft B ENC28J60-TX-021.
+  notes: >-
+    Corrected 2026-09-20 (second pre-freeze pass): the earlier OR formulation permitted an oversized
+    transmission whenever HFRMEN was set, including with POVERRIDE set and PHUGEEN clear. Figure 7-1
+    makes the per-packet setting override MACON3 for that packet, so the row states a selection
+    between the two controls rather than a disjunction of them.
+
+
+    Merged with draft B ENC28J60-TX-021.
 - id: ENC28J60-TX-017
   statement: >-
     The DMA engine and the transmit engine share one memory port: if TXRTS is set while a DMA operation
@@ -3942,7 +3984,7 @@ rows:
     Weight minor under the weight rule in LEDGER-FORMAT.md: what the corpus establishes is the loss
     of the recommendation's protection against accepting unexpected packets during the change, not
     a broken receive path. Observed rows are outside the recall denominator under policy
-    enc28j60-1.2 and are reported as their own count.
+    enc28j60-1.3 and are reported as their own count.
 - id: ENC28J60-IRQ-001
   statement: >-
     EIE bit layout: INTIE bit 7 (global enable for the INT pin), PKTIE bit 6, DMAIE bit 5, LINKIE
@@ -4708,8 +4750,9 @@ rows:
   notes: >-
     Corrected 2026-09-20. The clause saying reserved bits are written as 0 was withdrawn: section
     3.3's general wording does not override a register's own definition, and Register 2-2 requires
-    PHLCON bits 13-12 to be written as 1. The rule that replaces it is ENC28J60-PHY-033, split out
-    because a reader looks up a register's write rules in that register's definition and the list of
+    PHLCON bits 13-12 to be written as 1. The clause was first split out as ENC28J60-PHY-033 and
+    that row was withdrawn on 2026-09-20 into ENC28J60-PHY-020, which states PHLCON's reserved-bit
+    rules; a reader looks up a register's write rules in that register's definition and the list of
     implemented addresses in the PHY register summary. This row also owns the count of implemented
     addresses; ENC28J60-PHY-031, which restated it, now refers here.
 
@@ -5160,19 +5203,27 @@ rows:
   notes: >-
     Weight justification (critical, the adjudicator's answer of 2026-09-20): PHCON2 holds HDLDIS,
     and a driver written from a specification that omits the layout leaves half-duplex loopback
-    enabled, so every transmitted packet is looped back into the receive path (DS39662E section
-    9.1, Register 6-5: with PHCON1<8> and PHCON1<14> clear, HDLDIS = 0 loops transmitted data back
-    to the MAC). The reserved bits the row also enumerates must be written 0. The earlier note
+    enabled, so transmitted frames are returned into the receive path and written to the buffer
+    unless a filter rejects them (DS39662E section 9.1, Register 6-5: with PHCON1<8> and
+    PHCON1<14> clear, HDLDIS = 0 loops transmitted data back to the MAC; ENC28J60-PHY-013 owns
+    that mechanism). What the corpus does not establish is that this necessarily makes a driver
+    nonfunctional, which is why the weight rests on the envelope's suppression clause rather than
+    on the consequence alone. The reserved bits the row also enumerates must be written 0. The earlier note
     placing the row by whether the driver only reads the register is gone: that rule was withdrawn
     as unsound, and it was factually wrong here, since the driver writes PHCON2 in both duplex
     branches.
 
 
     Weight recorded 2026-09-20 against the operating envelope in `SCORING-POLICY.md` ("The
-    operating envelope the weights assume"): the envelope includes interoperating with a link
-    partner in either duplex, and half duplex is the device's reset default and what a partner
-    using autonegotiation settles on (ENC28J60-PHY-010), so a driver cannot avoid the half-duplex
-    consequence by declaring itself full duplex only.
+    operating envelope the weights assume"): the envelope requires suppressing the internal
+    half-duplex loopback, and half duplex is the device's reset default and what a partner using
+    autonegotiation settles on (ENC28J60-PHY-010), so a driver cannot avoid the clause by
+    declaring itself full duplex only. The corpus does not establish that leaving the loopback
+    enabled necessarily breaks a driver: DS39662E section 9.1 says looped frames are still
+    filtered, and DS80349C issue 9 calls the loopback unreliable and recommends disabling it to
+    avoid occasionally returned packets. The weight rests on the envelope's suppression clause,
+    not on a stronger claim than the sources support. The adjudicator chose that envelope before
+    this weight was re-examined against it.
 
 
     Merged with draft B ENC28J60-PHY-013.
@@ -5243,6 +5294,14 @@ rows:
 
     Corrected 2026-09-20: the reset value was written 0x342x, which leaves the whole low nibble
     unknown. Table 3-3 prints 0011 0100 0010 001x, so only bit 0 is unknown.
+
+
+    ENC28J60-PHY-033 was withdrawn into this row 2026-09-20 (second pre-freeze pass). Its hardware
+    content was PHLCON's reserved-as-1 bits, which this statement already carries, so the two rows
+    scored one proposition twice. The general lesson it also carried — that a reserved-bit write rule
+    is read from the register's own definition rather than from a block-wide convention — is
+    authoring guidance and now sits in LEDGER-FORMAT.md beside the derivation rules. No reader was
+    credited here from that withdrawal; see PHY-033's notes for why.
 
 
     Reader B adds: The reserved-as-1 bits are the trap: a value that clears bits 13:12 violates the
@@ -5566,8 +5625,15 @@ rows:
   notes: >-
     Added 2026-09-20 (ADJUDICATION.md group D2, answer y) from the possible omission reader A
     recorded in the notes of ENC28J60-PHY-021, which the merge log lists in section 5. A precision
-    probe: a candidate that presents a PHLCON write timeout as the documented way to detect a
-    missing PHY, or as a required initialization step, is misstated.
+    probe for the recovery policy this row identifies: a candidate that presents a PHLCON write
+    timeout as the documented way to detect a missing PHY is misstated, because the corpus
+    establishes otherwise — a write that does not complete does not establish an absent PHY. A
+    candidate that presents some liveness check at that point as required is judged by the necessity
+    rule in SCORING-POLICY.md: an error where the corpus establishes an alternative, and an
+    unsupported claim, which is not an error, where it does not. Corrected 2026-09-20 in the second
+    pre-freeze pass, which removed the categorical `misstated` for a required-initialization claim:
+    the corpus prescribing no check establishes the absence of a prescribed check, not that every
+    alternative has been demonstrated.
 
 
     Corrected 2026-09-20: the row said the driver treats the timeout as the PHY being absent, and
@@ -5671,25 +5737,29 @@ rows:
   - B
   in_scope: true
   recoverable: true
-  status: active
+  status: withdrawn
+  replaced_by:
+  - ENC28J60-PHY-020
   notes: >-
-    Split out of ENC28J60-PHY-006 on 2026-09-20. PHY-006 said reserved bits are written as 0, which
-    Register 2-2 contradicts for PHLCON bits 13-12; the general wording of section 3.3 does not
-    override a register's own definition. The rule is stated once here rather than corrected in
-    place, because a reader looks up a write rule in the register's definition and the list of
-    implemented PHY addresses in the register summary. `readers` is inherited from PHY-006, whose
-    merged statement carried the clause; `supersedes` is unset because PHY-006 survives.
+    Split out of ENC28J60-PHY-006 on 2026-09-20 and withdrawn the same day in the second pre-freeze
+    pass. Its hardware content — PHLCON's bits 13-12 written as 1 while its other reserved bits are
+    written as 0 — is already stated and scored by ENC28J60-PHY-020, so the two rows put one
+    proposition in the recall denominator twice. What remained after removing the duplication was an
+    instruction about how to read the documentation: look a register's write rule up in that
+    register's own definition rather than in a block-wide sentence. That is guidance for whoever
+    authors or reads the ledger, not a hardware requirement a candidate can state, and it now sits in
+    LEDGER-FORMAT.md beside the derivation rules.
+
+
+    Provenance, recorded rather than carried over: this row's `readers` were inherited from the
+    ENC28J60-PHY-006 clause that asserted the incorrect universal-zero rule. Credit for a wrong
+    statement does not establish independent derivation of its correction, so the withdrawal credits
+    no reader to ENC28J60-PHY-020, which keeps the readers its own statement earned. If the original
+    drafts support crediting a reader there, that is a separate finding to be made from the drafts.
 
 
     The consequence for a driver is ENC28J60-PHY-004's: a PHY write replaces all 16 bits, so a
     read-modify-write that drops PHLCON's reserved-as-1 bits violates the register definition.
-    ENC28J60-PHY-020 states those bits for PHLCON itself; this row is the rule a reader applies to
-    any PHY register.
-
-
-    Weight important under the weight rule in LEDGER-FORMAT.md: the bits a driver is most likely to
-    clear are PHLCON's, whose effect is on the LED outputs rather than on moving frames, so the
-    consequence is a device configured outside its definition rather than one that does not work.
 - id: ENC28J60-SPI-001
   statement: >-
     The host SPI must use mode 0,0 only, with SCK idle low; the device samples SI on the rising edge
@@ -6415,7 +6485,7 @@ rows:
 
     Weight minor under the weight rule in LEDGER-FORMAT.md: no consequence is established, so the
     row is completeness. Observed rows are outside the recall denominator under policy
-    enc28j60-1.2 and are reported as their own count.
+    enc28j60-1.3 and are reported as their own count.
 - id: ENC28J60-ELEC-001
   statement: >-
     The clock input must be exactly 25 MHz with a tolerance of 50 ppm; an external clock must have

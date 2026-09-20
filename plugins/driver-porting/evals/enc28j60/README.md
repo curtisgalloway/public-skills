@@ -64,7 +64,7 @@ it computes, so the lock can be filled from its output:
 | `revision` | the repository revision that holds the checker, the adjudication record and the authoring brief; a digest identifies bytes, a revision makes them recoverable |
 | `sha256` | `ledger.yaml`'s digest |
 | `corpus_sha256` | `corpus.yaml`'s digest, the manifest the check ran against |
-| `policy_version` | the scoring policy's `Version:` string, currently `enc28j60-1.2` |
+| `policy_version` | the scoring policy's `Version:` string, currently `enc28j60-1.3` |
 | `policy_sha256` | `SCORING-POLICY.md`'s digest, because a version label on a mutable file binds nothing |
 | `format_sha256` | `LEDGER-FORMAT.md`'s digest, because the verdict definitions and authoring rules the policy builds on live there |
 
