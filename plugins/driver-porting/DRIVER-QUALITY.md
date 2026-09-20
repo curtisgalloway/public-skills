@@ -5,10 +5,37 @@ SPDX-License-Identifier: Apache-2.0
 
 # Faster driver development with evidence we can test
 
-The goal is to turn scattered hardware knowledge into a precise specification, then use that
-specification to build drivers and repeatable tests. We want agents to do most of the research,
-implementation, and checking, while confidence comes from evidence that can expose mistakes.
-Success means less engineering time to reach a defined quality bar, including debugging and review.
+Our process creates two connected, reusable deliverables: a **hardware specification** and a
+**companion skill**. The specification organizes what is known about a device into a contract
+that a programmer or AI agent can implement. The skill supplies instructions that help an agent
+find the relevant parts of that contract and use the supporting tools and documentation to
+write drivers, build tests, and debug problems.
+
+The specification describes commands, registers (device locations software reads or writes for
+control and status), initialization sequences, timing and ordering rules, and recovery from failures. It
+records which hardware revisions a fact applies to, where the evidence comes from, and what
+remains uncertain. This gives implementations on different operating systems a shared account
+of the hardware while keeping operating-system integration choices explicit.
+
+The companion skill makes that knowledge usable during development. It explains how to select
+the right device and revision, navigate the spec, consult permitted supporting documentation,
+and run available build, inspection, and test tools. It also guides diagnosis: connect a symptom
+to the relevant requirement, collect evidence, compare expected and observed behavior, and
+record a gap when the evidence is insufficient. Tool availability and access restrictions are
+part of those instructions; a source citation does not automatically grant access to that source.
+
+For example, when a network device stops receiving packets, an agent could use the skill to
+locate the spec's receive-buffer and recovery rules, identify an appropriate capture tool, and
+check whether the driver releases consumed buffer space correctly. The resulting evidence can
+support a driver fix, reveal missing information in the spec, or identify a test-environment
+problem. The spec and skill remain useful after the first driver is written: they preserve the
+knowledge needed to maintain it and investigate later failures.
+
+We want agents to do most of the research, implementation, and checking, while confidence comes
+from evidence that can expose mistakes. Success means less engineering time to reach a defined
+quality bar, including debugging and review. The evaluation below tests the specification's
+quality and usefulness first; the broader development workflow also needs to validate the
+companion skill's guidance and tools.
 
 ## Terms
 
@@ -17,6 +44,7 @@ Success means less engineering time to reach a defined quality bar, including de
 - **Requirement ledger** — an independently prepared checklist used to find missing requirements.
 - **Reference driver** — an existing implementation used as evidence; it may have bugs.
 - **Agent** — an AI assistant with tools, assigned an author, implementer, or reviewer role.
+- **Skill** — instructions and optional supporting tools that guide an agent through a task.
 - **Mutation check** — deliberately introduce a defect to see whether a test catches it.
 
 See the shared [glossary](../../GLOSSARY.md) for additional terminology.
