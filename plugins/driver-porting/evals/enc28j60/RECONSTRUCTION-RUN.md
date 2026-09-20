@@ -30,6 +30,10 @@ OS reference requires a separately identified benchmark revision, not a silent s
 
 ## Preparation record to complete before paired candidates are inspected
 
+The [R1a procedure-trial draft](RECONSTRUCTION-TRIAL.md) prepares the existing frozen practice
+spec first, followed by a separately prepared paired run. Its unresolved fields and unqualified
+checks are explicit; it is not a design freeze or launch authorization.
+
 Create a versioned reconstruction manifest outside the documentary lock, with the following
 fields. These are required records, not claims that the environment already exists. Mark
 unknowns explicitly; resolve run-critical ones before authorizing the affected stage.
