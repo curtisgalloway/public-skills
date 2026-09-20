@@ -417,9 +417,11 @@ runs again on demand). This section fixes only what the format and the checker r
   runs again. Stale is a fact about the record, not a judgment of the edit.
 - **What the checker does with it.** No record: warning `unverified`. Record whose `spec_sha256`
   differs from the file: warning `verification stale`. Record whose `summary.fail` is not zero:
-  error. A record with a malformed frontmatter: error. `--require-verified` turns the two warnings
-  into errors, for a root whose policy is that nothing unverified lands. CI keeps the default so a
-  new spec can merge before its first verification, but a failing or stale record never can.
+  error, whether or not the record is also stale. A record with a malformed frontmatter: error.
+  `--require-verified` turns the two warnings into errors, for a root whose policy is that nothing
+  unverified lands. CI keeps the default so a new spec can merge before its first verification. A
+  record reporting failures therefore never merges; a stale one merges with a warning unless the
+  root runs the checker with `--require-verified`.
 
 ## Tools
 

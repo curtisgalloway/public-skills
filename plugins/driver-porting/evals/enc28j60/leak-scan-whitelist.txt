@@ -1,0 +1,9 @@
+# SPDX-FileCopyrightText: 2026 contributors
+# SPDX-License-Identifier: Apache-2.0
+#
+# Identifiers leak_scan.py may see in a ledger artifact without it being reuse of the reference
+# driver's text. Both are file names the corpus pins, and a ledger row cites them in
+# `derivation.source` exactly as corpus.yaml spells them: saying which file a fact came from is
+# the point of the field. Nothing describing driver *content* belongs in this file.
+enc28j60
+enc28j60_hw

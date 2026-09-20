@@ -101,6 +101,20 @@ judged present or absent in a candidate without matching wording. Never a quotat
 | `implementation-choice` | the driver's decision, binding on nobody — present so a candidate is not penalized for omitting it, and *is* penalized for stating it as a requirement |
 | `unresolved-conflict` | two sources disagree and no reading settles it |
 
+The test when a row could be read either way, adopted 2026-09-20 as the adjudicator's group A2
+rule and sharpened the same day after a review found its categories overlapping:
+
+> Classify the proposition the row asserts. A selected value, ordering, acceptance policy or
+> recovery policy is an **implementation choice** when the corpus supports alternatives. A
+> description of internal execution, or an explicitly documented limitation of the reference
+> implementation, is **observed software behavior** when no hardware obligation is established.
+> Where a proposition is about a selected policy, choice takes precedence. Record the evidence
+> that alternatives exist; never infer a hardware necessity from corpus silence.
+
+The precedence clause is load-bearing: a timeout recovery is both a policy the driver selected and
+a procedure it executes, and without it the two halves of the rule reach opposite answers on the
+same row.
+
 A candidate that states an `implementation-choice` as a hardware requirement fails on precision even
 though the underlying behavior is real. That inversion is the sharpest probe in the benchmark and it
 only works if the ledger classes every row honestly, including the uncomfortable ones.
@@ -108,6 +122,15 @@ only works if the ledger classes every row honestly, including the uncomfortable
 **`derivation`** — where it came from: a `source` naming a pin in `corpus.yaml` by its edition or
 commit, plus a `locator` a reader can follow. **Never a page number alone** — a page number is an
 edition's property, and the locator has to survive the edition changing.
+
+A register's own definition is where its rules are read. A general sentence about a block of
+registers is qualified by each register's definition — DS39662E section 3.3 says PHY reserved bits
+are written as 0 while Register 2-2 requires PHLCON bits 13-12 written as 1 — so a row's locator
+points at the definition that governs, and a row stating a block-wide convention is wrong wherever
+a register overrides it. This was briefly a ledger row of its own (`ENC28J60-PHY-033`, withdrawn
+2026-09-20 into `ENC28J60-PHY-020`, which states PHLCON's rules): it is guidance for whoever
+derives a row, not a hardware requirement a candidate can state, so it belongs here rather than in
+a scored row.
 
 **`applicability`** — the three columns EVAL-PLAN Correction 2 requires, never collapsed into a
 boolean:
@@ -123,6 +146,25 @@ vendor document does not prove a device unaffected.
 (degraded or fragile), `minor` (completeness). Recall is reported **per weight and unweighted**,
 never as a single blended number: 90% with every `critical` row missing is not a good spec.
 
+For this pilot, **"does not work" includes failing to satisfy a behavior the operating profile in
+`SCORING-POLICY.md` explicitly requires**, and it does not imply that an implementation outside
+that profile is nonfunctional. A driver that receives promiscuously and filters in software works;
+it is not the driver this benchmark measures, and the profile is what makes "cannot avoid"
+checkable. `INIT-024` and `PHY-018` are the two weights that rest on it.
+
+How to choose one, adopted 2026-09-20 as the adjudicator's standing rule and the rule the
+definition of `critical` above already implies:
+
+> Weigh the consequence of a driver written from a spec that omits the row, adjusted for
+> necessity. `critical` is for a requirement a working driver cannot avoid: omitting it means the
+> driver does not work or corrupts data. A requirement that only bites when a driver uses an
+> optional feature caps at `important`, however severe it is inside that feature.
+
+The cap is a ceiling, not a floor: a row about an optional feature whose omission costs only
+completeness is still `minor`. A row whose class is `implementation-choice` carries a weight that
+never enters recall, because the class is a precision probe and is outside every recall
+denominator; the field is filled in anyway so the row reads like the others.
+
 **`in_scope`** — whether the row counts toward the denominator for this evaluation. Set at authoring
 time with a reason in `notes`. A row can be out of scope for being about a facet the evaluation is
 not asking for; it is never out of scope for being hard.
@@ -135,7 +177,31 @@ and is reported separately: it measures the corpus, not the candidate.
 
 ## Scoring, gold to candidate
 
-Each in-scope, recoverable, active row gets exactly one verdict against a candidate:
+Each in-scope, recoverable, active row **whose class is a requirement** gets exactly one verdict
+against a candidate. The classes are not all requirements, and the denominators differ:
+
+- `documented-hardware-requirement` and `unresolved-conflict` rows are the **recall denominator**.
+  (An unresolved conflict is scored `covered` when the candidate states the conflict, not when it
+  picks a side.)
+- `observed-software-behavior` and `inference` rows are scored for recall only when the scoring
+  policy for the run says so, and are always reported as their own counts; a candidate is not
+  penalized for omitting a driver behavior no document requires. **That policy is versioned and
+  named in the freeze lock before any candidate is generated**; a denominator chosen after seeing
+  a candidate is not a measurement.
+- `implementation-choice` rows are **precision probes and never in a recall denominator**: they
+  exist so a candidate that states the driver's choice as a hardware requirement is scored
+  `misstated`, and one that omits it is scored nothing at all.
+- Precision is computed over the candidate's own claims, including claims with no ledger row. A
+  candidate claim that matches several ledger rows is one claim and counts once; overlapping ledger
+  rows do not multiply an error, which is why the freeze gate refuses undisposed overlaps.
+
+The versioned policy this ledger's freeze lock names is `SCORING-POLICY.md` (version
+`enc28j60-1.4`, adopted 2026-09-20), read with `SCORING-FACTS.md`, which is frozen alongside it: it
+fixes, per class, what is in the recall denominator.
+
+(This paragraph was added 2026-09-19 after a review found the class table above and the original
+scoring sentence in conflict: the table said an implementation choice is "present so a candidate is
+not penalized for omitting it", while the scoring sentence gave every active row a verdict.)
 
 | Verdict | Meaning |
 |---|---|
@@ -145,9 +211,11 @@ Each in-scope, recoverable, active row gets exactly one verdict against a candid
 | `misstated` | present and wrong — counts as `missing` for recall **and** as an error for precision |
 
 **The denominator is the frozen in-scope set.** Not the candidate's sections, not its TODO list. A
-candidate that omits an entire facet incurs every omission in it. `partial` counts as half in the
-weighted recall and is always also reported as its own count, because a spec that is 100% partial is
-a distinct failure from one that is 50% missing and both can print the same percentage.
+candidate that omits an entire facet incurs every omission in it. `partial` counts as half in the weighted recall for an atomic row, and for a composite scoring
+unit as the fraction of that unit's frozen fact count the candidate stated correctly
+(`SCORING-POLICY.md` → "Composite scoring units"); it is always also reported as its own count,
+because a spec that is 100% partial is a distinct failure from one that is 50% missing and both can
+print the same percentage.
 
 ## Authoring rules
 
@@ -155,10 +223,24 @@ a distinct failure from one that is 50% missing and both can print the same perc
    author has seen a candidate, that author cannot write rows for that device.
 2. **From the corpus only.** Every row cites a pin in `corpus.yaml`. Run `corpus_check.py` first: a
    row derived from a document that has since drifted is a row derived from an unknown document.
-3. **Atomic.** If a reviewer can agree with half a row, split it.
+3. **Atomic.** If a reviewer can agree with half a row, split it. The run's scoring policy may
+   name **bounded** exceptions — a listed set of ids scored as composite units under a stated
+   verdict rule, never an open-ended category. This ledger's are the 141 ids in
+   `SCORING-POLICY.md` → "Composite scoring units", each carrying the frozen number of facts it
+   holds, with those facts written out one ordered list per unit in `SCORING-FACTS.md`; the policy arrived at them by enumerating the independently checkable facts in every
+   active row rather than by collecting the rows a reviewer named, so a row is atomic exactly when
+   that enumeration returned one. Every row not in the list is still governed by this rule, and
+   the walk is what makes a row's absence from the list a judgment rather than an oversight.
 4. **Two readers on `critical` rows**, independently, with disagreements recorded as
    `unresolved-conflict` rather than settled by whoever wrote first — the same rule
-   `spec-verifier` applies to a claim, applied to the answer key.
+   `spec-verifier` applies to a claim, applied to the answer key. Who counts as a reader is
+   settled by the crediting rule, adopted 2026-09-20: **a reader who stated a clause inside a
+   compound row is a reader of the atomic row that clause ends up in.** So when a merge narrows
+   one reader's compound row and the clause lands on the other reader's atomic row, the first
+   reader joins that row's `readers`. Atomicity is a property of the ledger's rows, not of what a
+   reader knew, and without the rule the two-reader test would measure who happened to split their
+   draft more finely. It credits a clause the reader actually stated, never a clause the merge
+   inferred they would have agreed with.
 5. **Freeze before generating.** The ledger's hash is recorded before a candidate run begins. A row
    added after a candidate is read is not part of the denominator, and is marked so.
 
