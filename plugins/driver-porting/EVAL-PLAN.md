@@ -164,12 +164,14 @@ An `[inference]` fact should carry: its **premises** (what was actually observed
 would settle it — usually hardware). This is strictly more than the other tags carry, because an
 inference is the one class whose support is an argument rather than a citation.
 
-### 3. Recall needs a denominator the candidate cannot influence — *open*
+### 3. Recall needs a denominator the candidate cannot influence — *implemented*
 
-No existing script computes recall, because nothing in the repository holds a requirement list
-independent of a spec. The ledger format is therefore new work, and its first constraint is that
-its IDs are assigned from the corpus, not from any document's headings — otherwise a candidate that
-reorganizes its sections changes its own denominator.
+The independently authored ENC28J60 ledger is frozen. `evals/enc28j60/score.py` computes recall
+from reviewed fact dispositions against its fixed denominator, and precision from the candidate's
+separate claim inventory. Its IDs come from the corpus rather than document headings. Stage A
+adds strict documentary acceptance and preserved attempts; see `evals/enc28j60/SCORING-RUN.md`.
+The semantic passes in phases 4 and 5 remain reviewer work. Synthetic tests establish the
+scorer's arithmetic and gates; the first candidate run and phase 6 integration remain pending.
 
 ## Where the proposal's other corrections land
 

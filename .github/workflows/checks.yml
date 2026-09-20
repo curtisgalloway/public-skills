@@ -45,8 +45,15 @@ jobs:
             plugins/driver-porting/skills/board-expert/specs \
             --stubs-from plugins/driver-porting/skills
 
+      - name: ENC28J60 YAML dependency
+        run: |
+          python3 -m venv "$RUNNER_TEMP/enc28j60-tests"
+          "$RUNNER_TEMP/enc28j60-tests/bin/python" -m pip install PyYAML
+
       - name: enc28j60 corpus tests
-        run: python3 -m unittest discover -s plugins/driver-porting/evals/enc28j60/tests -v
+        run: >-
+          "$RUNNER_TEMP/enc28j60-tests/bin/python" -m unittest discover
+          -s plugins/driver-porting/evals/enc28j60/tests -v
 
       - name: review-swarm tests
         run: python3 -m unittest discover -s plugins/dev-tools/skills/review-swarm/tests -v
