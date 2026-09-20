@@ -149,6 +149,10 @@ off to these by name.
 
 ## Evaluating specification quality
 
+The [remaining implementation plan](IMPLEMENTATION-PLAN.md) organizes trial preparation,
+paired evaluation, test quality, companion-skill validation, and final verification into
+session-sized milestones with explicit dependencies and review gates.
+
 [Faster driver development with evidence we can test](DRIVER-QUALITY.md) explains the problem,
 the proposed workflow, and how independent checks could reduce human review while improving
 driver quality and test coverage. It is written for programmers new to driver development.

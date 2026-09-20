@@ -35,6 +35,12 @@ evaluation; add other terms as the documents that use them are updated.
 | Fault injection | Deliberately provoking a failure condition to test recovery. |
 | Mutation check | Deliberately introducing a defect to verify that a test detects it. |
 | Acceptance gate | A predefined condition that must be met before an artifact advances or is accepted. |
+| Milestone | A bounded deliverable with dependencies, acceptance criteria, verification, review, and a recorded checkpoint. |
+| Validation contract | A test's requirements, independently supported expected observations, decision rule, setup, and limits. |
+| Run manifest | The record identifying an experiment's inputs, settings, versions, access rules, and output artifacts. |
+| Evidence channel | A means of collecting observations, such as a traffic peer or instrument capture; its suitability must be established for the observation. |
+| Test envelope | The approved equipment configuration, operations, rates, duration, and other limits of a test. |
+| Held-out test | An evaluation case kept out of development and tuning, used afterward to assess transfer to unfamiliar cases. |
 | Regression test | A repeatable check that detects the return of a previously prevented defect. |
 | Test model | A simplified executable description of expected behavior; its assumptions also need validation. |
 | Convergence | Progress toward predefined acceptance conditions as defects and uncertainty are resolved; repeated agreement alone does not establish correctness. |
