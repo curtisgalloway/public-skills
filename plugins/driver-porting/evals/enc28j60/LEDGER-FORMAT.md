@@ -101,6 +101,20 @@ judged present or absent in a candidate without matching wording. Never a quotat
 | `implementation-choice` | the driver's decision, binding on nobody — present so a candidate is not penalized for omitting it, and *is* penalized for stating it as a requirement |
 | `unresolved-conflict` | two sources disagree and no reading settles it |
 
+The test when a row could be read either way, adopted 2026-09-20 as the adjudicator's group A2
+rule and sharpened the same day after a review found its categories overlapping:
+
+> Classify the proposition the row asserts. A selected value, ordering, acceptance policy or
+> recovery policy is an **implementation choice** when the corpus supports alternatives. A
+> description of internal execution, or an explicitly documented limitation of the reference
+> implementation, is **observed software behavior** when no hardware obligation is established.
+> Where a proposition is about a selected policy, choice takes precedence. Record the evidence
+> that alternatives exist; never infer a hardware necessity from corpus silence.
+
+The precedence clause is load-bearing: a timeout recovery is both a policy the driver selected and
+a procedure it executes, and without it the two halves of the rule reach opposite answers on the
+same row.
+
 A candidate that states an `implementation-choice` as a hardware requirement fails on precision even
 though the underlying behavior is real. That inversion is the sharpest probe in the benchmark and it
 only works if the ledger classes every row honestly, including the uncomfortable ones.
@@ -153,6 +167,9 @@ against a candidate. The classes are not all requirements, and the denominators 
   candidate claim that matches several ledger rows is one claim and counts once; overlapping ledger
   rows do not multiply an error, which is why the freeze gate refuses undisposed overlaps.
 
+The versioned policy this ledger's freeze lock names is `SCORING-POLICY.md` (version
+`enc28j60-1.0`, adopted 2026-09-20): it fixes, per class, what is in the recall denominator.
+
 (This paragraph was added 2026-09-19 after a review found the class table above and the original
 scoring sentence in conflict: the table said an implementation choice is "present so a candidate is
 not penalized for omitting it", while the scoring sentence gave every active row a verdict.)
@@ -175,7 +192,11 @@ a distinct failure from one that is 50% missing and both can print the same perc
    author has seen a candidate, that author cannot write rows for that device.
 2. **From the corpus only.** Every row cites a pin in `corpus.yaml`. Run `corpus_check.py` first: a
    row derived from a document that has since drifted is a row derived from an unknown document.
-3. **Atomic.** If a reviewer can agree with half a row, split it.
+3. **Atomic.** If a reviewer can agree with half a row, split it. The run's scoring policy may
+   name **bounded** exceptions — a listed set of ids scored as composite units under a stated
+   verdict rule, never an open-ended category. This ledger's are the seven register bit-layout
+   rows in `SCORING-POLICY.md` → "Composite scoring units"; every other composite row is still
+   governed by this rule.
 4. **Two readers on `critical` rows**, independently, with disagreements recorded as
    `unresolved-conflict` rather than settled by whoever wrote first — the same rule
    `spec-verifier` applies to a claim, applied to the answer key.

@@ -391,3 +391,259 @@ Deferred to the adjudicator:
 (REG-030, REG-031, INIT-027, RX-034, RX-035, IRQ-017, ELEC-010, ERR-007). Active rows with both
 readers: 173 (was 144). Provisional markers on 36 rows (31 weight, 5 class, 1 scope; INIT-010
 carries two). One-sided critical rows: REG-005, REG-029, INIT-024, RX-032, SPI-021.
+
+## Adjudicated 2026-09-20 (group A)
+
+The adjudicator answered `ADJUDICATION.md` group A; every answer was the sheet's proposed default,
+and this pass applied them. Nothing outside group A was touched: groups B to E are still open, and
+the 25 rows that still carry a provisional marker are theirs. IDs omit `ENC28J60-`.
+
+### Decisions
+
+- **A1 = (a) and (d).** Register bit-layout rows stay one row per register — no per-bit split.
+  (The weight *rationale* below was withdrawn as unsound the same day; the weights themselves
+  stand. See "Review corrections 2026-09-20", section 2.)
+  Weight follows whether a driver must write the register to function: critical on REG-010,
+  PHY-007, PHY-008 and PHY-019; important on PHY-016, PHY-017 and PHY-018. `weight_disputed` was
+  removed from all seven. Six already carried the adjudicated weight from the provisional
+  higher-of-the-two rule; only PHY-016 moved.
+- **A2 = (a).** A behavior is an **implementation choice** when the driver picked one of several
+  options the corpus allows (a value, a policy, a set of enabled sources, an ordering among valid
+  orderings), and **observed software behavior** when it is a mechanism the driver executes where
+  the corpus is silent (a recovery procedure, a handler structure, a restriction the design
+  forces). (This wording was replaced the same day by a sharper rule with a precedence clause; the
+  five classifications stand. See "Review corrections 2026-09-20", section 3.)
+  The rule is now in LEDGER-FORMAT.md's class table. Applied to the five disputed rows:
+  INIT-010, INIT-022, TX-023 and RX-025 implementation-choice, IRQ-014
+  observed-software-behavior; `class_disputed` removed from all five, and each row's notes now
+  record the adjudication instead of the dispute. Three of the five already carried the
+  adjudicated class; INIT-022 and IRQ-014 moved.
+- **A3 = (a).** The merged `implementation_observed` values stand: false on PHY-015 and PHY-022,
+  true on ERR-001. No row changed. (Two of the reasons below were corrected the same day, and the
+  rule's scope was limited to errata rows; the booleans stand. See "Review corrections
+  2026-09-20", section 4.) **The rule for the next reader: `implementation_observed` is
+  true only when the thing the driver does *is* the workaround the vendor names.** Not using a
+  feature whose errata offer an external substitute (PHY-015's external loopback, PHY-022's
+  alternate LED codes) is not applying a workaround, so those are false; computing checksums in
+  software is the workaround issue 17 names, and the driver does it by never starting a DMA
+  checksum, so ERR-001 is true.
+- **A4 = (a).** Inference rows (RX-006, RX-031, PHY-012) count toward recall;
+  observed-software-behavior rows (INIT-022 is no longer one of them — see A2 — leaving TX-022,
+  RX-026, RX-030, RX-037, IRQ-014, IRQ-018, IRQ-019, PHY-027, SPI-022, ERR-006) are reported as
+  their own counts and are not in the recall denominator. Because LEDGER-FORMAT.md requires the
+  freeze lock to name a versioned policy, this is written up as `SCORING-POLICY.md`, version
+  `enc28j60-1.0`, adopted 2026-09-20, and LEDGER-FORMAT.md's Scoring section points at it. No row
+  changed.
+
+### Rows whose weight or class moved
+
+- PHY-016 (PHSTAT2 bit layout): weight critical -> important. (Reason superseded: "the driver
+  only reads the register" was part of the withdrawn write-versus-read rule. The weight stands;
+  its justification is now in the row's notes. See "Review corrections 2026-09-20", section 2.)
+- INIT-022 (full reinitialization on every open): class observed-software-behavior ->
+  implementation-choice, reader B's reading. A full reset on open is one re-entry policy among
+  those the corpus allows.
+- IRQ-014 (host interrupt must be edge-triggered): class implementation-choice ->
+  observed-software-behavior, reader B's reading. (Reason superseded: "the handler's structure
+  forces the restriction" is not established by the cited locators. The class stands, re-derived
+  under the sharpened rule as an explicitly documented limitation of the reference implementation
+  with no hardware obligation established. See "Review corrections 2026-09-20", section 3.)
+
+### Counts after this pass
+
+205 rows, 197 active, 8 withdrawn — unchanged, since group A added, withdrew and split nothing.
+Provisional markers fall from 36 rows to 25 (24 weight, 1 scope; INIT-010 keeps its
+`weight_disputed`, which is group B item 9). The freeze gate's error count falls from 41 to 30: 25
+provisional-marker rows and the five one-sided critical rows (REG-005, REG-029, INIT-024, RX-032,
+SPI-021), which are groups B, C and E.
+
+## Review corrections 2026-09-20
+
+An outside reviewer checked the four group A answers against the corpus and found the outcomes
+mostly sound but several rationales unsupported, the format contract unamended, and clause overlap
+still open. This pass applies those findings. **No outcome was re-decided: the seven layout weights
+and the five classes are exactly as the adjudicator set them.** What changed is the reasoning
+recorded for them, the contract that permits them, and the policy's precision. IDs omit
+`ENC28J60-`.
+
+### 1. The composite-row exception (A1's contract problem)
+
+- **SCORING-POLICY.md** — new section "Composite scoring units". Answers: keeping independently
+  falsifiable fields bundled contradicts `LEDGER-FORMAT.md` authoring rule 3 ("if a reviewer can
+  agree with half a row, split it"), and owner approval cannot make the existing text consistent
+  without an amendment. The section names REG-010, PHY-007, PHY-008, PHY-016, PHY-017, PHY-018 and
+  PHY-019 explicitly — no open-ended "any layout row" exception — gives one denominator unit each
+  and the deterministic `covered`/`partial`/`missing`/`misstated` rule, and says precision still
+  evaluates the candidate's individual claims independently.
+- **SCORING-POLICY.md** — the same section records that the set is not strictly one row per
+  register: PHY-007 covers MICMD and MISTAT, PHY-019 covers PHIE and PHIR. Answers the reviewer's
+  note that the proposal was described as one row per register.
+- **LEDGER-FORMAT.md** authoring rule 3 — cross-reference added: the run's scoring policy may name
+  bounded exceptions, this ledger's are the seven, and every other composite row is still governed
+  by the rule. Answers the same finding from the format's side.
+
+### 2. A1's weighting rationale, replaced with per-row justifications
+
+The stated rule — critical where the driver must write the register, important where it only reads
+or never touches it — **is withdrawn as unsound.** The reviewer showed it fails three ways: the
+driver writes PHCON2 in both duplex branches, so PHY-018 is not a register it only reads; the
+driver reads ESTAT without writing it, so REG-010's critical weight does not follow either; and
+PHY interrupt enables serve the chosen link-interrupt design rather than any driver, DS39662E
+section 12.1.5 permitting polling instead. A wrong read-only status bit can also break operation,
+so write-versus-read is not a consequence test at all.
+
+**The seven weights stand unchanged as the adjudicator's explicit judgments**, and each row now
+carries a one-sentence consequence justification in `notes`, derived from the corpus — what
+happens to a driver written from a specification that omits or misstates the row — not from
+whether the driver writes the register:
+
+- **REG-010** (critical): cannot locate ESTAT.CLKRDY, which DS39662E section 2.2 requires be
+  polled before transmitting, enabling reception or touching any MAC, MII or PHY register.
+- **PHY-007** (critical): reads MIRDL/MIRDH before MISTAT.BUSY clears, so every PHY value is
+  unreliable.
+- **PHY-008** (critical): PDPXMD disagreeing with MACON3.FULDPX leaves the device in the
+  indeterminate state DS39662E sections 9.1 and 9.2 describe.
+- **PHY-016** (important): wrong carrier from LSTAT and wrong duplex from DPXSTAT; link management
+  misinformed, data path intact.
+- **PHY-017** (important): LLSTAT and JBSTAT latch since the last read, so a present-tense reading
+  reports a recovered link as down.
+- **PHY-018** (important): without HDLDIS the half-duplex reset default loops transmitted packets
+  back into the receive buffer (DS39662E section 9.1).
+- **PHY-019** (critical): LINKIF is never set by reset default and clears only on an MII read of
+  PHIR, so the driver either never learns of a link change or cannot clear the assertion.
+
+**PHY-018 is flagged for the owner.** It is the one row whose placement rested on the withdrawn
+fact — it was called a register the driver never writes, and the driver writes it in both duplex
+branches. Its weight is unchanged at important and the justification above stands on its own, but
+the owner may wish to revisit it.
+
+### 3. The A2 rule, sharpened
+
+- **LEDGER-FORMAT.md** class table — the two clarifying sentences are replaced by the reviewer's
+  rule: classify the proposition the row asserts; a selected value, ordering, acceptance policy or
+  recovery policy is an implementation choice when the corpus supports alternatives; a description
+  of internal execution, or an explicitly documented limitation of the reference implementation, is
+  observed software behavior when no hardware obligation is established; choice takes precedence
+  for a proposition about a selected policy; record the evidence that alternatives exist and never
+  infer hardware necessity from corpus silence. Answers: "policy" and "mechanism" overlapped, so
+  TX-023 was simultaneously a recovery policy and a recovery procedure and the rule reached both
+  answers on one row. **The five rows keep their classes.**
+- **IRQ-014** — statement rewritten to the narrow form: the reference driver documents that board
+  configuration must provide an edge-triggered host interrupt and that level triggering is
+  unsupported by this implementation, and the corpus does not establish the cause of that
+  limitation or any universal prohibition on level-sensitive hosts. Answers: the probe comment
+  supports reporting the restriction, not the proposed explanation of it.
+- **IRQ-014** — the causal explanation about the handler masking INTIE is **deleted from `notes`
+  and not replaced**. Masking and restoring INTIE does not by itself demonstrate failure with a
+  level-sensitive host. The notes now say only that it was withdrawn as unestablished, and that
+  DS39662E section 12.0 does discuss falling-edge hosts and INTIE masking — so the corpus is not
+  silent about level behavior generally, only about why this implementation cannot support it.
+
+### 4. A3's rationales, corrected
+
+- **PHY-022** `notes` — issue 11's workaround is **alternate LED programming codes** (0011 in half
+  duplex, 0101 in full duplex), not external hardware. The driver selects different LED functions,
+  so it neither uses the broken code nor implements the vendor's named alternative, which is why
+  `implementation_observed` is false. The boolean is unchanged.
+- **ERR-001** `notes` — the pinned driver files do not establish that the driver computes checksums
+  in software. The row is observed because the driver follows the vendor's explicit DMA-checksum
+  avoidance instruction; where checksums are computed is not established by those files. The
+  boolean is unchanged.
+- **ERR-001** `statement` — the clause claiming the host cannot reliably exclude reception windows
+  is dropped. Issue 17 states the abort and prescribes the avoidance; it does not establish that
+  causal premise.
+- **Scope of the A3 rule.** The workaround-specific reading of `implementation_observed` — true
+  only when the thing the driver does *is* the workaround the vendor names — **applies to errata
+  rows.** It does not redefine the field for non-errata rows, which also use it and where it means
+  only whether the reference driver applies the requirement.
+
+### 5. SCORING-POLICY.md completed
+
+New or rewritten sections, each answering a gap the reviewer listed: **Eligibility** (active,
+in-scope, recoverable, included class, and nothing else — not silicon revision, not the
+applicability columns, never anything derived from a candidate); **The recall formula**
+(`(covered + 0.5 x partial) / eligible rows`, overall and per weight, with `n/a (0 eligible rows)`
+for an empty bucket); **Precision adjudication** (claim segmentation and deduplication, and
+contradicted versus unsupported versus partial versus conditional versus a correctly attributed
+observation of driver behavior); **Uncertainty** (an inference presented as an inference, an
+unresolved conflict, and that `applicability.unresolved` or a hedge in notes never silently removes
+a row from the denominator); **Composite units** (section 1 above); **Binding** (the freeze lock
+records this file's sha256 as well as the version string, and a run cites the lock, because a
+version label on a mutable file binds nothing); **Changes after a candidate has been read** (a new
+ledger or policy version and a declared rescoring procedure; the original result is never silently
+altered).
+
+**Rosters regenerated from the settled ledger**, not copied. After A2 the observed list loses
+INIT-022 and gains IRQ-014: observed software behavior is TX-022, RX-026, RX-030, RX-037, IRQ-014,
+IRQ-018, IRQ-019, PHY-027, SPI-022 and ERR-006 (ten active rows, counted but not in recall);
+inference is RX-006, RX-031 and PHY-012 (three, in recall). Corrected in **ADJUDICATION.md group
+A4**, whose list was stale, and written into **SCORING-POLICY.md**, which had not carried them.
+RX-006's condition and PHY-012's inference status are preserved explicitly there: neither becomes
+a universal obligation by entering recall.
+
+### 6. One factual error in ADJUDICATION.md group B
+
+- **B14 (RX-029)** — the reason "the reset defaults are a working FIFO" is replaced by the
+  duplication argument alone (RX-002 and RX-018 already bind pointer programming). The original is
+  wrong: the reset ERXST is 0x05FA (REG-013) while DS80349C issue 5 requires the receive buffer to
+  start at 0x0000 (RX-003), so the reset layout does not satisfy the errata. The proposed weight is
+  unchanged.
+
+### 7. Residual overlap: marked, not resolved
+
+The reviewer rejected the claim that every clause overlap is closed. Resolving these changes the
+recall denominator, so it is the owner's decision. Each row below now carries `overlaps:` with
+`replaced_by` deliberately unset — exactly what the freeze gate refuses — so the error count
+carries the work until group F is answered.
+
+- **SPI-021** `overlaps: [SPI-013, SPI-014, REG-009]` — AUTOINC streaming semantics in SPI-013 and
+  SPI-014, reset value in REG-009.
+- **REG-029** `overlaps: [IRQ-007 … IRQ-012]` — the per-bit read-only and host-clearable access
+  facts. Being the only row that states the EIR legend as one claim does not remove the
+  duplication.
+- **RX-032** `overlaps: [RX-013, RX-015, IRQ-007]` — the accepted-packet consequences. "No other
+  row states these as one claim" is not a deduplication argument.
+- **SPI-014** `overlaps: [SPI-005]` — the Write Buffer Memory command encoding.
+- **RX-029** `overlaps: [RX-002, RX-018]` — pointer-before-enable.
+
+**ADJUDICATION.md group F, "Residual overlap"** — one numbered decision per row, naming the
+duplicated clause, the rows that hold it, and options (a) withdraw with `replaced_by`, (b) narrow
+to the clause no other row states, (c) keep both and accept the double count. Option (c) is
+written as an explicit authorization of duplicated recall contribution for the named clause,
+recorded as its own exception in the scoring policy, and is distinguished from the group A1
+composite-unit exception: one row's several facts scoring as one unit is a different problem from
+two rows sharing a clause. A default with a one-clause reason is proposed for each.
+
+**ADJUDICATION.md Terms** — the "Overlap" entry claimed none were open; corrected to name the five
+and point at group F, and the freeze progress number is updated.
+
+### 8. The other composite layout rows
+
+From the reviewer's follow-up: eleven more rows bundle independently falsifiable facts the way the
+seven do, and the unchanged atomic-row rule still applies to them. They are carried as unresolved
+work rather than swept into the exception.
+
+- **ADJUDICATION.md group G, "Remaining composite layout rows"** — REG-008, REG-009, REG-018,
+  REG-021, REG-022, REG-029, RX-011, RX-019, IRQ-001, TX-008 and PHY-020, each with the facts it
+  bundles and options (a) enumerate as an additional composite scoring unit, (b) split into atomic
+  rows, (c) narrow — with a proposed default and a one-clause reason. REG-029 is in both F and G,
+  and G says to answer F first; REG-009's reset-value clause is likewise F1's.
+- **SCORING-POLICY.md** "Composite scoring units" — says explicitly that the exception covers the
+  seven listed ids and no others, that other composite rows remain subject to the atomic-row rule
+  pending adjudication, and points at group G.
+
+### 9. README
+
+- **README.md** — the open-work note on checker enforcement now says that requiring and validating
+  the scoring policy's version string and sha256 in `ledger_check.py` is a **prerequisite to
+  freezing and to generating any candidate**, not a later improvement. `README.md` was also added
+  to the documented leak-scan command, since it is now scanned with the other clean-side files.
+
+### Counts after this pass
+
+205 rows, 197 active, 8 withdrawn — unchanged; nothing was added, withdrawn or split. Provisional
+markers stay on 25 rows. **The freeze gate rises from 30 errors to 35**: 25 provisional-marker
+rows, the five one-sided critical rows (REG-005, REG-029, INIT-024, RX-032, SPI-021) and the five
+newly marked undisposed overlaps (SPI-021, REG-029, RX-032, SPI-014, RX-029). REG-029, RX-032 and
+SPI-021 each contribute two errors; that is intended, since each needs both a second reading and
+an overlap disposition. Open groups are now B, C, D, E, F and G.

@@ -296,9 +296,6 @@ rows:
     implementation_observed: true
     unresolved: false
   weight: critical
-  weight_disputed:
-    A: critical
-    B: important
   readers:
   - A
   - B
@@ -311,6 +308,13 @@ rows:
 
 
     Reader B's row also carries the CLKRDY reset property, which reader A keeps as ENC28J60-REG-011.
+
+
+    Weight justification (critical, the adjudicator's judgment, recorded 2026-09-20): a driver
+    built from a specification that omits or misstates this layout cannot locate ESTAT.CLKRDY,
+    which DS39662E section 2.2 requires be polled before transmitting, enabling reception or
+    accessing any MAC, MII or PHY register, and cannot tell an aborted transmission from a
+    completed one.
 
 
     Merged with draft B ENC28J60-REG-009.
@@ -867,7 +871,21 @@ rows:
   in_scope: true
   recoverable: true
   status: active
+  overlaps:
+  - ENC28J60-IRQ-007
+  - ENC28J60-IRQ-008
+  - ENC28J60-IRQ-009
+  - ENC28J60-IRQ-010
+  - ENC28J60-IRQ-011
+  - ENC28J60-IRQ-012
   notes: >-
+    Marked 2026-09-20 after a second review: the per-bit read-only and host-clearable access facts
+    this row's legend states are also stated in ENC28J60-IRQ-007 through IRQ-012. Being the only
+    row that gives the EIR legend as one claim does not remove the clause-level duplication.
+    `replaced_by` is deliberately unset, which the freeze gate refuses; the disposition is
+    ADJUDICATION.md group F.
+
+
     The driver includes PKTIF in one Bit Field Clear mask when enabling the hardware; that clear has
     no effect on a read-only bit and no document says it is harmful.
 
@@ -1280,9 +1298,6 @@ rows:
   weight_disputed:
     A: minor
     B: important
-  class_disputed:
-    A: implementation-choice
-    B: observed-software-behavior
   readers:
   - A
   - B
@@ -1296,9 +1311,9 @@ rows:
 
 
     Class disagreement: reader A implementation-choice, reader B observed-software-behavior. Neither
-    cites a vendor document for the order, so the corpus does not settle it; A's class is kept provisionally,
-    the disagreement is logged, and class_disputed marks it for the freeze gate (ADJUDICATION.md
-    group A). The closing sentence was rewritten 2026-09-19: the previous "only these constraints
+    cites a vendor document for the order, so the corpus does not settle it. Adjudicated 2026-09-20
+    (group A2, rule (a)): the driver picked one ordering among the orderings the corpus allows, so
+    the class is implementation-choice and class_disputed is removed. The closing sentence was rewritten 2026-09-19: the previous "only these constraints
     bound the order" was not established by the cited locators.
 
 
@@ -1649,7 +1664,7 @@ rows:
   statement: >-
     On every open the driver performs a full soft reset and complete re-initialization of the device
     rather than only leaving power save and re-enabling reception.
-  class: observed-software-behavior
+  class: implementation-choice
   derivation:
   - source: drivers/net/ethernet/microchip/enc28j60.c
     locator: the open path
@@ -1658,9 +1673,6 @@ rows:
     implementation_observed: true
     unresolved: false
   weight: minor
-  class_disputed:
-    A: observed-software-behavior
-    B: implementation-choice
   readers:
   - A
   - B
@@ -1674,7 +1686,9 @@ rows:
 
 
     Reader B stated the reinitialization on open inside ENC28J60-INIT-021 as implementation-choice;
-    A classed it observed-software-behavior, hence class_disputed (ADJUDICATION.md group A).
+    A classed it observed-software-behavior. Adjudicated 2026-09-20 (group A2, rule (a)): a full
+    reset on open is one of several re-entry policies the corpus allows, so the class is
+    implementation-choice, reader B's reading, and class_disputed is removed.
 - id: ENC28J60-INIT-023
   statement: >-
     The device's main clock is fixed by the 25 MHz input at OSC1 (ENC28J60-ELEC-001) and cannot be
@@ -2509,9 +2523,6 @@ rows:
     implementation_observed: true
     unresolved: false
   weight: minor
-  class_disputed:
-    A: observed-software-behavior
-    B: implementation-choice
   readers:
   - A
   - B
@@ -2523,8 +2534,10 @@ rows:
 
 
     Reader A stated the timeout path inside ENC28J60-INIT-022 (narrowed 2026-09-19 to the open
-    path) as observed-software-behavior; A credited here and the class difference recorded as
-    class_disputed (ADJUDICATION.md group A).
+    path) as observed-software-behavior; A is credited here. Adjudicated 2026-09-20 (group A2,
+    rule (a)): the four-second limit and the close-and-reopen response are a policy picked from
+    responses the corpus allows, so the class stays implementation-choice, reader B's reading, and
+    class_disputed is removed.
 - id: ENC28J60-RX-001
   statement: >-
     The Ethernet buffer is 8 KB at 0x0000 to 0x1FFF. The receive FIFO is the range from ERXST to ERXND
@@ -3290,9 +3303,6 @@ rows:
     implementation_observed: true
     unresolved: false
   weight: minor
-  class_disputed:
-    A: implementation-choice
-    B: observed-software-behavior
   readers:
   - A
   - B
@@ -3301,8 +3311,10 @@ rows:
   status: active
   notes: >-
     Reader B stated the same acceptance test inside ENC28J60-RX-037 (narrowed 2026-09-19), classed
-    observed-software-behavior; B credited here and the class difference recorded as
-    class_disputed (ADJUDICATION.md group A).
+    observed-software-behavior; B is credited here. Adjudicated 2026-09-20 (group A2, rule (a)):
+    the received-OK test and the 1518-byte cutoff are values the driver picked from what the corpus
+    allows, so the class stays implementation-choice, reader A's reading, and class_disputed is
+    removed.
 - id: ENC28J60-RX-026
   statement: >-
     When the driver's saved next-packet pointer lies beyond its receive buffer end, it treats the
@@ -3418,7 +3430,17 @@ rows:
   in_scope: true
   recoverable: true
   status: active
+  overlaps:
+  - ENC28J60-RX-002
+  - ENC28J60-RX-018
   notes: >-
+    Marked 2026-09-20 after a second review: the pointer-before-enable content is also in
+    ENC28J60-RX-002 (ERXST/ERXND writable only while RXEN is clear) and ENC28J60-RX-018
+    (RXEN set after the pointers, MAC and filters are configured); the even-ERXST recommendation
+    is what no other row states. `replaced_by` is deliberately unset, which the freeze gate
+    refuses; the disposition is ADJUDICATION.md group F.
+
+
     DS39662E section 6.1 also advises programming ERXRDPT to the same value as ERXST for tracking,
     low byte first; DS80349C issue 14 supersedes that advice (ERXRDPT must be odd, and ERXST is
     even by the same section's recommendation and 0x0000 by issue 5). A candidate that follows the
@@ -3532,7 +3554,18 @@ rows:
   in_scope: true
   recoverable: true
   status: active
+  overlaps:
+  - ENC28J60-RX-013
+  - ENC28J60-RX-015
+  - ENC28J60-IRQ-007
   notes: >-
+    Marked 2026-09-20 after a second review: the accepted-packet consequences are represented in
+    ENC28J60-RX-013 (EPKTCNT), ENC28J60-IRQ-007 (PKTIF) and ENC28J60-RX-015 (the write pointer),
+    and "no other row states these as one claim" is not a deduplication argument. `replaced_by`
+    is deliberately unset, which the freeze gate refuses; the disposition is ADJUDICATION.md
+    group F.
+
+
     From draft B ENC28J60-RX-012; reader B only.
 
 
@@ -4073,10 +4106,10 @@ rows:
   notes: Merged with draft B ENC28J60-IRQ-014.
 - id: ENC28J60-IRQ-014
   statement: >-
-    The driver requires the host interrupt line to be configured edge-triggered and states that level
-    triggering will not work with its handler. That is a property of the driver's handler, not a
-    hardware requirement; the INT pin is a level output.
-  class: implementation-choice
+    The reference driver documents that board configuration must provide an edge-triggered host
+    interrupt and that level triggering is unsupported by this implementation. The corpus does not
+    establish the cause of that limitation or any universal prohibition on level-sensitive hosts.
+  class: observed-software-behavior
   derivation:
   - source: drivers/net/ethernet/microchip/enc28j60.c
     locator: the probe function, comment above the interrupt request
@@ -4087,9 +4120,6 @@ rows:
     implementation_observed: true
     unresolved: false
   weight: minor
-  class_disputed:
-    A: implementation-choice
-    B: observed-software-behavior
   readers:
   - A
   - B
@@ -4097,14 +4127,19 @@ rows:
   recoverable: true
   status: active
   notes: >-
-    Reader A's inference, not established by the cited locators and moved out of the statement on
-    2026-09-19: the restriction follows from the handler masking INTIE during service, so a
-    level-sensitive host would not see a fresh assertion for an event that arrives mid-service.
+    Reader A's causal explanation for the restriction, moved out of the statement on 2026-09-19,
+    was deleted on 2026-09-20: a review found it unestablished by the cited locators, and no
+    replacement explanation is offered. DS39662E section 12.0 describes the INT output and
+    discusses falling-edge hosts and INTIE masking, so the corpus is not silent about level
+    behavior generally; what it does not establish is why this implementation cannot support it.
 
 
     Reader B stated the edge-trigger requirement inside ENC28J60-IRQ-018 (narrowed 2026-09-19) as
-    observed-software-behavior; B credited here and the class difference recorded as
-    class_disputed (ADJUDICATION.md group A).
+    observed-software-behavior; B is credited here. Adjudicated 2026-09-20 (group A2), and
+    re-derived the same day under the sharpened rule: this is an explicitly documented limitation
+    of the reference implementation with no hardware obligation established, which the rule
+    classes as observed software behavior. The row asserts the limitation, not its cause.
+    class_disputed is removed.
 - id: ENC28J60-IRQ-015
   statement: >-
     The driver enables PKTIE, LINKIE, TXIE, TXERIE and RXERIE together with INTIE, and leaves DMAIE
@@ -4448,9 +4483,6 @@ rows:
     implementation_observed: true
     unresolved: false
   weight: critical
-  weight_disputed:
-    A: critical
-    B: important
   readers:
   - A
   - B
@@ -4459,6 +4491,12 @@ rows:
   status: active
   notes: >-
     Reader B filed this under REG.
+
+
+    Weight justification (critical, the adjudicator's judgment, recorded 2026-09-20): a driver
+    built from a specification that omits or misstates this layout does not know that MICMD.MIIRD
+    starts a PHY read and MISTAT.BUSY says when the result is valid, so it reads MIRDL/MIRDH
+    before the transfer completes and every PHY value it obtains is unreliable.
 
 
     Merged with draft B ENC28J60-REG-022.
@@ -4478,16 +4516,21 @@ rows:
     implementation_observed: true
     unresolved: false
   weight: critical
-  weight_disputed:
-    A: critical
-    B: important
   readers:
   - A
   - B
   in_scope: true
   recoverable: true
   status: active
-  notes: Merged with draft B ENC28J60-PHY-007.
+  notes: >-
+    Weight justification (critical, the adjudicator's judgment, recorded 2026-09-20): PDPXMD is
+    half of the duplex configuration, and DS39662E sections 9.1 and 9.2 say the device is in an
+    indeterminate state and does not function correctly when it disagrees with MACON3.FULDPX, so
+    a driver built from a wrong layout can leave the part non-functional; the same error can set
+    PLOOPBK, which disables the twisted-pair interface.
+
+
+    Merged with draft B ENC28J60-PHY-007.
 - id: ENC28J60-PHY-009
   statement: >-
     The duplex mode is set by two bits that must agree: MACON3.FULDPX and PHCON1.PDPXMD both set for
@@ -4797,10 +4840,7 @@ rows:
     vendor_confirmed: []
     implementation_observed: true
     unresolved: false
-  weight: critical
-  weight_disputed:
-    A: critical
-    B: important
+  weight: important
   readers:
   - A
   - B
@@ -4812,6 +4852,12 @@ rows:
 
 
     Reader B adds: The driver derives carrier state from LSTAT and reports duplex from DPXSTAT.
+
+
+    Weight justification (important, the adjudicator's judgment, recorded 2026-09-20): PHSTAT2 is
+    read-only status, so a driver built from a wrong layout reports the wrong carrier state from
+    LSTAT and the wrong duplex from DPXSTAT — link management is misinformed, but the data path
+    still moves frames.
 
 
     Merged with draft B ENC28J60-PHY-014.
@@ -4831,9 +4877,6 @@ rows:
     implementation_observed: false
     unresolved: false
   weight: important
-  weight_disputed:
-    A: important
-    B: minor
   readers:
   - A
   - B
@@ -4845,6 +4888,12 @@ rows:
 
 
     Reader B adds: The driver reads PHSTAT1 only in debug output.
+
+
+    Weight justification (important, the adjudicator's judgment, recorded 2026-09-20): LLSTAT
+    latches low and JBSTAT latches high since the last read (DS39662E section 3.3.4), so a driver
+    built from a specification that omits those semantics reads a link that has since recovered
+    as down and a stale jabber as current — wrong link reporting, not a broken data path.
 
 
     Merged with draft B ENC28J60-PHY-015.
@@ -4864,16 +4913,20 @@ rows:
     implementation_observed: true
     unresolved: false
   weight: important
-  weight_disputed:
-    A: important
-    B: minor
   readers:
   - A
   - B
   in_scope: true
   recoverable: true
   status: active
-  notes: Merged with draft B ENC28J60-PHY-013.
+  notes: >-
+    Weight justification (important, the adjudicator's judgment, recorded 2026-09-20): HDLDIS at
+    bit 8 is what stops the half-duplex reset default from looping transmitted packets back into
+    the receive buffer (DS39662E section 9.1), so a driver built from a wrong layout receives its
+    own transmissions in half duplex; the reserved bits it also enumerates must be written 0.
+
+
+    Merged with draft B ENC28J60-PHY-013.
 - id: ENC28J60-PHY-019
   statement: >-
     PHIE bits: PLNKIE bit 4 (link change enable), PGEIE bit 1 (PHY global enable). PHIR bits: PLNKIF
@@ -4890,9 +4943,6 @@ rows:
     implementation_observed: true
     unresolved: false
   weight: critical
-  weight_disputed:
-    A: critical
-    B: important
   readers:
   - A
   - B
@@ -4903,6 +4953,12 @@ rows:
     The driver's header places PGIF at bit 1 of PHIR, disagreeing with the data sheet's bit 2; the
     driver never tests that bit (it reads PHIR only to clear it), so the discrepancy has no effect
     there. A candidate that copies bit 1 is misstated.
+
+
+    Weight justification (critical, the adjudicator's judgment, recorded 2026-09-20): LINKIF is
+    never set by reset default and is cleared only by an MII read of PHIR (DS39662E section
+    12.1.5), so a driver built from a specification that omits this layout either never learns
+    the link changed or, once LINKIF is set, cannot clear it and leaves the interrupt asserted.
 
 
     Merged with draft B ENC28J60-PHY-016.
@@ -5007,7 +5063,10 @@ rows:
 
 
     implementation_observed: reader A true (the driver never selects code 1110), reader B false. Merged
-    as false for the same reason as ENC28J60-PHY-015.
+    as false. Corrected 2026-09-20: issue 11's workaround is alternate LED programming codes (0011
+    in half duplex, 0101 in full duplex), not external hardware. The driver selects different LED
+    functions, so it neither uses the broken code nor implements the vendor's named alternative,
+    which is why the column is false.
 
 
     Merged with draft B ENC28J60-PHY-021.
@@ -5665,8 +5724,15 @@ rows:
   in_scope: true
   recoverable: true
   status: active
+  overlaps:
+  - ENC28J60-SPI-005
   notes: >-
     Reader B adds: Writes never wrap at the receive buffer boundary; only reads do (see the RX rows).
+
+
+    Marked 2026-09-20 after a second review: the Write Buffer Memory command encoding (opcode 011,
+    constant 0x1A, byte 0x7A) is also stated in ENC28J60-SPI-005. `replaced_by` is deliberately
+    unset, which the freeze gate refuses; the disposition is ADJUDICATION.md group F.
 
 
     Merged with draft B ENC28J60-SPI-006.
@@ -5863,7 +5929,17 @@ rows:
   in_scope: true
   recoverable: true
   status: active
+  overlaps:
+  - ENC28J60-SPI-013
+  - ENC28J60-SPI-014
+  - ENC28J60-REG-009
   notes: >-
+    Marked 2026-09-20 after a second review: the AUTOINC streaming semantics are also in
+    ENC28J60-SPI-013 and ENC28J60-SPI-014 and the reset value in ENC28J60-REG-009, so a candidate
+    stating them once would be credited more than once. `replaced_by` is deliberately unset, which
+    the freeze gate refuses; the disposition is ADJUDICATION.md group F.
+
+
     The driver's write of the bit at initialization, which this row also carried, is recorded in
     ENC28J60-INIT-018 since 2026-09-19 (implementation-choice: the bit already resets to 1).
 
@@ -6220,9 +6296,9 @@ rows:
 - id: ENC28J60-ERR-001
   statement: >-
     Running the DMA in checksum mode (CSUMEN and DMAST set) at any moment while a packet is being
-    received (RXBUSY set) aborts that packet permanently, setting RXERIF and BUFER. Since the host
-    cannot exclude reception windows reliably, checksums must be computed in software; the DMA copy
-    mode (CSUMEN clear) is unaffected.
+    received (RXBUSY set) aborts that packet permanently, setting RXERIF and BUFER. The vendor's
+    instruction is not to use the DMA module for checksum calculations and to compute checksums in
+    software instead; the DMA copy mode (CSUMEN clear) is unaffected.
   class: documented-hardware-requirement
   derivation:
   - source: DS80349C
@@ -6261,9 +6337,16 @@ rows:
     examples (B issue 15, C issue 17).
 
 
-    implementation_observed: reader A true (the driver computes checksums in software and never starts
-    a DMA checksum, which is the workaround), reader B false (nothing in the driver applies it). Merged
-    as true, since the workaround is exactly not to use the engine.
+    implementation_observed: reader A true, reader B false (nothing in the driver applies it). Merged
+    as true, since the workaround is exactly not to use the engine. Corrected 2026-09-20: the row is
+    observed because the driver follows the vendor's explicit DMA-checksum avoidance instruction, and
+    the pinned driver files do not establish where checksums are computed. Reader A's "computes
+    checksums in software" was withdrawn as unsupported by those files.
+
+
+    Statement narrowed 2026-09-20: the clause claiming the host cannot reliably exclude reception
+    windows was dropped. Issue 17's text states the abort and prescribes the avoidance; it does not
+    establish that causal premise.
 
 
     Merged with draft B ENC28J60-ERR-001.

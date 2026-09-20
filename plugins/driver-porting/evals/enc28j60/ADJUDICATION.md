@@ -24,12 +24,39 @@ with provisional markers, 5 one-sided critical rows (`LEDGER-CONFLICTS.md`, "Cor
   requirement, never for omitting it), `unresolved-conflict`. Class decides which denominator a
   row is in.
 - **Overlap** — two active rows that state the same clause, so a candidate would be scored twice.
-  The 2026-09-19 pass removed every overlap the log and the review named; none are open.
+  The 2026-09-19 pass removed the overlaps the log and the first review named, but **five are
+  open**: a second review on 2026-09-20 found clause-level duplication still in SPI-021, REG-029,
+  RX-032, SPI-014 and RX-029. Each now carries an `overlaps:` list with no `replaced_by`, which
+  is exactly what the freeze gate refuses, and each is a decision in **group F**.
+- **Composite row** — one row that enumerates several independently falsifiable facts, usually a
+  register's bit layout. Seven are exempt from the atomic-row rule by name in `SCORING-POLICY.md`
+  (group A1); eleven more are unresolved and are **group G**.
 - **Freeze** — the point after which the ledger's hash is recorded and candidates may be graded.
-  `ledger_check.py --freeze` refuses while any provisional marker or one-sided critical row
-  remains; its error count is the progress number (41 at the time of writing).
+  `ledger_check.py --freeze` refuses while any provisional marker, one-sided critical row or
+  undisposed overlap remains; its error count is the progress number (41 when this sheet was
+  written, 30 after group A was applied, 35 once the five overlaps above were marked).
 
 ## A. Policy decisions that settle many rows
+
+**Answered 2026-09-20: A1 = (a) and (d), A2 = (a), A3 = (a), A4 = (a)** — every one the proposed
+default. Applied to `ledger.yaml` (weights and `weight_disputed` on the seven layout rows, classes
+and `class_disputed` on the five disputed rows), to `LEDGER-FORMAT.md` (the A2 rule in the class
+table, a pointer to the policy in the Scoring section) and in the new `SCORING-POLICY.md`
+(`enc28j60-1.0`, the A4 denominator rule). The pass is logged in `LEDGER-CONFLICTS.md` under
+"Adjudicated 2026-09-20 (group A)"; the freeze gate went from 41 errors to 30. Groups B to E are
+still open.
+
+**Second review, 2026-09-20.** An outside reviewer checked the four decisions and kept every
+outcome: the seven layout weights and the five classes are unchanged. Three of the four
+*rationales* did not survive, and were replaced rather than re-argued (`LEDGER-CONFLICTS.md` →
+"Review corrections 2026-09-20"). What that means for this sheet: A1's stated rule — critical
+where the driver must write the register — **was withdrawn as unsound** and the seven weights now
+stand as the adjudicator's explicit judgments, each with its own consequence justification in the
+row's `notes`; A1's exception to the atomic-row rule is now written down in `SCORING-POLICY.md`
+instead of contradicting `LEDGER-FORMAT.md` silently; A2's rule was sharpened for the
+policy/mechanism overlap; A3's reasons for PHY-022 and ERR-001 were corrected. Two new groups
+follow from it: **F** (residual overlap) and **G** (the other composite layout rows). One error in
+group B, item 14, was corrected in place.
 
 **A1. Weight of register bit-layout rows.** Seven weight disputes are the same disagreement:
 reader A weights a register's bit layout critical, reader B important. Rows: REG-010 (ESTAT),
@@ -73,8 +100,9 @@ the column feeds the "driver applies it" report, not recall. Choose: (a) keep th
 (c) true on all three. Proposed default: (a).
 
 **A4. Scoring policy for observed-software-behavior and inference rows.** LEDGER-FORMAT scores
-these for recall only when the run's policy says so. Active rows: 10 observed (INIT-022,
-TX-022, RX-026, RX-030, RX-037, IRQ-018, IRQ-019, PHY-027, SPI-022, ERR-006) and 3 inference
+these for recall only when the run's policy says so. Active rows, regenerated from the settled
+ledger after A2 moved INIT-022 out and IRQ-014 in: 10 observed (TX-022, RX-026, RX-030, RX-037,
+IRQ-014, IRQ-018, IRQ-019, PHY-027, SPI-022, ERR-006) and 3 inference
 (RX-006, RX-031, PHY-012). Consequence: (a) adds up to 13 rows to the recall denominator, with
 RX-031 and RX-006 the two a working driver needs; (b) reports them as their own counts only.
 Choose: (a) recall for inference rows, counts only for observed rows; (b) counts only for
@@ -108,8 +136,10 @@ that misses the row.
 12. INIT-020 (critical / important -> important): same; a driver that never sleeps never wakes.
 13. RX-016 (important / minor -> minor): only the free-space computation needs it, and the
     driver uses that only to classify an error.
-14. RX-029 (important / minor -> minor): RX-002 and RX-003 already bind pointer programming;
-    the reset defaults are a working FIFO.
+14. RX-029 (important / minor -> minor): duplication only — RX-002 and RX-018 already bind
+    pointer programming. (Corrected 2026-09-20: the original reason, "the reset defaults are a
+    working FIFO", is wrong. ERXST resets to 0x05FA (REG-013) while DS80349C issue 5 requires the
+    receive buffer to start at 0x0000 (RX-003), so the reset layout does not satisfy the errata.)
 15. TX-005 (important / critical -> critical): a transmission overlapping the receive FIFO
     corrupts received data.
 16. TX-012 (important / critical -> critical): on B5/B7 in half duplex TXRTS never clears;
@@ -198,5 +228,84 @@ two-reader rule.
    corpus.yaml section 6 corrections landed in commit `dfecb61`, and the checker gaps the review
    listed landed in `a8c7b9b` and `c16d628`; neither needs a decision here.
 
+## F. Residual overlap
+
+Five active rows still state a clause another active row states, so a candidate that writes the
+clause once is credited — or penalized — more than once. Each row now carries an `overlaps:` list
+with no `replaced_by`, which the freeze gate refuses, so the count carries the work until these
+are answered. Precision deduplication does not fix this: it merges the candidate's claims, not the
+ledger's recall units.
+
+Options for each: **(a)** withdraw this row into the named rows with `replaced_by`; **(b)** narrow
+this row to the clause no other row states; **(c)** keep both and accept the double count — which
+means **explicitly authorizing duplicated recall contribution for the named clause**, recorded as
+its own named exception in `SCORING-POLICY.md` listing the row pair and the clause. Option (c) is
+not the composite-unit exception of group A1: that one says a single row's several facts score as
+one unit, and says nothing about two rows sharing a clause. They are different problems and need
+separate text.
+
+1. **SPI-021** (AUTOINC must be set for streaming). Duplicated: the AUTOINC-advances-the-pointer
+   semantics, in SPI-013 and SPI-014; the reset value, in REG-009. Nothing is left over — the
+   "must be set" framing is the same fact as SPI-013's conditional. Proposed: **(a)**, because no
+   clause survives the narrowing, and it also settles C4.
+2. **REG-029** (EIR layout with per-bit access legend). Duplicated: the read-only and
+   host-clearable access facts, across IRQ-007 to IRQ-012. Unique: the EIR bit positions and the
+   reserved bit, which no active row states since IRQ-001 was narrowed to EIE. Proposed:
+   **(b)**, narrow to the bit positions and cite the IRQ rows for access.
+3. **RX-032** (accepted-packet consequences plus silent discard). Duplicated: EPKTCNT increments
+   (RX-013), PKTIF is set (IRQ-007), the write pointer advances (RX-015). Unique: a packet that
+   fails the filters is discarded with no indication to the host. Proposed: **(b)**, narrow to
+   the silent-discard clause, which is the part a driver author can get wrong nowhere else.
+4. **SPI-014** (Write Buffer Memory). Duplicated: the command encoding (opcode 011, constant
+   0x1A, byte 0x7A), in SPI-005. Unique: MSb-first data bytes, storage at EWRPT, the AUTOINC
+   advance, and the 0x1FFF-to-0x0000 wrap. Proposed: **(b)**, narrow to the streaming behavior
+   and let SPI-005 own every opcode encoding.
+5. **RX-029** (program ERXST/ERXND before enabling reception). Duplicated: pointer-before-enable,
+   in RX-002 and RX-018. Unique: the data sheet's recommendation that ERXST be even. Proposed:
+   **(b)**, narrow to the even-ERXST recommendation — the only placement rule the data sheet
+   itself states — which also makes B14's minor weight follow from what is left.
+
+## G. Remaining composite layout rows
+
+Group A1 exempted seven rows from the atomic-row rule by name. Eleven more bundle independently
+falsifiable facts the same way and were not covered by that decision, so `LEDGER-FORMAT.md`
+authoring rule 3 still applies to them unamended: today a candidate that gets one bit wrong in any
+of these fails the whole row, and no written rule says that is intended. `SCORING-POLICY.md` says
+the exception covers the seven ids and no others, and points here.
+
+Options for each: **(a)** enumerate it as an additional composite scoring unit in
+`SCORING-POLICY.md` (one denominator unit, the group A1 verdict rule); **(b)** split it into
+atomic rows; **(c)** narrow it, moving the clauses that are not layout to rows of their own.
+Answering **(a)** for a row requires a new policy version, since the id list is part of the frozen
+policy text.
+
+1. **REG-008** (ECON1). Seven bit positions and meanings plus the all-zero reset. Proposed:
+   **(a)**, one register definition read as one unit, exactly the shape of the seven.
+2. **REG-009** (ECON2). Four bit positions and meanings, AUTOINC's set-after-reset value, VRPS's
+   dependence on PWRSV, one reserved bit. Proposed: **(a)**; note the reset-value clause is also
+   F1's duplicated clause, so answer F1 first.
+3. **REG-018** (MACON3). The PADCFG field plus five single-bit configuration flags. Proposed:
+   **(a)**; the PADCFG encodings already live apart in REG-019, so what is left is one layout.
+4. **REG-021** (MACON1). Four bit positions and one reserved bit. Proposed: **(a)**, same shape.
+5. **REG-022** (MACON4). Three bit positions, their half-duplex-only scope, two reserved bits.
+   Proposed: **(a)**, same shape.
+6. **REG-029** (EIR). Bit positions plus a per-bit access legend. Proposed: **(c)**, which is F2;
+   answer it there, and whatever remains takes (a) with the rest of this group.
+7. **RX-011** (receive status vector). Thirteen status-bit positions plus the reserved and
+   always-zero bits. Proposed: **(a)**; a vector is one table and a candidate reproduces it or
+   does not.
+8. **RX-019** (ERXFCON). Eight bit positions, the ANDOR any/all combination rule, CRCEN's
+   ordering after the other filters, and the promiscuous all-zero value. Proposed: **(a)**, since
+   the 2026-09-19 pass deliberately withdrew RX-034 into this row; splitting would undo that.
+9. **IRQ-001** (EIE). Eight bit positions including the global enable and one reserved bit.
+   Proposed: **(a)**, same shape.
+10. **TX-008** (transmit status vector). Roughly twenty fields across seven bytes, plus the
+    little-endian packing. Proposed: **(a)**; the largest of the set, and the strongest case that
+    the verdict rule needs `partial` to mean something, which group A1's rule supplies.
+11. **PHY-020** (PHLCON). Four bit fields, the reserved-as-1 bits 13-12, the reset value, and a
+    table of six common LED codes. Proposed: **(c)**, moving the code table to its own row: the
+    codes are a lookup a driver selects from, not part of the register's layout, and PHY-022
+    already turns on which code is programmed.
+
 Answer format: A1 letter+letter, A2 to A4 letter, B1 to B28 a weight word, C1 to C5 letter
-(or "w" on C4), D1 to D7 y/n, E1 to E5 letter or y/n.
+(or "w" on C4), D1 to D7 y/n, E1 to E5 letter or y/n, F1 to F5 letter, G1 to G11 letter.

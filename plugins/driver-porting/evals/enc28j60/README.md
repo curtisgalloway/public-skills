@@ -19,6 +19,7 @@ test quality right on something cheap before the method is pointed at a complex 
 | `ledger.yaml` | 2 | the gold ledger: authored blind by two independent readers from `corpus.yaml` alone, merged with every disagreement preserved; **not yet frozen** |
 | `LEDGER-CONFLICTS.md` | 2 | the merge's conflict log: every reader disagreement, one-sided critical row, overlap, and correction applied since, for the adjudicator |
 | `ADJUDICATION.md` | 2 | the decisions a person must make before the freeze, each answerable with a letter or number |
+| `SCORING-POLICY.md` | 2 | the versioned scoring policy the freeze lock names: which classes are in the recall denominator, how precision is computed, how results are reported |
 | `ledger_check.py` | 2 | the mechanical gate on the ledger: schema, ids, classes, derivations against the corpus pins; `--freeze` for the freeze rules; `--lock` to check a frozen ledger against its lock |
 
 ## State of the ledger
@@ -44,7 +45,7 @@ Run in this directory (the checker needs PyYAML):
 uv run --with pyyaml python3 ledger_check.py ledger.yaml --freeze   # must report 0 errors
 python3 corpus_check.py                                              # must report 0 drifted
 python3 ../../skills/os-investigator/scripts/leak_scan.py \
-  ledger.yaml LEDGER-CONFLICTS.md ADJUDICATION.md \
+  ledger.yaml SCORING-POLICY.md LEDGER-CONFLICTS.md ADJUDICATION.md README.md \
   --whitelist leak-scan-whitelist.txt \
   --against <your cache>/enc28j60.c <your cache>/enc28j60_hw.h    # must report no findings
 ```
@@ -67,6 +68,14 @@ the adjudicator's attestation:
 From then on `ledger_check.py ledger.yaml --lock ledger.lock` refuses an edited ledger, and a
 candidate run names the lock it was scored against. A row added after a candidate has been read
 is not part of that denominator and says so.
+
+**Open work, and a prerequisite to freezing and to generating any candidate:** `ledger_check.py`
+validates the ledger and corpus digests in the lock, but does **not** yet require or validate the
+scoring policy's version string and sha256. Until it does, `SCORING-POLICY.md` is a mutable file
+carrying a fixed version label, which binds nothing — the text can move under the label and no
+check notices, so a score would cite a policy nobody can reconstruct. This is not a later
+improvement to make once runs are under way: no freeze and no candidate generation until the
+checker enforces it.
 
 ## Input history
 
