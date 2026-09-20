@@ -30,27 +30,28 @@ import ledger_check
 import score
 
 HERE = Path(__file__).resolve().parent
-SCHEMA = 'enc28j60-inventory-1'
-PACKET_SCHEMA = 'enc28j60-packet-1'
+SCHEMA = 'enc28j60-inventory-2'
+PACKET_SCHEMA = score.PACKET_SCHEMA
 
 # The only fields a reviewer packet may carry. A packet is built by copying these out of the
 # inventory, never by deleting fields from it: a field added to the inventory later is absent
 # from the packet until someone adds it here on purpose.
 PACKET_FIELDS = ('id', 'proposition', 'weight', 'requirements', 'evidence')
-RECORD_FIELDS = PACKET_FIELDS + ('status', 'supersedes', 'notes')
+RECORD_FIELDS = PACKET_FIELDS + ('status', 'supersedes', 'segmentation', 'notes')
 STATUSES = ('active', 'retired')
+ALLOWANCE_FIELDS = ('record', 'field', 'token', 'reason')
 
-# Judgment vocabulary. A packet carrying any of it is refused: these are the words a leaked
-# verdict summary is written in, and no ENC28J60 proposition needs them.
+# Judgment vocabulary. This is a lint, not a proof of neutrality: it catches the shape the
+# practice run's leak actually had, and an operator who paraphrases defeats it. A packet
+# carrying any of it is refused.
 VERDICT_TOKENS = ('PASS', 'FAIL', 'GAP', 'UNVERIFIABLE', 'ADJUDICATE', 'PENDING')
 LEAK_PHRASES = ('verdict', 'reviewer', 'first reader', 'second reader', 'first-pass',
                 'confirms', 'concurs', 'agreed with', 'disagreed with')
 
-# What a citation the scorer cannot represent should have cited instead. The manifest is a list
-# of pins, not an authority: every fact it indexes was read somewhere, and that is the pin name
-# a review cites. Keys are matched case-insensitively against the whole string.
+# What a citation the scorer cannot represent should have cited instead. The manifest indexes
+# pins; a fact it indexes was read in a document, and that document is what a hardware claim
+# cites. Keys are matched case-insensitively against the whole string.
 SOURCE_HINTS = {
-    'corpus.yaml': 'the pinned edition or file the manifest entry indexes, e.g. DS80349C',
     'corpus': 'the pinned edition or file the manifest entry indexes, e.g. DS80349C',
     'manifest': 'the pinned edition or file the manifest entry indexes, e.g. DS80349C',
     'errata_map': 'the errata edition whose table the map transcribes, DS80349B or DS80349C',
@@ -70,9 +71,9 @@ def fail(message):
 
 
 def load_inventory(path):
-    data = score.read_json(path.read_bytes())
+    data = score.read_json(Path(path).read_bytes())
     score.require(isinstance(data, dict), 'inventory: expected an object')
-    score.keys(data, ('schema', 'candidate_sha256', 'records'), 'inventory')
+    score.keys(data, ('schema', 'candidate_sha256', 'allowances', 'records'), 'inventory')
     score.require(data['schema'] == SCHEMA, f'inventory: schema must be {SCHEMA}')
     score.require(isinstance(data['records'], list) and data['records'],
                   'inventory: records must be a nonempty list')
@@ -108,6 +109,17 @@ def audit(inventory, candidate, rows):
             score.require(set(record['requirements']) <= row_ids, f'{record["id"]}: unknown requirement')
             score.unique_list(record['supersedes'], f'{record["id"]}.supersedes')
             score.require(isinstance(record['notes'], str), f'{record["id"]}: notes must be text')
+            if record['segmentation'] != '':
+                score.keys(record['segmentation'], ('reason', 'proposition_sha256'),
+                           f'{record["id"]}.segmentation')
+                score.text(record['segmentation']['reason'], f'{record["id"]}.segmentation')
+                # A reason written against one wording does not attest to another. Rewording the
+                # proposition retires its disposition instead of carrying it forward silently.
+                score.require(
+                    record['segmentation']['proposition_sha256']
+                    == score.digest(record['proposition'].encode()),
+                    f'{record["id"]}: segmentation attests to a different proposition; '
+                    'write the disposition against the current wording')
             score.evidence(record['evidence'], lines, record['id'])
         except ValueError as exc:
             errors.append(str(exc))
@@ -122,26 +134,88 @@ def audit(inventory, candidate, rows):
                           'merge them at their strongest statement before review')
         else:
             propositions[normalized] = record['id']
-        if COMPOUND_RE.search(record['proposition']):
-            warnings.append(f'{record["id"]}: reads as more than one assertion; segment it or '
-                            'record why it is one proposition')
+        # A heuristic cannot decide this, so it asks. The disposition is a written reason that
+        # stays in the inventory: it is not an allowlisted packet field and never reaches a
+        # reviewer. Tightening the pattern would buy cosmetic rewording, not segmentation.
+        if COMPOUND_RE.search(record['proposition']) and not record['segmentation']:
+            warnings.append(f'{record["id"]}: reads as more than one assertion; segment it, or '
+                            'record in `segmentation` why it is one proposition')
     for parent, children in superseded.items():
         if parent not in ids:
             errors.append(f'unknown superseded record: {parent} (claimed by {", ".join(children)})')
-        elif ids[parent]['status'] != 'retired':
+            continue
+        if ids[parent]['status'] != 'retired':
             errors.append(f'{parent}: superseded by {", ".join(children)} but still active')
+        # Only a live record can carry a retired one's assertions forward. Requiring the
+        # replacement to be active rejects a self-link and every cycle with it, since a cycle
+        # needs a retired record to do the superseding.
+        for child in children:
+            if child == parent:
+                errors.append(f'{parent}: supersedes itself')
+            elif ids[child]['status'] != 'active':
+                errors.append(f'{parent}: superseded by {child}, which is itself retired; '
+                              'name the active record that carries its assertions')
     for record in ids.values():
-        if record['status'] == 'retired' and record['id'] not in superseded:
-            warnings.append(f'{record["id"]}: retired without a replacement; its assertions leave '
-                            'the inventory')
+        if record['status'] != 'retired':
+            continue
+        live = [c for c in superseded.get(record['id'], []) if c != record['id']
+                and ids.get(c, {}).get('status') == 'active']
+        if not live:
+            warnings.append(f'{record["id"]}: retired with no active replacement; its assertions '
+                            'leave the inventory')
+    errors += allowance_errors(inventory['allowances'], ids)
     active = [r for r in ids.values() if r['status'] == 'active']
     if not active:
         errors.append('inventory: no active records to review')
     return errors, warnings
 
 
+def allowance_errors(allowances, ids):
+    """Each exception to the leakage lint, scoped to one record, field and word.
+
+    An allowance lives in the inventory rather than on the command line so that its reason is
+    retained and bound with the attempt, and so that no justification text reaches a reviewer: a
+    reason reading "allowed because the first reader marked this correct" would recreate the
+    leak the lint exists to catch.
+    """
+    errors, seen = [], set()
+    if not isinstance(allowances, list):
+        return ['inventory: allowances must be a list']
+    for item in allowances:
+        try:
+            score.keys(item, ALLOWANCE_FIELDS, 'allowance')
+            for key in ALLOWANCE_FIELDS:
+                score.text(item[key], f'allowance.{key}')
+            key = (item['record'], item['field'], item['token'])
+            score.require(key not in seen, f'duplicate allowance: {key}')
+            seen.add(key)
+            record = ids.get(item['record'])
+            score.require(record is not None, f'allowance: unknown record {item["record"]}')
+            score.require(item['field'] in PACKET_FIELDS or item['field'].startswith('evidence'),
+                          f'allowance: {item["field"]} is not a packet field')
+            score.require(item['token'] in allowance_text(record, item['field']),
+                          f'allowance {item["record"]}.{item["field"]}: the record does not '
+                          f'contain {item["token"]}')
+        except ValueError as exc:
+            errors.append(str(exc))
+    return errors
+
+
+def allowance_text(record, field):
+    """The text an allowance is scoped to: one packet field of one record."""
+    if field == 'evidence':
+        return '\n'.join(item['quote'] for item in record['evidence'])
+    value = record.get(field)
+    return value if isinstance(value, str) else '\n'.join(map(str, value or ()))
+
+
 def leaks(value, where, allowed):
-    """Judgment vocabulary found in text a reviewer would read."""
+    """Judgment vocabulary found in text a reviewer would read.
+
+    `allowed` holds the words released for this one record and field. An exception is never
+    global: a candidate that legitimately says PASS somewhere does not license the word on an
+    unrelated proposition, which is where a leaked outcome would actually sit.
+    """
     found = []
     for token in VERDICT_TOKENS:
         if token in allowed:
@@ -157,30 +231,49 @@ def leaks(value, where, allowed):
     return found
 
 
-def packet(inventory, candidate, sources, allowed):
-    """The neutral reviewer packet, and whatever leaked into it."""
+def packet(inventory, candidate, sources):
+    """The reviewer packet, and whatever the leakage lint found in it.
+
+    The lint is a lint: it catches the shape the practice run's leak had, and an operator who
+    paraphrases a verdict defeats it. Exceptions come from the inventory, scoped to one record
+    and field; their reasons stay there, so no justification prose reaches a reviewer.
+    """
+    allowed = {}
+    for item in inventory['allowances']:
+        if isinstance(item, dict) and all(k in item for k in ALLOWANCE_FIELDS):
+            allowed.setdefault((item['record'], item['field']), set()).add(item['token'])
     records, found = [], []
     for record in sorted((r for r in inventory['records'] if r['status'] == 'active'),
                          key=lambda r: r['id']):
         copied = {field: record[field] for field in PACKET_FIELDS}
         records.append(copied)
         for field, value in copied.items():
+            here = allowed.get((record['id'], field), set())
             if isinstance(value, str):
-                found += leaks(value, f'{record["id"]}.{field}', allowed)
+                found += leaks(value, f'{record["id"]}.{field}', here)
             elif field == 'evidence':
                 for i, item in enumerate(value, 1):
-                    found += leaks(item['quote'], f'{record["id"]}.evidence[{i}]', allowed)
+                    found += leaks(item['quote'], f'{record["id"]}.evidence[{i}]',
+                                   here | allowed.get((record['id'], f'evidence[{i}]'), set()))
+            else:
+                for item in value:
+                    found += leaks(str(item), f'{record["id"]}.{field}', here)
     return {
         'schema': PACKET_SCHEMA,
         'candidate_sha256': score.digest(candidate),
         'inventory_sha256': score.digest(score.canonical(inventory)),
         'sources': sorted(sources),
+        'exceptions': sorted({f'{r}.{f}:{t}' for (r, f), ts in allowed.items() for t in ts}),
         'records': records,
     }, found
 
 
 def resolve(name, sources):
     """Whether a proposed source name is citable, and what to cite instead when it is not."""
+    if name == score.MANIFEST:
+        return True, ('only for a proposition about the manifest itself; a claim about the '
+                      'device cites the pinned document, and a manifest-only claim earns no '
+                      'coverage credit')
     if name in sources:
         return True, ''
     lowered = name.casefold()
@@ -197,8 +290,6 @@ def main(argv=None):
     parser.add_argument('--inventory', type=Path)
     parser.add_argument('--output', type=Path, help='new packet file; never overwritten')
     parser.add_argument('--check', type=Path, help='sources: a JSON list of proposed source names')
-    parser.add_argument('--allow', action='append', default=[], metavar='TOKEN',
-                        help='packet: a judgment word this candidate genuinely uses, after review')
     parser.add_argument('--json', action='store_true')
     args = parser.parse_args(argv)
     try:
@@ -253,12 +344,12 @@ def main(argv=None):
             print('prepare: run `inventory` and settle these before building a packet',
                   file=sys.stderr)
             return 1
-        built, found = packet(inventory, candidate, sources, set(args.allow))
+        built, found = packet(inventory, candidate, sources)
         if found:
             for line in found:
                 print(f'prepare: {line}', file=sys.stderr)
             print('prepare: packet refused; a reviewer must not read another reader\'s judgment. '
-                  'If the candidate itself uses the word, pass --allow after checking it.',
+                  'If a record genuinely uses the word, add a scoped allowance to the inventory.',
                   file=sys.stderr)
             return 1
         with args.output.open('xb') as f:

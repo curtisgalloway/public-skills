@@ -22,16 +22,19 @@ label is a process assertion, not something this tool can establish.
 Requires Python 3.9+ and PyYAML. From this directory:
 
 ```sh
+# Build the packet first; see "Preparing a review" below.
 uv run --with pyyaml python3 score.py template \
-  --candidate <candidate.md> --output <review.json>
+  --candidate <candidate.md> --packet <packet.json> --output <review.json>
 # Complete the review file, following the contract below.
 uv run --with pyyaml python3 score.py score \
-  --candidate <candidate.md> --review <review.json> --output <new-attempt-directory>
+  --candidate <candidate.md> --review <review.json> --packet <packet.json> \
+  --inventory <inventory.json> --output <new-attempt-directory>
 ```
 
 Use a new output directory for every attempt. The tool refuses an existing directory, including a
-partially written one. It retains the candidate, review, ledger, lock, corpus manifest, policy,
-fact lists, format, and scoring/checking/acceptance scripts, with digests in `result.json`.
+partially written one. It retains the candidate, review, packet, inventory, ledger, lock, corpus
+manifest, policy, fact lists, format, and the preparation/scoring/checking/acceptance scripts,
+with digests in `result.json`.
 Canonical JSON uses sorted keys, UTF-8, two-space indentation and a final newline. No latest-status
 file replaces historical evidence. The run ID identifies the candidate generation; directories
 identify distinct scoring attempts against it. Failed schema validation exits without a score;
@@ -79,25 +82,58 @@ uv run --with pyyaml python3 prepare.py packet \
   --candidate <candidate.md> --inventory <inventory.json> --output <packet.json>
 ```
 
-The inventory (`enc28j60-inventory-1`) is the reviewed proposition list: `id`, `proposition`,
-`weight`, `requirements`, candidate `evidence`, `status` (`active` or `retired`), `supersedes`
-and `notes`. `inventory` refuses one that does not describe this candidate, whose quotes do not
-match its lines, that repeats a proposition, that cites an unknown row, or whose retired parents
-and replacement children disagree; it *warns* where a proposition reads as more than one
-assertion or a retirement leaves assertions behind. A warning is an unanswered segmentation
-question, so `packet` refuses to build from one. Settle them and rerun; do not carry an inventory
-that is still being edited into a review.
+The inventory (`enc28j60-inventory-2`) is the reviewed proposition list: per record `id`,
+`proposition`, `weight`, `requirements`, candidate `evidence`, `status` (`active` or `retired`),
+`supersedes`, `segmentation` and `notes`, plus a top-level `allowances` list. `inventory` refuses
+one that does not describe this candidate, whose quotes do not match its lines, that repeats a
+proposition, that cites an unknown row, or whose retirement links do not reach an active record;
+it *warns* where a proposition reads as more than one assertion or a retirement leaves assertions
+behind. A warning is an unanswered segmentation question, so `packet` refuses to build from one.
+
+A compound warning clears when the record carries a `segmentation` disposition: a written reason
+and the digest of the proposition it was written against. That is an **attestation that a person
+looked**, not a mechanical finding that the segmentation is right, and rewording the proposition
+invalidates it — the digest stops a reason from silently carrying forward onto text nobody
+reviewed. The detector is a deliberately loose regex; tightening it would buy cosmetic rewording
+rather than segmentation, and semantic overlap and completeness remain the audit's job.
+
+Retirement links are flat: a retired record must be named by an **active** replacement. That
+rejects a self-link and every cycle, since a cycle needs a retired record to do the superseding,
+and it means later generations flatten their links onto the record that is live now rather than
+chaining through intermediate retirements.
 
 `packet` copies an explicit field allowlist — `id`, `proposition`, `weight`, `requirements`,
 `evidence` — out of each active record. It builds by copying named fields, never by deleting
 fields, so anything added to the inventory later is absent from the packet until someone adds it
-here deliberately. Notes, status and retirement links never reach a reviewer. The copied text is
-then scanned for judgment vocabulary (`PASS`, `FAIL`, `GAP`, `UNVERIFIABLE`, `ADJUDICATE`,
-`PENDING`, and phrases like "first reader" or "verdict"), and a hit refuses the packet. Where the
-candidate genuinely uses such a word, `--allow TOKEN` releases it after someone has looked. A
-packet binds the candidate and inventory digests and carries the citable source vocabulary, so a
-reviewer cites a name the scorer can represent. None of this establishes independent minds: it
-establishes that this pipeline did not hand one reader another's answers.
+here deliberately. Notes, status, retirement links and segmentation dispositions never reach a
+reviewer.
+
+The copied text is then scanned for judgment vocabulary (`PASS`, `FAIL`, `GAP`, `UNVERIFIABLE`,
+`ADJUDICATE`, `PENDING`, and phrases like "first reader" or "verdict"), and a hit refuses the
+packet. **This is a lint, not a proof of neutrality**: it catches the shape the practice run's
+leak actually had, and an operator who paraphrases a verdict defeats it. Where one record
+genuinely uses such a word, the inventory carries an allowance naming the record, the field, the
+token and the reason. An allowance is scoped: a candidate that says `PASS` in one diagnostic
+example does not license the word on an unrelated proposition, which is where a leaked outcome
+would sit. The reason stays in the inventory — a justification reading "allowed because the first
+reader marked this correct" would recreate the leak — and only `record.field:token` appears in
+the packet.
+
+### What binding the packet does and does not establish
+
+`score.py` takes the packet and the inventory it was built from. It refuses a review whose claims
+are not exactly the packet's active records, field for field, so a proposition discovered during
+review needs a new inventory, a new packet and a retained new attempt rather than an edit to the
+list a reader already answered. Each reviewer names the packet digest its instructions carried,
+because a digest recorded once for the whole review cannot tell this round's answer from one
+imported out of the last. The inventory is re-audited at scoring time and archived, so its
+segmentation dispositions survive with the attempt instead of being named by a digest of bytes
+nobody kept.
+
+That is correspondence, not testimony. It establishes which propositions were judged and that
+one artifact was built from another. **It does not establish that the readers saw only the
+packet**, that their contexts were isolated, or that they are independent minds. Those remain
+operator responsibilities that no artifact in this directory can check.
 
 ## What a review may cite
 
@@ -105,16 +141,33 @@ The review contract accepts exactly the pin names `corpus.yaml` declares: a data
 edition id, a pinned driver path, or the driver commit. `prepare.py sources` prints them, and
 `--check <names.json>` judges a proposed list and says what to cite instead.
 
-**`corpus.yaml` is a manifest of pins, not an authority, and is not citable.** Its `errata_map`
-and affected-revision lists are transcriptions of pages in DS80349B and DS80349C; a claim resting
-on them cites the edition and locates the table. A repository alias (`linux`) is likewise not a
-source: cite the pinned path or commit. This is the decision the first practice run left open,
-where 23 claims cited the manifest or an alias and could not be represented; those records were
-preserved without inventing citations. The rule follows the ledger's own: a row's
-`derivation.source` has always had to be a pin, and a review is judged against the documents the
-ledger was authored from, not against the index that names them. It also keeps the manifest from
-becoming a second answer key that no freeze covers. A reviewer who cannot reach a pinned document
-reacquires it with `corpus_check.py` and reports unavailability rather than citing the index.
+A repository alias (`linux`) is not a source: cite the pinned path or commit.
+
+**`corpus.yaml` is citable for a proposition about the manifest's own contents, and for nothing
+else.** The distinction is the proposition's meaning, not a label an operator picks:
+
+- "this benchmark pins DS39662E", "the manifest maps issue 12 of edition B to issue 14 of edition
+  C" — the manifest is the evidence, with a manifest key as the locator.
+- "these silicon revisions are affected" — a claim about the device. It cites the errata edition
+  and locates the table, whatever the reviewer happened to read it in.
+
+A claim whose reviews cite *only* the manifest therefore earns **no coverage credit**: the scorer
+refuses it as evidence for any fact. It is still judged for precision like every other claim,
+because the frozen policy evaluates every claim the candidate makes, and dropping a class of
+claims after seeing a candidate would change a denominator that was fixed before it existed.
+
+The reason a hardware claim may not rest on the manifest is derivative evidence, not a missing
+freeze — the lock does pin `corpus.yaml`'s bytes. The manifest transcribes pages, and a
+transcription can carry the reading error its source did not: the affected-revision correction in
+`README.md` → "Input history" is the worked example, caught only because a reader went back to
+the rendered table. Crediting the transcription would let it stand in for the reading the ledger
+was authored from.
+
+**An unreachable document leaves a claim `PENDING`.** It does not make it `UNVERIFIABLE`, which
+means the corpus does not support it — a failure to look establishes neither support nor its
+absence, and noncritical unsupported claims do not block acceptance while pending ones do. Record
+the access failure in the rationale, keep any earlier valid evidence, and reacquire the document
+with `corpus_check.py`. Never re-cite an edition you did not read.
 
 ## Review contract: `enc28j60-review-2`
 
@@ -214,14 +267,22 @@ judgments remain provisional evidence even when mechanically valid.
 
 ## Schema history
 
-`enc28j60-review-2` adds `text` to every fact: the frozen wording of the fact being judged, beside
-its number. The first practice run read dispositions against `SCORING-FACTS.md` in a separate
-file, which invites fact-number misalignment. The scorer re-derives each string from the frozen
-list and refuses a review whose copy differs, so the wording stays informative and never becomes
-authoritative. A composite unit's fact takes its listed entry; an atomic row's single fact takes
-the row's statement.
+`enc28j60-review-3` adds the frozen wording of what is being judged, and the binding to what the
+reviewers were given:
 
-Reviews written against `enc28j60-review-1` are refused rather than migrated: a template is cheap
+- every fact carries `text`, the frozen wording of that numbered fact, and every composite row
+  carries `context`, the unit-level prose beside its list. The prose is not decoration:
+  `SCORING-FACTS.md` assigns requirements in sentences as well as in entries, so INIT-015's two
+  MABBIPG values carry an IEEE minimum gap that only the sentence below them names. Copying the
+  entries alone would hand a reviewer a weaker obligation than the frozen one. Both strings are
+  re-derived from the frozen file when scoring and a review whose copy differs is refused, so the
+  wording stays informative without becoming a second authority. An atomic row's single fact
+  takes the row's statement and carries no context. The general conventions — what `[pair]` and
+  `[grouped set]` mean — stay in `SCORING-FACTS.md`, which a reviewer still reads.
+- `preparation` records the packet and inventory digests and, per reviewer, the packet that
+  reviewer answered.
+
+Reviews written against an earlier schema are refused rather than migrated: a template is cheap
 and copying old judgments onto a new schema is not a review. Attempts already archived keep their
 own copy of the scorer and replay unchanged. The scoring policy, the answer key and every frozen
 document are untouched by this change; `enc28j60-1.4` still binds them.

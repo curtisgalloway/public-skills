@@ -15,7 +15,8 @@ import prepare
 import score
 
 CANDIDATE = (b'ECON1 lives at 0x1F in every bank.\n'
-             b'The receive buffer starts at 0x05FA after reset.\n')
+             b'The receive buffer starts at 0x05FA after reset.\n'
+             b'A GAP timer governs the interframe gap.\n')
 
 
 def record(rid, proposition, **over):
@@ -23,7 +24,7 @@ def record(rid, proposition, **over):
         'id': rid, 'proposition': proposition, 'weight': 'minor',
         'requirements': ['ENC28J60-REG-001'],
         'evidence': [{'start': 1, 'end': 1, 'quote': CANDIDATE.decode().split('\n')[0]}],
-        'status': 'active', 'supersedes': [], 'notes': '',
+        'status': 'active', 'supersedes': [], 'segmentation': '', 'notes': '',
     }
     base.update(over)
     return base
@@ -42,6 +43,7 @@ class PrepareTests(unittest.TestCase):
         self.inventory = {
             'schema': prepare.SCHEMA,
             'candidate_sha256': score.digest(CANDIDATE),
+            'allowances': [],
             'records': [
                 record('C0001', 'ECON1 is readable from every bank.'),
                 record('C0002', 'The receive buffer start defaults to 0x05FA.'),
@@ -51,8 +53,17 @@ class PrepareTests(unittest.TestCase):
     def audit(self):
         return prepare.audit(self.inventory, CANDIDATE, self.rows)
 
-    def packet(self, allowed=()):
-        return prepare.packet(self.inventory, CANDIDATE, self.sources, set(allowed))
+    def packet(self):
+        return prepare.packet(self.inventory, CANDIDATE, self.sources)
+
+    def allow(self, rid, field, token, reason='the record itself uses the word'):
+        self.inventory['allowances'].append(
+            {'record': rid, 'field': field, 'token': token, 'reason': reason})
+
+    def dispose(self, record, reason='One assertion; the span is the fact.'):
+        record['segmentation'] = {
+            'reason': reason,
+            'proposition_sha256': score.digest(record['proposition'].encode())}
 
     def test_clean_inventory_is_ready(self):
         self.assertEqual(self.audit(), ([], []))
@@ -85,13 +96,38 @@ class PrepareTests(unittest.TestCase):
         self.inventory['records'][0]['status'] = 'retired'
         errors, warnings = self.audit()
         self.assertEqual(errors, [])
-        self.assertTrue(any('without a replacement' in w for w in warnings))
+        self.assertTrue(any('no active replacement' in w for w in warnings))
 
-    def test_compound_proposition_is_flagged_for_segmentation(self):
+    def test_a_retirement_cannot_be_carried_by_a_retired_record(self):
+        self.inventory['records'][0].update(status='retired', supersedes=['C0001'])
+        errors, _ = self.audit()
+        self.assertTrue(any('supersedes itself' in e for e in errors))
+        self.inventory['records'][0].update(supersedes=['C0002'])
+        self.inventory['records'][1]['status'] = 'retired'
+        errors, _ = self.audit()
+        self.assertTrue(any('which is itself retired' in e for e in errors))
+
+    def test_compound_proposition_is_flagged_until_it_carries_a_disposition(self):
         self.inventory['records'].append(
             record('C0004', 'ERDPT is at 0x00 and ERXND is at 0x0B.'))
         _, warnings = self.audit()
         self.assertTrue(any('C0004' in w for w in warnings))
+        self.dispose(self.inventory['records'][-1])
+        self.assertEqual(self.audit(), ([], []))
+
+    def test_a_disposition_does_not_survive_a_reworded_proposition(self):
+        self.inventory['records'].append(
+            record('C0005', 'ERDPT is at 0x00 and ERXND is at 0x0B.'))
+        self.dispose(self.inventory['records'][-1])
+        self.inventory['records'][-1]['proposition'] = 'ERDPT is at 0x00 and ERXND is at 0x0C.'
+        errors, _ = self.audit()
+        self.assertTrue(any('attests to a different proposition' in e for e in errors))
+
+    def test_a_segmentation_reason_never_reaches_a_reviewer(self):
+        self.dispose(self.inventory['records'][0], 'kept whole because reader A asked')
+        built, found = self.packet()
+        self.assertEqual(found, [])
+        self.assertNotIn('reader A', json.dumps(built))
 
     def test_unknown_requirement_and_weight_are_errors(self):
         self.inventory['records'][0]['requirements'] = ['ENC28J60-REG-999']
@@ -115,6 +151,32 @@ class PrepareTests(unittest.TestCase):
         built, _ = self.packet()
         self.assertEqual([r['id'] for r in built['records']], ['C0000', 'C0002'])
 
+    def test_an_allowance_is_scoped_to_one_record_and_field(self):
+        self.inventory['records'][0]['proposition'] = 'A GAP timer governs the interframe gap.'
+        self.inventory['records'][1]['proposition'] = 'The buffer start is 0x05FA (GAP).'
+        self.assertEqual(len(self.packet()[1]), 2)
+        self.allow('C0001', 'proposition', 'GAP')
+        found = self.packet()[1]
+        self.assertEqual(len(found), 1)
+        self.assertIn('C0002', found[0])
+
+    def test_an_allowance_must_name_text_the_record_contains(self):
+        self.allow('C0001', 'proposition', 'FAIL', 'nothing in the record says this')
+        errors, _ = self.audit()
+        self.assertTrue(any('does not contain FAIL' in e for e in errors))
+        self.inventory['allowances'] = [
+            {'record': 'C9999', 'field': 'proposition', 'token': 'GAP', 'reason': 'r'}]
+        errors, _ = self.audit()
+        self.assertTrue(any('unknown record' in e for e in errors))
+
+    def test_an_allowance_reason_never_reaches_a_reviewer(self):
+        self.inventory['records'][0]['proposition'] = 'A GAP timer governs the interframe gap.'
+        self.allow('C0001', 'proposition', 'GAP', 'allowed because reader A marked it correct')
+        built, found = self.packet()
+        self.assertEqual(found, [])
+        self.assertNotIn('reader A', json.dumps(built))
+        self.assertEqual(built['exceptions'], ['C0001.proposition:GAP'])
+
     def test_packet_refuses_a_leaked_verdict(self):
         self.inventory['records'][0]['proposition'] = 'ECON1 is readable from every bank (PASS).'
         _, found = self.packet()
@@ -126,22 +188,22 @@ class PrepareTests(unittest.TestCase):
         _, found = self.packet()
         self.assertTrue(found)
 
-    def test_allow_releases_a_word_the_candidate_genuinely_uses(self):
-        self.inventory['records'][0]['proposition'] = 'A GAP timer governs the interframe gap.'
-        self.assertTrue(self.packet()[1])
-        self.assertEqual(self.packet(allowed=['GAP'])[1], [])
-
     def test_packet_binds_the_inventory_and_offers_the_source_vocabulary(self):
         built, _ = self.packet()
         self.assertEqual(built['inventory_sha256'],
                          score.digest(score.canonical(self.inventory)))
         self.assertEqual(built['candidate_sha256'], score.digest(CANDIDATE))
         self.assertIn('DS39662E', built['sources'])
-        self.assertNotIn('corpus.yaml', built['sources'])
+        self.assertIn('corpus.yaml', built['sources'])
 
-    def test_manifest_and_alias_citations_resolve_to_pins(self):
+    def test_manifest_is_citable_only_with_its_restriction_stated(self):
+        citable, note = prepare.resolve('corpus.yaml', self.sources)
+        self.assertTrue(citable)
+        self.assertIn('no coverage credit', note)
+
+    def test_alias_citations_resolve_to_pins(self):
         self.assertEqual(prepare.resolve('DS80349C', self.sources), (True, ''))
-        for name in ('corpus.yaml', 'the corpus manifest', 'linux', 'errata_map'):
+        for name in ('the corpus manifest', 'linux', 'errata_map'):
             citable, instead = prepare.resolve(name, self.sources)
             self.assertFalse(citable)
             self.assertTrue(instead)
@@ -161,10 +223,14 @@ class PrepareTests(unittest.TestCase):
             names.write_text(json.dumps(['DS39662E']))
             args = ['--candidate', str(tmp / 'candidate.md'), '--inventory', str(inv)]
             self.assertEqual(self.cli('sources', '--check', str(names), '--json').returncode, 0)
-            names.write_text(json.dumps(['corpus.yaml']))
+            names.write_text(json.dumps(['linux']))
             refused = self.cli('sources', '--check', str(names), '--json')
             self.assertEqual(refused.returncode, 1)
-            self.assertIn('DS80349C', refused.stdout)
+            self.assertIn('enc28j60.c', refused.stdout)
+            names.write_text(json.dumps(['corpus.yaml']))
+            manifest = self.cli('sources', '--check', str(names), '--json')
+            self.assertEqual(manifest.returncode, 0)
+            self.assertIn('no coverage credit', manifest.stdout)
             self.assertEqual(self.cli('inventory', *args, '--json').returncode, 0)
             out = tmp / 'packet.json'
             self.assertEqual(self.cli('packet', *args, '--output', str(out)).returncode, 0)

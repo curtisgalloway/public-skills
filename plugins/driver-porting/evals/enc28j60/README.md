@@ -32,12 +32,19 @@ The scoring tool is implemented and tested. The [first practice run](PRACTICE-RU
 generation, review, scoring and replay; acceptance is blocked and the review remains incomplete.
 No blind paired benchmark has taken place. See [SCORING-RUN.md](SCORING-RUN.md) for the contract.
 
-That run's preparation failures are now gates rather than care: `prepare.py` refuses a packet
-carrying another reader's judgment vocabulary or built from an inventory still being segmented,
-the review schema is `enc28j60-review-2` with the frozen fact wording beside each numbered
-disposition, and `SCORING-RUN.md` settles what a review may cite — the corpus manifest indexes
-pins and is not itself one. The frozen answer key, policy and fact lists are unchanged; the
-practice run's archived attempts keep their own tools and replay as scored.
+That run's preparation failures now have gates. `prepare.py` refuses a packet carrying another
+reader's judgment vocabulary or built from an inventory still being segmented; `score.py` takes
+that packet and its inventory, refuses judgments that are not the records the readers were given,
+and archives both. The review schema is `enc28j60-review-3`, carrying the frozen fact wording and
+its unit-level prose beside each numbered disposition. `SCORING-RUN.md` settles what a review may
+cite: the manifest evidences propositions about the manifest, a claim about the device cites the
+document, and a manifest-only claim earns no coverage credit.
+
+What that establishes is correspondence between artifacts, not testimony. It does not establish
+that the readers saw only the packet or that their contexts were isolated; those stay operator
+responsibilities, and the limits are written down beside the gates. The frozen answer key, policy
+and fact lists are unchanged, and the practice run's archived attempts keep their own tools and
+replay as scored.
 
 ## State of the ledger
 

@@ -24,34 +24,73 @@ class ScoringTests(unittest.TestCase):
         cls.rows, cls.counts, cls.facts, cls.sources, cls.blobs = score.load_benchmark()
         cls.candidate = b'Synthetic assertion; not a hardware specification.\n'
         cls.inputs = score.identity(cls.blobs, cls.candidate)
-        cls.base = score.template(cls.rows, cls.counts, cls.facts, cls.inputs)
+        cls.records = []
+        for row in cls.rows:
+            if not score.roster(row):
+                continue
+            for i in range(1, cls.counts.get(row['id'], 1) + 1):
+                cid = f"{row['id']}-{i}"
+                cls.records.append({
+                    'id': cid, 'proposition': f'Synthetic proposition {cid}',
+                    'weight': 'minor', 'requirements': [row['id']],
+                    'evidence': [{'start': 1, 'end': 1,
+                                  'quote': cls.candidate.decode().strip()}]})
+        cls.inventory = {
+            'schema': 'enc28j60-inventory-2', 'candidate_sha256': score.digest(cls.candidate),
+            'allowances': [],
+            'records': [dict(r, status='active', supersedes=[], segmentation='', notes='')
+                        for r in cls.records],
+        }
+        cls.inventory_bytes = score.canonical(cls.inventory)
+        cls.packet = {
+            'schema': score.PACKET_SCHEMA, 'candidate_sha256': score.digest(cls.candidate),
+            'inventory_sha256': score.digest(cls.inventory_bytes),
+            'sources': ['DS39662E'], 'exceptions': [], 'records': cls.records,
+        }
+        cls.packet_bytes = score.canonical(cls.packet)
+        cls.base = score.template(cls.rows, cls.counts, cls.facts, cls.inputs,
+                                  cls.packet, cls.packet_bytes)
         cls.base['reviewers'] = ['reviewer-a', 'reviewer-b']
+        cls.base['preparation']['responses'] = [
+            {'reviewer': who, 'packet_sha256': score.digest(cls.packet_bytes)}
+            for who in cls.base['reviewers']]
         cls.base['audit'] = {'reviewer': 'reviewer-a', 'complete': True,
                              'notes': 'Synthetic fixture: inventory declared complete.'}
         cls.base['cleanroom'] = {'reviewer': 'reviewer-b', 'verdict': 'PASS',
                                  'notes': 'Synthetic fixture: boundary declared checked.'}
+        by_id = {claim['id']: claim for claim in cls.base['claims']}
         for row in cls.base['coverage']:
             for fact in row['facts']:
                 cid = f"{row['id']}-{fact['number']}"
                 fact.update(state='correct', claims=[cid], notes='Synthetic judgment.')
-                cls.base['claims'].append({
-                    'id': cid, 'proposition': f'Synthetic proposition {cid}',
-                    'weight': 'minor', 'verdict': 'PASS', 'error': 'none',
-                    'requirements': [row['id']],
-                    'evidence': [{'start': 1, 'end': 1,
-                                  'quote': cls.candidate.decode().strip()}],
-                    'reviews': [{'reviewer': who, 'verdict': 'PASS',
-                                 'sources': [{'source': 'DS39662E', 'locator': 'synthetic locator'}],
-                                 'rationale': 'Synthetic agreement.'}
-                                for who in cls.base['reviewers']],
-                })
+                by_id[cid].update(verdict='PASS', reviews=[
+                    {'reviewer': who, 'verdict': 'PASS',
+                     'sources': [{'source': 'DS39662E', 'locator': 'synthetic locator'}],
+                     'rationale': 'Synthetic agreement.'} for who in cls.base['reviewers']])
 
     def setUp(self):
         self.review = copy.deepcopy(self.base)
+        self.packet = copy.deepcopy(type(self).packet)
+        self.packet_bytes = score.canonical(self.packet)
+
+    def reseal(self):
+        """Re-issue the packet after a test changes what the reviewers were given."""
+        self.packet_bytes = score.canonical(self.packet)
+        self.review['preparation']['packet_sha256'] = score.digest(self.packet_bytes)
+        for response in self.review['preparation']['responses']:
+            response['packet_sha256'] = score.digest(self.packet_bytes)
+
+    def give(self, claim):
+        """Add a claim to the review and to the packet it must answer."""
+        self.review['claims'].append(claim)
+        self.packet['records'].append(
+            {field: claim[field] for field in
+             ('id', 'proposition', 'weight', 'requirements', 'evidence')})
+        self.reseal()
 
     def result(self):
         return score.score(self.rows, self.counts, self.facts, self.sources, self.inputs,
-                           self.candidate, self.review)
+                           self.candidate, self.review, self.packet, self.packet_bytes)
 
     def entry(self, rid):
         return next(e for e in self.review['coverage'] if e['id'] == 'ENC28J60-' + rid)
@@ -158,7 +197,7 @@ class ScoringTests(unittest.TestCase):
         extra = copy.deepcopy(self.review['claims'][0])
         extra.update(id='extra', proposition='An extra assertion.', requirements=['ENC28J60-IRQ-016'])
         self.set_verdict(extra, 'FAIL', 'contradicted')
-        self.review['claims'].append(extra)
+        self.give(extra)
         self.assertEqual(self.result()['precision']['errors'], 1)
         self.assert_blocked(self.result())
 
@@ -192,7 +231,10 @@ class ScoringTests(unittest.TestCase):
                 self.result()
 
     def test_duplicate_semantic_claims_require_audit_and_literal_duplicates_fail(self):
-        self.review['claims'][1]['proposition'] = self.review['claims'][0]['proposition']
+        shared = self.review['claims'][0]['proposition']
+        self.review['claims'][1]['proposition'] = shared
+        self.packet['records'][1]['proposition'] = shared
+        self.reseal()
         with self.assertRaisesRegex(ValueError, 'duplicate proposition'):
             self.result()
 
@@ -206,11 +248,22 @@ class ScoringTests(unittest.TestCase):
             self.result()
 
     def test_pending_template_never_accepts(self):
-        self.review = score.template(self.rows, self.counts, self.facts, self.inputs)
+        self.review = score.template(self.rows, self.counts, self.facts, self.inputs,
+                                     self.packet, self.packet_bytes)
+        self.review['reviewers'] = ['reviewer-a']
+        self.review['preparation']['responses'] = [
+            {'reviewer': 'reviewer-a', 'packet_sha256': score.digest(self.packet_bytes)}]
         result = self.result()
         self.assert_blocked(result)
-        self.assertIsNone(result['precision']['precision'])
+        self.assertEqual(result['review_status'], 'incomplete')
         self.assertEqual(result['measurement_status'], 'provisional')
+        # The frozen policy's precision is an upper bound over every claim, so an all-pending
+        # template computes one. Nothing has been judged: the settled figure is the honest n/a,
+        # and every claim is counted as pending beside it.
+        precision = result['precision']
+        self.assertEqual(precision['precision'], 1.0)
+        self.assertIsNone(precision['settled_precision'])
+        self.assertEqual(precision['pending'], precision['claims'])
 
     def test_pending_fact_is_not_hidden_by_another_contradiction(self):
         facts = self.entry('REG-001')['facts']
@@ -277,7 +330,8 @@ class ScoringTests(unittest.TestCase):
             extra = copy.deepcopy(self.claim(fact))
             extra.update(id='contradictory-extra', proposition='A contradictory extra assertion.')
             self.set_verdict(extra, 'FAIL', 'contradicted')
-            self.review['claims'].append(extra)
+            self.packet = copy.deepcopy(type(self).packet)
+            self.give(extra)
             fact['claims'].append(extra['id'])
             fact['state'] = state
             with self.assertRaisesRegex(ValueError, 'non-contradicted fact'):
@@ -287,8 +341,13 @@ class ScoringTests(unittest.TestCase):
         self.candidate = 'One line with a unicode separator: \u2028 still line one.\r\n'.encode()
         self.inputs = score.identity(self.blobs, self.candidate)
         self.review['inputs'] = self.inputs
+        quote = self.candidate.decode().removesuffix('\r\n')
         for claim in self.review['claims']:
-            claim['evidence'][0]['quote'] = self.candidate.decode().removesuffix('\r\n')
+            claim['evidence'][0]['quote'] = quote
+        for given in self.packet['records']:
+            given['evidence'][0]['quote'] = quote
+        self.packet['candidate_sha256'] = score.digest(self.candidate)
+        self.reseal()
         self.assertEqual(self.result()['acceptance']['spec_ready']['status'], 'accepted')
 
     def test_template_cli_refuses_overwrite_and_archives_blocked_attempt(self):
@@ -296,15 +355,20 @@ class ScoringTests(unittest.TestCase):
             tmp = Path(tmp)
             candidate, review = tmp / 'candidate.md', tmp / 'review.json'
             candidate.write_bytes(self.candidate)
-            command = [sys.executable, str(ROOT / 'score.py'), 'template',
-                       '--candidate', str(candidate), '--output', str(review)]
+            packet = tmp / 'packet.json'
+            packet.write_bytes(self.packet_bytes)
+            command = [sys.executable, str(ROOT / 'score.py'), 'template', '--candidate',
+                       str(candidate), '--packet', str(packet), '--output', str(review)]
             self.assertEqual(subprocess.run(command, capture_output=True).returncode, 0)
             original = review.read_bytes()
             self.assertEqual(subprocess.run(command, capture_output=True).returncode, 3)
             self.assertEqual(original, review.read_bytes())
             attempt = tmp / 'attempt'
+            inventory = tmp / 'inventory.json'
+            inventory.write_bytes(self.inventory_bytes)
             blocked = subprocess.run([sys.executable, str(ROOT / 'score.py'), 'score',
                                       '--candidate', str(candidate), '--review', str(review),
+                                      '--packet', str(packet), '--inventory', str(inventory),
                                       '--output', str(attempt)], capture_output=True, text=True)
             self.assertEqual(blocked.returncode, 1, blocked.stderr)
             self.assertEqual((attempt / 'review.json').read_bytes(), original)
@@ -319,18 +383,71 @@ class ScoringTests(unittest.TestCase):
 
     def test_template_carries_the_frozen_fact_wording(self):
         composite = self.entry('REG-001')['facts']
-        frozen = self.facts['ENC28J60-REG-001']
-        self.assertEqual([f['text'] for f in composite], frozen)
+        entries, context = self.facts['ENC28J60-REG-001']
+        self.assertEqual([f['text'] for f in composite], entries)
+        self.assertEqual(self.entry('REG-001')['context'], context)
+        self.assertIn('Bank membership', context)
         atomic = self.entry('REG-012')['facts']
         row = next(r for r in self.rows if r['id'] == 'ENC28J60-REG-012')
         self.assertEqual(len(atomic), 1)
         self.assertEqual(atomic[0]['text'], row['statement'])
+
+    def test_every_reviewer_names_the_packet_it_answered(self):
+        self.review['preparation']['responses'][1]['packet_sha256'] = score.digest(b'other')
+        with self.assertRaisesRegex(ValueError, 'answered a different packet'):
+            self.result()
+        self.review['preparation']['responses'].pop()
+        with self.assertRaisesRegex(ValueError, 'every reviewer names the packet'):
+            self.result()
+
+    def test_manifest_only_claim_is_judged_but_earns_no_coverage_credit(self):
+        fact = self.entry('REG-001')['facts'][0]
+        claim = self.claim(fact)
+        for rev in claim['reviews']:
+            rev['sources'] = [{'source': score.MANIFEST, 'locator': 'documents.datasheet'}]
+        with self.assertRaisesRegex(ValueError, 'cites only the manifest'):
+            self.result()
+        # Unlinked from coverage it is still a claim, and still counted for precision.
+        fact.update(state='absent', claims=[], notes='')
+        result = self.result()
+        self.assertEqual(result['precision']['claims'], len(self.review['claims']))
+        self.assert_blocked(result)
+
+    def test_a_claim_citing_both_manifest_and_pin_keeps_its_credit(self):
+        claim = self.claim(self.entry('REG-001')['facts'][0])
+        for rev in claim['reviews']:
+            rev['sources'] = [{'source': score.MANIFEST, 'locator': 'documents.datasheet'},
+                              {'source': 'DS39662E', 'locator': 'T3-1 bank 0'}]
+        self.assertEqual(self.result()['acceptance']['spec_ready']['status'], 'accepted')
+
+    def test_score_cli_refuses_an_inventory_the_packet_does_not_name(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = Path(tmp)
+            for name, data in (('candidate.md', self.candidate),
+                               ('review.json', score.canonical(self.review)),
+                               ('packet.json', self.packet_bytes)):
+                (tmp / name).write_bytes(data)
+            other = copy.deepcopy(self.inventory)
+            other['records'][0]['notes'] = 'edited after the packet was built'
+            (tmp / 'inventory.json').write_bytes(score.canonical(other))
+            run = subprocess.run(
+                [sys.executable, str(ROOT / 'score.py'), 'score',
+                 '--candidate', str(tmp / 'candidate.md'), '--review', str(tmp / 'review.json'),
+                 '--packet', str(tmp / 'packet.json'), '--inventory', str(tmp / 'inventory.json'),
+                 '--output', str(tmp / 'attempt')], capture_output=True, text=True)
+            self.assertEqual(run.returncode, 3)
+            self.assertIn('not the one this packet was built from', run.stderr)
+            self.assertFalse((tmp / 'attempt').exists())
 
     def test_empty_bucket_is_null(self):
         self.assertIsNone(score.bucket([])['recall'])
 
     def test_claim_quotes_must_match_candidate(self):
         self.review['claims'][0]['evidence'][0]['quote'] = 'invented'
+        with self.assertRaisesRegex(ValueError, 'evidence differs from the packet'):
+            self.result()
+        self.packet['records'][0]['evidence'][0]['quote'] = 'invented'
+        self.reseal()
         with self.assertRaisesRegex(ValueError, 'quote differs'):
             self.result()
 
@@ -340,8 +457,13 @@ class ScoringTests(unittest.TestCase):
             candidate, review, attempt = tmp / 'candidate.md', tmp / 'review.json', tmp / 'attempt'
             candidate.write_bytes(self.candidate)
             review.write_bytes(score.canonical(self.review))
+            packet = tmp / 'packet.json'
+            packet.write_bytes(self.packet_bytes)
+            inventory = tmp / 'inventory.json'
+            inventory.write_bytes(self.inventory_bytes)
             command = [sys.executable, str(ROOT / 'score.py'), 'score', '--candidate',
-                       str(candidate), '--review', str(review), '--output', str(attempt)]
+                       str(candidate), '--review', str(review), '--packet', str(packet),
+                       '--inventory', str(inventory), '--output', str(attempt)]
             first = subprocess.run(command, capture_output=True, text=True)
             self.assertEqual(first.returncode, 0, first.stderr)
             archived = (attempt / 'result.json').read_bytes()
@@ -352,7 +474,10 @@ class ScoringTests(unittest.TestCase):
                 self.assertEqual(score.digest((attempt / name).read_bytes()), expected)
             replay = subprocess.run([sys.executable, str(attempt / 'score.py'), 'score',
                                      '--candidate', str(attempt / 'candidate.md'), '--review',
-                                     str(attempt / 'review.json'), '--output', str(tmp / 'replay')],
+                                     str(attempt / 'review.json'), '--packet',
+                                     str(attempt / 'packet.json'), '--inventory',
+                                     str(attempt / 'inventory.json'), '--output',
+                                     str(tmp / 'replay')],
                                     capture_output=True, text=True)
             self.assertEqual(replay.returncode, 0, replay.stderr)
             replayed = json.loads((tmp / 'replay' / 'result.json').read_bytes())
