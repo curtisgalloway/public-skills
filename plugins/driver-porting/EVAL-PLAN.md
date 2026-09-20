@@ -171,7 +171,9 @@ from reviewed fact dispositions against its fixed denominator, and precision fro
 separate claim inventory. Its IDs come from the corpus rather than document headings. Stage A
 adds strict documentary acceptance and preserved attempts; see `evals/enc28j60/SCORING-RUN.md`.
 The semantic passes in phases 4 and 5 remain reviewer work. Synthetic tests establish the
-scorer's arithmetic and gates; the first candidate run and phase 6 integration remain pending.
+scorer's arithmetic and gates. The [first practice run](evals/enc28j60/PRACTICE-RUN.md) exercised
+generation, both review passes and replay, with blocked acceptance and an incomplete inventory
+audit. Phase 3's paired evaluation and phase 6 integration remain pending.
 
 ## Where the proposal's other corrections land
 

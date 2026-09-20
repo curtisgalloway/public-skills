@@ -27,9 +27,9 @@ test quality right on something cheap before the method is pointed at a complex 
 
 ## Stage A
 
-The scoring tool is implemented and tested with synthetic judgments. No candidate benchmark run
-has taken place. See [SCORING-RUN.md](SCORING-RUN.md) for usage and the two decisions required
-before generating the first candidate.
+The scoring tool is implemented and tested. The [first practice run](PRACTICE-RUN.md) exercised
+generation, review, scoring and replay; acceptance is blocked and the review remains incomplete.
+No blind paired benchmark has taken place. See [SCORING-RUN.md](SCORING-RUN.md) for the contract.
 
 ## State of the ledger
 
