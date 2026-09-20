@@ -57,6 +57,9 @@ Fuchsia integration have separate entry gates below. They are not quietly counte
 
 ## Conventions and authorization
 
+- Name the working conversation after its active milestone: `M01 — Make trial preparation executable`
+  for this unit, and the corresponding plan heading for later units. If the harness offers no
+  thread-renaming control, state the intended title without claiming it was changed.
 - Planning branch: `docs/driver-porting-implementation-plan`. Execution uses a new topic branch
   per milestone and a PR; never push directly to main. This request authorizes planning and
   Claude consultation, not new paid experiments, hardware operations, or publishing this branch.
@@ -135,7 +138,7 @@ design amendment returns to the design approval gate before dependent implementa
 
 | ID | Outcome | Depends on | Status |
 | --- | --- | --- | --- |
-| M01 | Trial inputs located and design choices recorded | Existing trial draft; D1–D3 investigations | pending |
+| M01 | Trial inputs located and design choices recorded | Existing trial draft; D1–D3 investigations | complete; launch blockers retained ([evidence](evidence/M01.md)) |
 | M02 | Sanitized implementation environment and tested isolation | M01, D1 | pending |
 | M03 | Versioned execution contracts and result fixtures | M01, D3 | pending |
 | M04 | One complete synthetic execution/replay path | M03 | pending |
@@ -199,7 +202,10 @@ trial launches; they must not be chosen after its result is visible.
 **Verify/review:** Check hashes, links and ledger references; review trial definitions against
 RECONSTRUCTION.md and source locators, including ambiguity and reference defects.
 **Sizing:** One input/decision record; if board investigation expands, checkpoint it as M01a and
-finish the manifest in M01b. Evidence proposed `evidence/M01.md`; status pending.
+finish the manifest in M01b. [Preparation manifest](evals/enc28j60/reconstruction/M01-PREPARATION-v1.md)
+and [evidence](evidence/M01.md) now record verified custody, D1–D3 investigations and launch
+blockers; Claude review confirmed the final text after fixes. M01 is complete at this checkpoint.
+No build, isolation or physical result is implied.
 
 ## M02 — Build and prove the isolated environment
 
@@ -562,15 +568,20 @@ pretending the pilot plan completes an unspecified platform-wide system.
 
 ## Next session
 
-- Current phase: planning only; implementation milestones all pending. The
+- Current phase: M01 complete, verified and reviewed; stop for inspection at this checkpoint.
+  The exact historical candidate was located and byte-verified. Modules have arrived; Pi 4 Model B
+  is the user-selected target, with source feasibility only. Exact revision and build/boot
+  qualification remain pending. See [M01 evidence](evidence/M01.md).
+  M02–M17 and P01 remain pending. The
   [plan review evidence](evidence/PLAN-REVIEW.md) records findings and their resolutions before
   the checkpoint commit.
-- Planning started at `7068a53` with a clean tree. This turn authored the plan, its README link,
-  glossary terms and review evidence; none were pre-existing changes. The checkpoint commit
-  `driver-porting: PLAN — structure remaining work and record Claude review` contains those files.
-  The branch also contains separate local explanation commits; respect the publication-base rule.
-- First eligible work: M01 input retrieval and bounded D1–D3 investigations. Leave models,
-  spending caps and reviewers pending until the user chooses them; no agent or hardware launch.
+- The planning/explanation stack merged in PR 69. M01 started from clean merged main at `3d7eb29`
+  on `driver-porting/m01-trial-inputs`; the historical planning checkpoint remains unchanged.
+- Next action: publish the reviewed M01 topic branch through a PR when authorized; do not start
+  another milestone in this session. Subsequent eligible work is M02 subject to B01/B02 target/build
+  decisions and the D2 harness selection at entry, or M03
+  execution-contract design. Leave models, spending caps and experiment reviewers pending until
+  the user chooses them; no experiment or hardware launch.
 - Read first: this plan, RECONSTRUCTION.md, and the trial preparation record; use ARMS.md and
   SCORING-RUN.md at the stages that need them.
 - At each session end, update this section with the actual unit, evidence, failures and next

@@ -34,6 +34,11 @@ The [procedure-trial preparation record](RECONSTRUCTION-TRIAL.md) drafts R1a for
 practice spec, with a neutral implementation brief, isolation plan, proposed checks, and pending
 launch decisions. The trial precedes preparation of the paired run.
 
+The later [M01 preparation manifest](reconstruction/M01-PREPARATION-v1.md) records recovered
+input identities, bounded target/isolation/record investigations, stage blockers and predeclared
+offline readiness criteria. Its [evidence record](../../evidence/M01.md) tracks verification
+and review. The original R1a draft is preserved; neither record authorizes execution.
+
 The [shared OS-neutral protocol](../../RECONSTRUCTION.md) adds driver reconstruction from each
 frozen spec. The [pilot run guide](RECONSTRUCTION-RUN.md) describes the environment, scope,
 checks, isolation, and budgets to establish before running. Linux is selected by this pilot's
