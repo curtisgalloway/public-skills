@@ -54,15 +54,18 @@ What fails (exit 1):
     does not resolve
   * a verification record (``<root>/resources/<id>.verify.md``, written by
     the ``spec-verifier`` skill) whose frontmatter is malformed, or whose
-    ``summary.fail`` is not zero; with ``--require-verified``, also a spec
-    with no record or a record whose ``spec_sha256`` no longer matches
+    ``summary.fail`` is not zero (even when the record is stale); with
+    ``--require-verified``, also a spec with no record or a record whose
+    ``spec_sha256`` no longer matches
 
 What warns (reported, exit stays 0):
 
   * two overlays for the same id in the same layer
   * a part whose ``cache`` differs from its board's
   * a spec with no verification record ("unverified"), or one whose record
-    was written for an older version of the file ("verification stale")
+    was written for an older version of the file ("verification stale"),
+    unless ``--require-verified`` makes these errors. A stale record with
+    FAIL verdicts also produces an error and remains "stale" in the summary
 
 Stdlib only.  PyYAML is used when importable; otherwise a parser for the
 YAML subset the format uses (block mappings and lists, flow lists, one-level
@@ -889,17 +892,17 @@ def check_verification(
     if malformed:
         return "malformed"
     digest = hashlib.sha256(spec.path.read_bytes()).hexdigest()
-    if str(meta.get("spec_sha256")).lower() != digest:
+    stale = str(meta.get("spec_sha256")).lower() != digest
+    if stale:
         findings.append(
             Finding(level, p, f"verification stale: {rec.relative_to(spec.root)} was written for another version of this file")
         )
-        return "stale"
     if summary.get("fail", 0) > 0:
         findings.append(
             Finding("error", p, f"verification record reports {summary['fail']} FAIL verdict(s); see {rec.relative_to(spec.root)}")
         )
-        return "failing"
-    return "verified"
+        return "stale" if stale else "failing"
+    return "stale" if stale else "verified"
 
 
 STUB_RE = re.compile(r"`spec:\s*([a-z0-9][a-z0-9\-]*)`")
