@@ -55,6 +55,14 @@ jobs:
           "$RUNNER_TEMP/enc28j60-tests/bin/python" -m unittest discover
           -s plugins/driver-porting/evals/enc28j60/tests -v
 
+      # The author's manifest is what a candidate run is given. Regenerating it on every push is
+      # how a corpus edit that would change what an author sees becomes visible in review.
+      - name: enc28j60 author manifest
+        run: >-
+          "$RUNNER_TEMP/enc28j60-tests/bin/python"
+          plugins/driver-porting/evals/enc28j60/author_manifest.py
+          --check plugins/driver-porting/evals/enc28j60/author-manifest.yaml
+
       - name: review-swarm tests
         run: python3 -m unittest discover -s plugins/dev-tools/skills/review-swarm/tests -v
 

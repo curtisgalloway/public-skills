@@ -23,6 +23,8 @@ test quality right on something cheap before the method is pointed at a complex 
 | `SCORING-FACTS.md` | 2 | the credit-bearing facts of every composite scoring unit, one ordered list each: the numerator side of proportional partial credit, frozen with the policy |
 | `ledger_check.py` | 2 | the mechanical gate on the ledger: schema, ids, classes, derivations against the corpus pins; `--freeze` for the freeze rules; `--lock` to check a frozen ledger against its lock |
 | `prepare.py` | A | audits the claim inventory and builds neutral reviewer packets from an explicit field allowlist; prints the citable source vocabulary |
+| `author_manifest.py` | 3 | emits the pins-only manifest a candidate author receives, from an explicit key allowlist: the sources, never the reading of them |
+| `ARMS.md` | 3 | the paired with-skill/without-skill protocol: the one permitted difference, baseline prompt discipline, and what a pair of runs can and cannot say |
 | `score.py` | A | scores reviewed claims and frozen fact dispositions; archives attempts and applies strict documentary acceptance |
 | `SCORING-RUN.md` | A | review contract, CLI, policy, replay, and limits |
 
