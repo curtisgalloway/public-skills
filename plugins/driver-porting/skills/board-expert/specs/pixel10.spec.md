@@ -81,7 +81,7 @@ resources:
       license: "see the repository"
       verified: 2026-09-18
       fetch: ok
-      fetch_via: "project metadata, root listing, the per-device build definitions, and the device-tree directory history"
+      fetch_via: "project metadata, root listing, the per-device build definitions and the shared SoC-level constants file they load, and the device-tree directory history"
       note: >-
         The monolithic kernel source repository for 10th-generation Pixel devices, linked from
         the GrapheneOS source page as what the laguna prebuilts are built from. Its root carries
@@ -202,7 +202,8 @@ the per-board device-tree selection, and the companion parts.
   The production device tree names the modem as a Samsung Exynos cellular processor over PCIe
   with a SPMI-attached modem PMIC, and names the part `s5400` in the modem node itself; press
   reports the same part as an Exynos 5400, the same as the Pixel 9 family. `[doc]` (Google Store, Pixel 10 tech specs), `[DT]` (`dtbo.img` entry 12,
-  laguna-kernel-prebuilts, `samsung,exynos-cp` and `google,cp-pmic-spmi`), `[press]` (a
+  laguna-kernel-prebuilts: `samsung,exynos-cp` and `google,cp-pmic-spmi`, and the `mif,name`
+  property on the modem node that carries `s5400`), `[press]` (a
   9to5Google report of a prototype's baseband string, in `docs`). `TODO (verify on hardware)`: the
   modem part number.
 - **Partitions and boot images.** Android boot-image layout: the `boot` partition carries a v4
@@ -330,10 +331,11 @@ the per-board device-tree selection, and the companion parts.
   Android overlay scheme, so the flow packages whole board DTBs into the vendor boot image and
   erases the `dtbo` partition rather than relying on the table. What a shipped bootloader actually
   does with a production `dtbo` table over an upstream DTB is nowhere stated; the nearest
-  documented data point runs the other way, some bootloaders of the previous generation crashing
-  when no DTBO is present in flash. `[doc]` (series v4 cover letter and the pixelscripts overlay
-  source comment, for the `ufs0` alias; pixelscripts README and Makefile, for the overlay
-  incompatibility and the erase), `[inference]` (premise, `[source-observed]`: a production
+  documented data point runs the other way and is not near: some Pixel 6 bootloader versions crash
+  when no DTBO is present in flash, four generations before this board, so it bears on this
+  bootloader only weakly. `[doc]` (series v4 cover letter and the pixelscripts overlay source
+  comment, for the `ufs0` alias; pixelscripts README and Makefile, for the overlay incompatibility
+  and the erase, and the README's Pixel 6 bootloader section for the DTBO-absent crash), `[inference]` (premise, `[source-observed]`: a production
   overlay's fixups reference labels an upstream tree does not define. Derivation: an overlay whose
   target labels are absent cannot be resolved against that tree. Confidence: low on the outcome --
   it says the overlay cannot apply, not what the bootloader does about it).

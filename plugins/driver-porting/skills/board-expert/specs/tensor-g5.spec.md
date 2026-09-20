@@ -409,11 +409,11 @@ DXT-48-1536 GPU and a Samsung Exynos 5400 modem; treat those as unverified.
   whatever the parent is; present-but-empty is identity, add zero; present and non-empty means
   parse the triples and add parent − child. (4) Repeat to the root, and record any level where the
   chain broke, because that is the difference between a derived address and an assumed one.
-  **Every `reg`-bearing node in the production blob**, classified by what the value means. Apply the rows in order and take the first that matches: each is the one above it plus a further condition, so read in any other order a reader double-counts 41 nodes.
+  **Every `reg`-bearing node in the production blob**, classified by what the value means. Apply the rows in order and take the first that matches. Two rows are contained in another -- the DRAM extent inside root-level MMIO, and the reserved-memory carve-out inside identity-container MMIO -- so each narrower row is listed above the row containing it; those are the only overlaps, and counting every match instead of the first double-counts exactly 41 nodes (the 40 reserved-memory children, plus the one memory node).
   | Class | `reg` means | Parent signature | Count |
   |---|---|---|---|
-  | Root-level MMIO | CPU-physical as written | root; 2/2; no `ranges` (root's space is the CPU space) | 409 |
   | DRAM extent | base and length | root, plus `device_type = "memory"` | 1 |
+  | Root-level MMIO | CPU-physical as written | root; 2/2; no `ranges` (root's space is the CPU space) | 409 |
   | Reserved-memory carve-out | CPU-physical region | `/reserved-memory`; 2/2; empty `ranges;` | 40 |
   | Identity-container MMIO | CPU-physical as written | a container with an empty `ranges;` (seven of them, one two hops deep) | 7 |
   | Translating-window offset | offset into the wrapper's window | a root-level `sswrp_*` `simple-bus`, 1/1, non-empty `ranges` | 11 |
@@ -428,7 +428,7 @@ DXT-48-1536 GPU and a Samsung Exynos 5400 modem; treat those as unverified.
   declare 3/2, so sizing from the node instead of the parent yields `0x0C50_0000_0000_0000` for
   `0x0C50_0000`, and their `ranges` need the three-cell PCI `phys.hi` tag separated before the
   identity shows; `device_type = "pci"` is the discriminator, and neither node has a `reg`-bearing
-  child. Four containers declare no cell counts at all, and the 2/1 default is wrong for every one
+  child. Four containers of `reg`-bearing nodes declare no cell counts at all, and the 2/1 default is wrong for every one
   — for `/cap_sysfs`'s two children, whose `reg` is four cells, a 2/1 reader gets the address right
   (`0x2191_0008`, and `0x8B20_F000` for the second) and the size wrong at `0x0`, with a spare cell
   left over; 4 is not divisible by 3, which is exactly what the divisibility check catches. Both
@@ -468,8 +468,9 @@ DXT-48-1536 GPU and a Samsung Exynos 5400 modem; treat those as unverified.
   laguna-kernel-prebuilts, `reserved-memory` and `chosen`), `[doc]` (series v4 cover letter and
   patch 3/4 message; Android boot image header page; Android DTB/DTBO partitions page;
   pixelscripts Makefile), `[standard]` (arm64 `booting.rst`, the entry contract a Linux Image
-  expects), `[inference]` (premises, `[source-observed]` from the production command line in both
-  blobs and every overlay entry: it carries a protected-KVM module list and SMMU-under-KVM options,
+  expects), `[inference]` (premises, `[source-observed]`, established by reading the production
+  command line in every reachable public blob and searching every overlay entry besides: it
+  carries a protected-KVM module list and SMMU-under-KVM options,
   and carries no parameter that switches protected mode on. Derivation: those options exist to be
   consumed by a hypervisor, and a hypervisor on arm64 entails an EL2 entry — but their presence
   shows the kernel was built to expect one, not that the firmware delivered it. Confidence:
