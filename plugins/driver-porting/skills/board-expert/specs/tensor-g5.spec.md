@@ -21,7 +21,9 @@ instances:
       cli16_uart). reg-shift = 2 and reg-io-width = 4: 16550 indices at a 32-bit stride, mmio32,
       LSR at 0x14. serial0 and stdout-path point here. The only UART wired straight to the GIC.
       Left disabled in the series DT: the bootloader enables it when its console is on and sets
-      the baud (115200n8 in the production command line, 3000000 in the upstream flow).
+      the baud (115200n8 in the production command line; the upstream flow requests 3000000
+      only when the mux query does not report virtual selection, otherwise preserving the user's
+      baud setup).
       earlycon=uart8250,mmio32,0xdb62000. TODO (verify on hardware): the baud a given unit is
       left at.
   - name: lsios_cli0_uart
@@ -247,6 +249,14 @@ resources:
         whose message documents the SoC-id and board-id encodings; superseded by the v4 series,
         which uses one .dts per board. Read for the id scheme only.
   docs:
+    - title: Devicetree Specification v0.4, The Devicetree
+      url: https://raw.githubusercontent.com/devicetree-org/devicetree-specification/v0.4/source/chapter2-devicetree-basics.rst
+      access: public
+      cite: true
+      verified: 2026-09-20
+      fetch: ok
+      fetch_via: raw
+      note: "sections 2.3.5 (#address-cells and #size-cells), 2.3.6 (reg), and 2.3.8 (ranges)"
     - title: Google Store, Pixel 10 tech specs
       url: https://store.google.com/us/product/pixel_10_specs?hl=en-US
       access: public
@@ -399,16 +409,16 @@ DXT-48-1536 GPU and a Samsung Exynos 5400 modem; treat those as unverified.
 ## Quick-facts
 
 - **Addressing model.** A `reg` in this tree is not always an address, and the node's own unit
-  address is not always its register base, so decode rather than read. **The procedure**, which is
-  the rule; the table below is only what this tree happens to contain. (1) Size the entries from
-  the **parent's** `#address-cells`/`#size-cells`, never the node's own, and check that the cell
-  count divides evenly — a ragged result means the parent declared nothing and the 2/1 spec default
-  is wrong for it. (2) If the parent's `#size-cells` is 0, the value is an index or an identifier,
-  not an address; stop. (3) Look at `ranges` **on the parent**: absent means no translation exists,
-  so the value is CPU-physical only if the parent is the root, and otherwise is an offset into
-  whatever the parent is; present-but-empty is identity, add zero; present and non-empty means
-  parse the triples and add parent − child. (4) Repeat to the root, and record any level where the
-  chain broke, because that is the difference between a derived address and an assumed one.
+  address is not always its register base. **Decoding procedure:** (1) Size each `reg` entry using
+  the parent's `#address-cells` and `#size-cells`, not the node's own declarations, and check that
+  the property length divides evenly. A ragged result means the assumed encoding does not fit;
+  it does not identify the cause. (2) Zero size cells omit the length field. Determine whether
+  the remaining cells encode an address, index, or identifier from the applicable binding and
+  node context. (3) Interpret the parent's `ranges`: an empty property supplies identity mapping;
+  a nonempty property supplies child-to-parent mapping windows. An absent property does not
+  establish a translation or prove that the value is an offset. (4) Follow established mappings
+  to the root and record any unresolved step. The table below classifies this particular
+  production blob; its convention-only cases are not universal decoding rules.
   **Every `reg`-bearing node in the production blob**, classified by what the value means. Apply the rows in order and take the first that matches. Two rows are contained in another -- the DRAM extent inside root-level MMIO, and the reserved-memory carve-out inside identity-container MMIO -- so each narrower row is listed above the row containing it; those are the only overlaps, and counting every match instead of the first double-counts exactly 41 nodes (the 40 reserved-memory children, plus the one memory node).
   | Class | `reg` means | Parent signature | Count |
   |---|---|---|---|
@@ -447,21 +457,25 @@ DXT-48-1536 GPU and a Samsung Exynos 5400 modem; treat those as unverified.
   referencing the two trees by node name fails where matching on `reg` succeeds. Where a node
   exists in both trees, the addresses agree. `[DT]`
   (`lga.dtsi`, series v4), `[DT]` (`lga-b0.dtb`, laguna-kernel-prebuilts; the full bus walk, tied
-  to that blob's sha256, is in `resources/tensor-g5.addressing.txt`).
+  to that blob's sha256, is in `resources/tensor-g5.addressing.txt`), `[standard]`
+  (Devicetree Specification v0.4, sections 2.3.5, 2.3.6, and 2.3.8).
 
-- **Boot chain and entry state.** Closed firmware: boot ROM → Google's closed early stages,
-  including an EL3 runtime that the production blob reserves a "BL31 memory log" buffer for at
-  `0x8B60_0000` (2 MiB) → the Android bootloader (ABL), which loads Android boot images (a v4
-  boot image carries the kernel; the vendor boot image carries the DTB, the vendor ramdisk, and
-  bootconfig; a `dtbo` partition carries a table of overlays selected by board id and revision).
+- **Boot chain and entry state.** The exact closed-firmware stage sequence is not established by
+  the cited public material. The production blob reserves a region named "BL31 memory log" at
+  `0x8B60_0000` (2 MiB); that name and allocation do not by themselves establish the runtime
+  implementation or its exception level. The Android image layout distinguishes the
+  kernel-bearing v4 boot image, the vendor boot image containing the DTB, vendor ramdisk and
+  bootconfig, and the overlay table in `dtbo`, selected by board id and revision.
   The series device tree reserves DRAM for the closed stages: the ABL ramdump/log region at
   `0xBE00_0000` (16 MiB, `no-map`), bootloader logs at `0x9560_0000` (1 MiB, `no-map`), GSA
   (security core) logs at `0xA61B_0000` (16 KiB, `no-map`), and a ramoops region at
   `0x9520_0000` (4 MiB) that the ABL reads back after a crash reset. The bootloader adds the
   `/memory` node itself, patches UFS calibration data into the node the `ufs0` alias names (a
   missing alias is a fatal boot error on shipped bootloaders), enables the console UART only when
-  its console is turned on, and appends `console=` and the `androidboot.*` bootconfig itself; the
-  production command line carries `earlycon=uart8250,mmio32,0xdb62000`, `console=ttyS0,115200n8`,
+  its console is turned on. The cited flow describes the bootloader appending `console=`. It
+  also supplies vendor bootconfig as an image-building input. The Android-prefixed values in the
+  production command line establish their contents, not who adds each value at runtime. That
+  command line carries `earlycon=uart8250,mmio32,0xdb62000`, `console=ttyS0,115200n8`,
   `androidboot.boot_devices=3c400000.ufs`, and `androidboot.hardware.platform=laguna`. The
   upstream flow packs whole DTBs into the vendor boot image (`mkbootimg --header_version 4`) and
   erases `dtbo`. `[DT]` (`lga.dtsi`, series v4, `reserved-memory`), `[DT]` (`lga-b0.dtb`,
@@ -471,10 +485,11 @@ DXT-48-1536 GPU and a Samsung Exynos 5400 modem; treat those as unverified.
   expects), `[inference]` (premises, `[source-observed]`, established by reading the production
   command line in every reachable public blob and searching every overlay entry besides: it
   carries a protected-KVM module list and SMMU-under-KVM options,
-  and carries no parameter that switches protected mode on. Derivation: those options exist to be
-  consumed by a hypervisor, and a hypervisor on arm64 entails an EL2 entry — but their presence
-  shows the kernel was built to expect one, not that the firmware delivered it. Confidence:
-  an indication only; settled by reading `CurrentEL` at entry).
+  and carries no parameter that switches protected mode on. Derivation: these options indicate
+  an intended hypervisor configuration; they establish neither the kernel's build configuration
+  nor the firmware's actual hand-off state. Confidence: an indication of intended configuration
+  only. Establishing the build configuration requires evidence from the matching kernel build;
+  establishing the entry exception level requires reading `CurrentEL` at entry).
   `TODO (verify on hardware)`: the exception level, MMU and cache state, and x0 at hand-off, none
   of which any public document states — read `CurrentEL` rather than assuming EL2.
 - **Silicon revisions and SoC id.** B0 silicon is what mass-production phones carry and what the
@@ -541,8 +556,10 @@ DXT-48-1536 GPU and a Samsung Exynos 5400 modem; treat those as unverified.
   domain, and a `cli16_uart` pin group. Console device `ttyS0`; `earlycon=uart8250,mmio32,0xdb62000`
   is what the production command line passes, at 115200n8; the upstream flow instead passes a
   bare `earlycon`, which `stdout-path` then resolves, alongside its own `console=pstore`; the real
-  `console=` is appended by the bootloader (Quick-facts/2). The flow asks the bootloader for
-  3000000. Register model and
+  `console=` is appended by the bootloader (Quick-facts/2). The flow requests 3,000,000 baud
+  only when the UART mux query does not report virtual selection. With virtual muxing this step
+  preserves the user's existing baud setup. The production command line separately records
+  115200n8; the baud of a particular live unit remains untested. Register model and
   the DesignWare busy quirk: see `dw-apb-uart`. `[DT]` (`lga.dtsi` and `lga-pixel-common.dtsi`,
   series v4), `[DT]` (`lga-b0.dtb`, laguna-kernel-prebuilts, `uart@db61000`, `aliases`, and
   `chosen`), `[standard]` (`snps-dw-apb-uart.yaml` binding at mainline head; 16550 register

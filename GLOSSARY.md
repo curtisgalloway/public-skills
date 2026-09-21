@@ -21,6 +21,11 @@ evaluation; add other terms as the documents that use them are updated.
 | Corpus | The pinned collection of source code and documents used as reference evidence. |
 | Pin | An exact revision, edition, or file digest identifying an input. |
 | Hash / digest | A fingerprint of file contents; identifies bytes, not their correctness. |
+| Claim / verification record | A statement checked against evidence / the separate report recording that comparison and its limits. |
+| Carry-forward | Retaining an earlier finding for unchanged text; it is not a fresh reading of its sources. |
+| UART / baud | A serial communication controller / the signaling rate of its connection. |
+| Mux | A selector that routes a connection; its selected mode can change which setup steps apply. |
+| GIC | Arm's Generic Interrupt Controller, which routes interrupt requests to processor cores. |
 | Requirement ledger | The independently authored answer key of hardware requirements used for evaluation scoring; called the ledger in evaluation documents. |
 | Provenance ledger | A record of where facts came from and what crossed the clean-room boundary; distinct from the evaluation answer key. |
 | Candidate | The generated specification or driver being evaluated. |
@@ -31,7 +36,7 @@ evaluation; add other terms as the documents that use them are updated.
 | Initramfs | An initial filesystem loaded into memory with the kernel, used for startup or as a small self-contained system. |
 | Netboot | Fetching boot files over the network before starting the operating system. |
 | NFS root | A root filesystem accessed over the Network File System protocol; it requires working networking during startup. |
-| Arm | One experimental condition: specification generation with or without the skill, or downstream implementation from that condition's spec. Generation and implementation pairing are assessed separately. |
+| Arm / experimental arm | Arm is the processor architecture company in hardware references. An experimental arm is one study condition: specification generation with or without the skill, or downstream implementation from that condition's spec. Generation and implementation pairing are assessed separately. |
 | Baseline / treatment | The without-skill / with-skill generation conditions. |
 | Paired run | Runs with recorded conditions held constant except for the intended experimental difference. |
 | Recall / precision | Coverage of required facts / correctness and support of the claims actually made. |
@@ -60,5 +65,5 @@ evaluation; add other terms as the documents that use them are updated.
 | Convergence | Progress toward predefined acceptance conditions as defects and uncertainty are resolved; repeated agreement alone does not establish correctness. |
 | Adjudication | Resolving conflicting readings of evidence, with unresolved questions kept explicit. |
 | Clean-room boundary | Separation of source-reading and implementation contexts, controlling which evidence crosses. |
-| SPI | Serial Peripheral Interface, a bus used to communicate with a peripheral. |
+| SPI | Serial Peripheral Interface in bus discussions; Shared Peripheral Interrupt in Arm GIC descriptions. |
 | Erratum | A documented hardware defect or deviation, often specific to a device revision. |
