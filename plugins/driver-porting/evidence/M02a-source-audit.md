@@ -161,7 +161,8 @@ The canceled attempt's cost is unknown. Registration, tracked-file and explicit 
 privacy, local link targets, control-character and whitespace checks passed. No production code
 changed, so kernel compilation and code test suites were not rerun for this documentation unit.
 
-If the current experimental plan continues, implement the accepted exclusions
+The later [Linux-priority revision](LINUX-PRIORITY.md) defers this experimental preparation.
+If that experimental plan resumes, implement the accepted exclusions
 with regression tests and the plan's code-review procedure. Create a new export attempt and
 retain the old one. Verify its complete inventory in a fresh case-sensitive guest; disabling
 a Kconfig option alone cannot remove readable source. Continue all other semantic dispositions,
