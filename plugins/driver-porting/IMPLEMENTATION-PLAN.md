@@ -33,6 +33,7 @@ its section 10 limits initial delivery. New architectural choices still require 
 For current state and experimental rules, the frozen pilot artifacts and later reconstruction
 protocol take precedence over historical status paragraphs. In particular, the ledger and
 documentary scorer already exist. This plan does not reopen them as implementation tasks.
+The planning checkpoint's [review evidence](evidence/PLAN-REVIEW.md) remains part of the design record.
 
 The companion-skill deliverable initially consists of the existing board-expert, authoring,
 implementation, and verification skills, with tested usage instructions and any necessary fixes.
@@ -139,7 +140,7 @@ design amendment returns to the design approval gate before dependent implementa
 | ID | Outcome | Depends on | Status |
 | --- | --- | --- | --- |
 | M01 | Trial inputs located and design choices recorded | Existing trial draft; D1–D3 investigations | complete; launch blockers retained ([evidence](evidence/M01.md)) |
-| M02 | Sanitized implementation environment and tested isolation | M01, D1 | pending |
+| M02 | Sanitized implementation environment and tested isolation | M01, D1 | in progress; M02a entry/build preparation ([evidence](evidence/M02a.md)) |
 | M03 | Versioned execution contracts and result fixtures | M01, D3 | pending |
 | M04 | One complete synthetic execution/replay path | M03 | pending |
 | M05 | Frozen offline trial implementation | M02, M03, D2 authorization | pending |
@@ -220,7 +221,9 @@ overlap dispositions are frozen. Mechanical scans alone do not establish isolati
 **Verify/review:** Positive compilation/read controls and negative access canaries; regression
 tests for changed helpers. Review environment mounts, provider transport and inherited context.
 **Sizing:** Separate M02a sanitized-build and M02b harness-isolation sessions, each with tests and
-review. Evidence proposed `evidence/M02a.md` and `evidence/M02b.md`; status pending.
+review. [M02a evidence](evidence/M02a.md) records the incomplete entry/build checkpoint and
+netboot/wiring decisions; sanitized build and full isolation qualification remain open.
+M02b evidence is still proposed as `evidence/M02b.md`.
 
 ## M03 — Freeze execution contracts without changing documentary scoring
 
@@ -555,6 +558,11 @@ pretending the pilot plan completes an unspecified platform-wide system.
 
 ## Discovered work and backlog
 
+- **M02/M05 input-transfer identity:** M02a found that a Mac extraction merged 13 pairs of
+  case-distinct Linux paths even though all M01 spot checks passed. The original archive and
+  corrected ext4 extraction matched the pinned Git tree. Require complete tree/manifest
+  equality after every sanitized export or packet transfer; retain archives when staging on
+  case-insensitive filesystems. This is a build/input gate, not a change to the frozen ledger.
 - **M11 prerequisite — scoring-contract heading:** `SCORING-RUN.md` still titles its review
   contract `enc28j60-review-2`, while `score.py` declares `enc28j60-review-3` and the same document
   describes version 3 later. Correct the heading in a reviewed documentation change before
@@ -568,20 +576,21 @@ pretending the pilot plan completes an unspecified platform-wide system.
 
 ## Next session
 
-- Current phase: M01 complete, verified and reviewed; stop for inspection at this checkpoint.
-  The exact historical candidate was located and byte-verified. Modules have arrived; Pi 4 Model B
-  is the user-selected target, with source feasibility only. Exact revision and build/boot
-  qualification remain pending. See [M01 evidence](evidence/M01.md).
-  M02–M17 and P01 remain pending. The
-  [plan review evidence](evidence/PLAN-REVIEW.md) records findings and their resolutions before
-  the checkpoint commit.
-- The planning/explanation stack merged in PR 69. M01 started from clean merged main at `3d7eb29`
-  on `driver-porting/m01-trial-inputs`; the historical planning checkpoint remains unchanged.
-- Next action: publish the reviewed M01 topic branch through a PR when authorized; do not start
-  another milestone in this session. Subsequent eligible work is M02 subject to B01/B02 target/build
-  decisions and the D2 harness selection at entry, or M03
-  execution-contract design. Leave models, spending caps and experiment reviewers pending until
-  the user chooses them; no experiment or hardware launch.
+- Current phase: M02a entry/build preparation, incomplete. M01 merged in PR 70; this unit
+  starts from clean `60755d2` on `driver-porting/m02a-sanitized-build` after fetching origin.
+  See [M02a evidence](evidence/M02a.md) for actual build outcome, review and remaining gates.
+  Baseline compilation passed after correcting a case-collision extraction defect. Claude's
+  substantive findings are resolved; exact amended-text confirmation remains open after the
+  helper refused a second confirmation in the same cycle. Do not claim completed M02a acceptance.
+- The user identified an existing paniolo Pi 4 Model B fixture, prefers netboot, and supplied
+  the HiLetgo 3.3 V module schematic. Wiring is a proposal pending physical confirmation;
+  existing captures are historical. No boot or hardware test was performed in this unit.
+- Next action: continue M02a after inspecting this checkpoint. Resolve final board/boot facts,
+  preserve recoverable build inputs, export/audit the sanitized kernel, API documentation and
+  minimal scaffolding, then demonstrate the offline placeholder build. Qualify the selected
+  Codex/Linux arrangement in M02b before M05. Preserve every M01 access-test category.
+  M03–M17 and P01 remain pending. Leave models, spending caps and experiment reviewers pending
+  until the user chooses them; no experiment or hardware launch is authorized by this checkpoint.
 - Read first: this plan, RECONSTRUCTION.md, and the trial preparation record; use ARMS.md and
   SCORING-RUN.md at the stages that need them.
 - At each session end, update this section with the actual unit, evidence, failures and next
