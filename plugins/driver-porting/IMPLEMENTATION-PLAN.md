@@ -140,7 +140,7 @@ design amendment returns to the design approval gate before dependent implementa
 | ID | Outcome | Depends on | Status |
 | --- | --- | --- | --- |
 | M01 | Trial inputs located and design choices recorded | Existing trial draft; D1–D3 investigations | complete; launch blockers retained ([evidence](evidence/M01.md)) |
-| M02 | Sanitized implementation environment and tested isolation | M01, D1 | in progress; M02a entry/build preparation ([evidence](evidence/M02a.md)) |
+| M02 | Sanitized implementation environment and tested isolation | M01, D1 | in progress; M02a source-export unit ([evidence](evidence/M02a-export.md)); baseline [build evidence](evidence/M02a.md) |
 | M03 | Versioned execution contracts and result fixtures | M01, D3 | pending |
 | M04 | One complete synthetic execution/replay path | M03 | pending |
 | M05 | Frozen offline trial implementation | M02, M03, D2 authorization | pending |
@@ -222,7 +222,8 @@ overlap dispositions are frozen. Mechanical scans alone do not establish isolati
 tests for changed helpers. Review environment mounts, provider transport and inherited context.
 **Sizing:** Separate M02a sanitized-build and M02b harness-isolation sessions, each with tests and
 review. [M02a evidence](evidence/M02a.md) records the incomplete entry/build checkpoint and
-netboot/wiring decisions; sanitized build and full isolation qualification remain open.
+netboot/wiring decisions; the [source-export unit](evidence/M02a-export.md) adds archive
+transformation and transfer verification. Sanitized build and full isolation remain open.
 M02b evidence is still proposed as `evidence/M02b.md`.
 
 ## M03 — Freeze execution contracts without changing documentary scoring
@@ -576,18 +577,19 @@ pretending the pilot plan completes an unspecified platform-wide system.
 
 ## Next session
 
-- Current phase: M02a entry/build preparation, incomplete. M01 merged in PR 70; this unit
-  starts from clean `60755d2` on `driver-porting/m02a-sanitized-build` after fetching origin.
-  See [M02a evidence](evidence/M02a.md) for actual build outcome, review and remaining gates.
-  Baseline compilation passed after correcting a case-collision extraction defect. Claude's
-  substantive findings are resolved; exact amended-text confirmation remains open after the
-  helper refused a second confirmation in the same cycle. Do not claim completed M02a acceptance.
+- Current phase: M02a source-export unit; full M02a remains incomplete. PR 71 merged at
+  `d392553`; this unit starts there on `driver-porting/m02a-export`.
+  See [export evidence](evidence/M02a-export.md) and its linked procedure for archive identities,
+  transfer tests, review and remaining gates. The prior [baseline build](evidence/M02a.md)
+  passed after correcting a case-collision extraction defect. Its narrow exact-text consultation
+  limitation remains recorded; this unit receives its own implementation review.
 - The user identified an existing paniolo Pi 4 Model B fixture, prefers netboot, and supplied
   the HiLetgo 3.3 V module schematic. Wiring is a proposal pending physical confirmation;
   existing captures are historical. No boot or hardware test was performed in this unit.
 - Next action: continue M02a after inspecting this checkpoint. Resolve final board/boot facts,
-  preserve recoverable build inputs, export/audit the sanitized kernel, API documentation and
-  minimal scaffolding, then demonstrate the offline placeholder build. Qualify the selected
+  disposition the export's remaining manufacturer-name hits and perform semantic source review,
+  export/audit API documentation and minimal scaffolding, freeze build configuration, then
+  demonstrate the offline placeholder build. Qualify the selected
   Codex/Linux arrangement in M02b before M05. Preserve every M01 access-test category.
   M03–M17 and P01 remain pending. Leave models, spending caps and experiment reviewers pending
   until the user chooses them; no experiment or hardware launch is authorized by this checkpoint.
