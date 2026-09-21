@@ -25,6 +25,12 @@ evaluation; add other terms as the documents that use them are updated.
 | Provenance ledger | A record of where facts came from and what crossed the clean-room boundary; distinct from the evaluation answer key. |
 | Candidate | The generated specification or driver being evaluated. |
 | Reference driver | The existing driver selected as comparison evidence; it can contain defects. |
+| Evaluator | The preparation and testing side allowed to inspect reference material; separate from an isolated implementer. |
+| Guest | An operating system running inside a virtual machine or container environment, separate from the host. |
+| OCI image | A container image stored in the standardized Open Container Initiative format, with content identified by digests. |
+| Initramfs | An initial filesystem loaded into memory with the kernel, used for startup or as a small self-contained system. |
+| Netboot | Fetching boot files over the network before starting the operating system. |
+| NFS root | A root filesystem accessed over the Network File System protocol; it requires working networking during startup. |
 | Arm | One experimental condition: specification generation with or without the skill, or downstream implementation from that condition's spec. Generation and implementation pairing are assessed separately. |
 | Baseline / treatment | The without-skill / with-skill generation conditions. |
 | Paired run | Runs with recorded conditions held constant except for the intended experimental difference. |
