@@ -577,16 +577,22 @@ pretending the pilot plan completes an unspecified platform-wide system.
 
 ## Next session
 
-- Current phase: M02a source-export unit; full M02a remains incomplete. PR 71 merged at
-  `d392553`; this unit starts there on `driver-porting/m02a-export`.
+- Current phase: M02a related-controller source audit; full M02a remains incomplete. This
+  documentation unit starts at `e74a4c0` on `driver-porting/m02a-export`, following the export
+  unit based on PR 71's merge at `d392553`.
+  The follow-on [related-controller audit](evidence/M02a-source-audit.md) identifies five
+  reviewed exclusions/edits; Claude confirmed the disposition and amended text with no remaining
+  objections. The export remains unchanged and unapproved; 1,010 other exported paths matching
+  `microchip` in name or content remain pending, as does review beyond those matches.
   See [export evidence](evidence/M02a-export.md) and its linked procedure for archive identities,
   transfer tests, review and remaining gates. The prior [baseline build](evidence/M02a.md)
   passed after correcting a case-collision extraction defect. Its narrow exact-text consultation
-  limitation remains recorded; this unit receives its own implementation review.
+  limitation remains recorded; this documentation unit receives its own Claude consultation.
 - The user identified an existing paniolo Pi 4 Model B fixture, prefers netboot, and supplied
   the HiLetgo 3.3 V module schematic. Wiring is a proposal pending physical confirmation;
   existing captures are historical. No boot or hardware test was performed in this unit.
-- Next action: continue M02a after inspecting this checkpoint. Resolve final board/boot facts,
+- Next action under the current experimental plan: implement accepted related-device
+  exclusions with tests and code review, and regenerate/verify the export. Resolve final board/boot facts,
   disposition the export's remaining manufacturer-name hits and perform semantic source review,
   export/audit API documentation and minimal scaffolding, freeze build configuration, then
   demonstrate the offline placeholder build. Qualify the selected
