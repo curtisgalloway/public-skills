@@ -222,6 +222,21 @@ class TagRules(unittest.TestCase):
             "\n".join(self.tags_of(body)),
         )
 
+    def test_rtl_with_a_parenthetical_needs_no_todo(self):
+        body = (
+            "## Gotchas\n\n"
+            "- Bit 3 is write-one-to-clear. `[rtl]` (usb2_wrap r2p1, `ctrl_regs`)\n"
+        )
+        self.assertEqual(self.tags_of(body), [])
+
+    def test_rtl_without_a_parenthetical_is_an_error(self):
+        body = "## Gotchas\n\n- Bit 3 is write-one-to-clear. `[rtl]`\n"
+        self.assertIn(
+            "[rtl] must be followed by a parenthetical naming the design, its revision, "
+            "and the module",
+            "\n".join(self.tags_of(body)),
+        )
+
     def tags_of(self, body):
         spec = spec_check.Spec(pathlib.Path("x.spec.md"), pathlib.Path("."), "public", {}, body)
         findings = []

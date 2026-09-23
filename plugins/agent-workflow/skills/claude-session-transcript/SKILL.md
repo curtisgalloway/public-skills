@@ -1,6 +1,6 @@
 ---
 name: claude-session-transcript
-description: Reference doc — how to locate the live Claude Code session transcript on disk and extract real user prompts from it (filter rules, slash-command pair collapsing, noise stripping). Other skills (learn, wrapup) Read this file before parsing transcripts. Not a user-invocable skill.
+description: Reference doc — how to locate the live Claude Code session transcript on disk and extract real user prompts from it (filter rules, slash-command pair collapsing, noise stripping). Other skills (learn, teach) Read this file before parsing transcripts. Not a user-invocable skill.
 ---
 
 # Claude session transcript: location and extraction rules
@@ -36,7 +36,7 @@ If the running harness does provide a session-id substitution or environment var
 
 ## Listing sessions for the current project
 
-For skills that need to walk the project's full session history (e.g. `/teach`, `/wrapup`):
+For skills that need to walk the project's full session history (e.g. `/teach`):
 
 ```bash
 PROJECT_KEY="-$(pwd | tr '/' '-')"
