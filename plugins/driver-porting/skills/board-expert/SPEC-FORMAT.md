@@ -40,11 +40,18 @@ stated here; the skills point at this file instead of restating it.
 - **Cache** — the out-of-tree directory `~/src/<cache>/` where the expert clones reference source. The
   cache is the encumbered side of the clean-room wall; the spec is the clean side.
 - **Provenance tag** — the class of authority behind a fact. `[databook]`, `[standard]`, `[DT]`, and
-  `[source-observed]` are `os-investigator`'s; specs add `[doc]`, `[hardware]`, and `[press]`. The
-  classes, with what falls in each:
+  `[source-observed]` are `os-investigator`'s; specs add `[rtl]`, `[doc]`, `[hardware]`, and
+  `[press]`. What each class is trusted for, what that trust assumes, and how conflicts between
+  classes are recorded is in `DESIGN.md`, "Evidence model". The classes, with what falls in each:
   - `[databook]` — the IP databook, TRM, or datasheet; cite the section.
   - `[standard]` — a public standard or architecture specification (ARM ARM, GICv3, PSCI, USB, IEEE
     802.3, the 16550 register model, the arm64 boot protocol in `booting.rst`); cite the clause.
+  - `[rtl]` — the hardware design itself: RTL such as Verilog or VHDL, or a register description
+    generated from it (IP-XACT, SystemRDL). Always followed by a parenthetical naming the design,
+    its revision, and the module, so `[rtl]` (usb2_wrap r2p1, `ctrl_regs`) is complete. It is the
+    strongest authority for digital register behavior on the revision it names, and says nothing
+    about analog or electrical behavior, firmware, or board wiring. When the design is not public,
+    it is encumbered source like any other: the facts cross the wall, the text does not.
   - `[DT]` — a value read out of a device tree. Always followed by a parenthetical naming the file it
     came from and, when that file is not a source `.dts`/`.dtsi` (a decompiled production DTB or an
     entry in a DTBO image), where the blob came from; the origin may be the `name` of a
