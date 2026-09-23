@@ -20,7 +20,7 @@ NOW = datetime.now(timezone.utc)
 DEFAULT_LICENSES = {
     "MIT", "Apache-2.0", "BSD-2-Clause", "BSD-3-Clause", "ISC", "MPL-2.0",
     "LGPL-2.1", "LGPL-3.0", "Zlib", "Unlicense", "CC0-1.0", "0BSD",
-    "Apache-2.0 OR MIT", "MIT OR Apache-2.0", "BSD-3-Clause OR MIT",
+    "IJG",  # Independent JPEG Group: permissive, attribution only
 }
 
 BOT_NAME_PAT = re.compile(
@@ -138,6 +138,59 @@ def _spdx_guess(text):
         if pat.lower() in t.lower():
             return spdx
     return None
+
+def license_allowed(expr, allow):
+    """Judge an SPDX license expression against an allowlist of license ids.
+
+    OR is satisfied by any allowed side, AND needs every side, and
+    "id WITH exception" is judged by the id. A "/" is the legacy crates.io
+    spelling of OR ("MIT/Apache-2.0"). Returns False for anything that does
+    not parse, so a malformed expression is gated rather than waved through.
+    """
+    tokens = re.findall(r"\(|\)|/|[^\s()/]+", expr)
+    pos = 0
+
+    def peek():
+        return tokens[pos] if pos < len(tokens) else None
+
+    def take():
+        nonlocal pos
+        pos += 1
+        return tokens[pos - 1]
+
+    def term():
+        tok = take() if peek() is not None else None
+        if tok == "(":
+            val = disjunction()
+            if take() != ")":
+                raise ValueError("unbalanced parenthesis")
+            return val
+        if tok is None or tok in (")", "/") or tok.upper() in ("AND", "OR", "WITH"):
+            raise ValueError(f"unexpected token {tok!r}")
+        if peek() is not None and peek().upper() == "WITH":
+            take()
+            take()
+        return tok.removesuffix("+") in allow or tok in allow
+
+    def conjunction():
+        val = term()
+        while peek() is not None and peek().upper() == "AND":
+            take()
+            val = term() and val
+        return val
+
+    def disjunction():
+        val = conjunction()
+        while peek() is not None and (peek().upper() == "OR" or peek() == "/"):
+            take()
+            val = conjunction() or val
+        return val
+
+    try:
+        result = disjunction()
+    except (ValueError, IndexError):
+        return False
+    return result if pos == len(tokens) else False
 
 def try_depsdev(eco, name, use_cache):
     """Preferred source: dependents + scorecard. Often unreachable in sandboxes."""
@@ -259,7 +312,7 @@ def score_package(spec, args, token):
         lic = repo_d["license"].get("spdx_id")
     lic = reg["license"] or lic
     allow = set(args.licenses.split(",")) if args.licenses else DEFAULT_LICENSES
-    if lic and lic not in allow and lic != "NOASSERTION":
+    if lic and lic != "NOASSERTION" and not license_allowed(lic, allow):
         gates.append(f"license '{lic}' not in allowlist")
     elif not lic or lic == "NOASSERTION":
         notes.append("license undetermined — verify manually")
