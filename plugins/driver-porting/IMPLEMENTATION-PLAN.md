@@ -227,6 +227,97 @@ requirements or establish R2/R3/R4/R7 experimental acceptance.
 next device or OS port needs. Choose further experiments only for an unanswered question worth
 their cost. L01 outputs do not retroactively satisfy frozen trial or paired-run requirements.
 
+## L02 — An e1000 driver from a spec, tested differentially in QEMU
+
+**Status:** `pending`. Design: [QEMU-DIFFERENTIAL.md](QEMU-DIFFERENTIAL.md), approved
+2026-09-22 with decisions D1–D4 resolved. Runs alongside L01, whose hardware unit waits on the
+fixture. Outcomes O1–O5 and acceptance criteria A1–A7 are the design's.
+
+**Conventions for L02.** One topic branch and PR per unit, prefix `driver-porting: L02<x> —`.
+Raw runs, the candidate driver, traces, captures, and the manual stay in the private run store
+under run IDs `e1000-l02<x>-<date>-<n>`; public evidence goes to `evidence/L02<x>.md`, naming
+the test host by role only. Review: `spec-verifier` for the spec, `review-swarm` plus a fresh
+reviewer subagent for harness and driver code, the L01 review trio for the candidate. The
+operator context reads the reference driver and the QEMU model and so never writes candidate
+code; implementer turns go to a separately launched implementer whose model the user selects.
+
+Dependencies: L02a → L02b → L02c → L02e → L02f → L02g; L02d needs only L02a and may run in
+parallel with L02b–L02c.
+
+### L02a — Pin sources and write the blind requirement list
+
+- **Outcome:** exact identities for every input, and about 50 critical e1000 requirements
+  written from the manual alone, before any spec exists. Covers D4.
+- **Steps:** acquire the Intel 8254x manual and record edition and SHA-256; record the Linux
+  v6.12 `drivers/net/ethernet/intel/e1000/` file hashes from the verified archive; record the
+  QEMU package version and the `e1000` model name on the test host. A fresh agent that has not
+  read the Linux driver writes the requirement list from the manual (core path only, legacy
+  descriptors), in the ENC28J60 ledger's row format; a second fresh reader checks each row
+  against the cited manual section.
+- **Accept:** all pins recorded and re-fetchable; list frozen with a hash; every row cites a
+  manual section; the second reader's disagreements are resolved or recorded.
+- **Size:** one session. Split point: pins first, list second.
+
+### L02b — Author the spec
+
+- **Outcome:** a clean-room spec of the 82540EM core path (O1, first half).
+- **Steps:** run `cleanroom-spec` with `os-investigator` over the pinned Linux driver and the
+  manual. The QEMU model is not an input. Transfer review and leak scan as the skill requires.
+- **Accept:** transfer review PASS; every fact tagged; scope and non-goals match the design.
+- **Size:** one to two sessions; split by subsystem (init/PHY, then rings/interrupts) if needed.
+
+### L02c — Verify the spec and measure recall
+
+- **Outcome:** two fresh verification readings (A1) and the spec's recall against the L02a list.
+- **Accept:** no unresolved FAIL; every GAP and UNVERIFIABLE recorded; recall reported by row,
+  with each missing critical row either added to a spec revision or recorded as a gap.
+- **Size:** one session.
+
+### L02d — Build the QEMU harness and prove it on the reference driver
+
+- **Outcome:** O3 and the harness half of A3, A4, and A6, before any candidate exists.
+- **Steps:** build a v6.12 x86-64 kernel on the test host with the reference `e1000` as a
+  module; a busybox initramfs with the scenario scripts; a peer guest on a point-to-point
+  socket network; per-run capture of register traces, packets, console, and verdicts. Run
+  every scenario against the reference driver. Then plant each design mutation in a
+  disposable copy of the reference driver and confirm a scenario or trace check fails.
+- **Accept:** one command runs the whole suite unattended; the reference passes or each
+  failure is explained by the manual; every planted defect is detected; outputs are stored per
+  run with identities.
+- **Review:** `review-swarm` on the harness code, plus a fresh reviewer on whether each
+  scenario actually exercises what it claims (for example, that a ring-wrap run really wraps).
+- **Size:** one to two sessions; split point: boot-and-capture first, scenarios and mutations
+  second.
+
+### L02e — Implement, build, and review the candidate
+
+- **Outcome:** O2 and A2, following L01's first unit.
+- **Steps:** brief a fresh implementer with the verified spec, the manual, and kernel
+  `include/` and `Documentation/` only; module `e1000_l02`; audit its tool log; build warning-free
+  against the pinned tree; run the reference review, a requirements review against the L02a
+  list, and `review-swarm`; one repair round if needed, with a repair review.
+- **Accept:** as L01's first unit, plus a clean command-log audit.
+- **Size:** one session.
+
+### L02f — Differential run, repair, and feedback
+
+- **Outcome:** O4, O5, A5, A7.
+- **Steps:** run the L02d suite against the candidate; compare traces with the reference by
+  required operation and order; classify each divergence with the manual as tie-breaker; repair
+  within the remaining repair cap; fold every `[emulated]` result and spec gap into a versioned
+  spec working copy.
+- **Accept:** every scenario result recorded; failures repaired or recorded as open findings;
+  evidence separates spec gaps, spec errors, implementation errors, and model limitations.
+- **Size:** one session; long runs split at stored-run boundaries.
+
+### L02g — Final check against the design
+
+- **Outcome:** confirm A1–A7 together, including interactions between units.
+- **Steps:** re-run the full suite against the final candidate and the reference from a clean
+  checkout; check each acceptance criterion against its evidence; decide whether the
+  `[emulated]` class goes into `SPEC-FORMAT.md` and the evidence model, based on how it was used.
+- **Accept:** each criterion has evidence or an explicitly recorded shortfall.
+
 ## What is deferred from the immediate path
 
 | Work | Disposition |
@@ -705,21 +796,14 @@ pretending the pilot plan completes an unspecified platform-wide system.
 
 ## Next session
 
-- **L01 second unit: test real behavior.** The first unit is complete
-  ([evidence](evidence/L01.md)). Before any hardware step, confirm the fixture: the ENC28J60
-  module wired to the Pi 4 (SPI bus and chip select, interrupt pin, reset, 3.3 V), the chip
-  revision read from EREVID, and the boot path. Wiring is unverified; ask the user first.
-- The candidate and all run records are in the private run store under
-  `enc28j60-l01-20260922-01` (candidate at workspace commit `15dea2c`, module SHA-256
-  `f09985b6…`). The offline build script there rebuilds any round.
-- Test reference and candidate under the same conditions, one driver bound at a time. The
-  reference driver is evidence, not the acceptance rule: reviewer A recorded eight reference
-  defects the candidate avoids (for example R-01, ETXND widened before a retransmit).
-- One repair round remains. Batch the five low repair-review findings with whatever the
-  hardware demonstrates. **Implementer for further turns: a fresh Claude Opus 5.5 subagent**
-  (the user's Codex usage is exhausted); record the change and that it shares the reviewers'
-  model family. The operator context is evaluator-exposed and must not write driver code.
-- Feed results back into a separately versioned working copy of the spec: the two spec defects
-  and four gaps in the evidence file, plus every `[hardware]` result. Never edit the frozen
-  candidate, corpus, or ledger.
-- Checkpoint the hardware result and stop for inspection. No push has occurred.
+Two tracks are open. Resume whichever the user picks; do not start both in one session.
+
+- **L02a (ready now):** pin the Intel 8254x manual, the Linux e1000 files, and the test host's
+  QEMU version; then have a fresh agent that has not read the Linux driver write the ~50-row
+  blind requirement list from the manual. See L02a above and
+  [QEMU-DIFFERENTIAL.md](QEMU-DIFFERENTIAL.md). The test host has KVM and the kernel build tools.
+- **L01 second unit (blocked on the fixture):** confirm the ENC28J60 module is wired to the
+  Pi 4 before any hardware step; the rest of the handoff is in [evidence/L01.md](evidence/L01.md)
+  and the L01 section above. One repair round remains; implementer turns use a fresh subagent
+  whose model the user selects.
+- Neither track has pushed anything beyond this plan revision.
