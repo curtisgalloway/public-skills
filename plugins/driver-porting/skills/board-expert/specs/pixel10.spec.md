@@ -229,14 +229,21 @@ the per-board device-tree selection, and the companion parts.
   disable` only on frankel and blazer. `[doc]` (Android locking and unlocking page; factory
   images page; series v4 cover letter; pixelscripts Makefile)
 - **Physical console access.** The console is the SoC's DesignWare UART `serial@db62000`
-  (see `tensor-g5`, instance `lsion_cli16_uart`), brought out on the USB-C connector and split
-  from USB data by a "USB-Cereal" debug dongle set to 1.8 V (no orientation detection: flip the
-  plug if the line is silent). The bootloader enables the UART only when its own
-  console is turned on, which the upstream flow does with `fastboot oem uart enable`; that setting
-  is persistent bootloader configuration rather than a per-boot step. The flow then sets the rate with
-  `fastboot oem uart config 3000000` (the production command line says 115200n8), and the
-  bootloader appends `console=` itself; the console tty is `ttyS0`. Fastboot is entered with power plus volume-down at power-on, and a
-  60 s power plus volume-down press recovers a hung kernel; SysRq works over the line. `[doc]`
+  (see `tensor-g5`, instance `lsion_cli16_uart`). The documented connection uses the USB-C port
+  and a "USB-Cereal" debug dongle set to 1.8 V to separate serial from USB data; it advises
+  reversing the plug if serial is unavailable. These directions illustrate a Pixel 6, not a
+  measured Pixel 10 setup. The bootloader enables the UART only when its own console is turned
+  on. The upstream flow issues `fastboot oem uart enable` during device preparation. Whether
+  the setting survives reboot or power loss is not established by the cited material and remains
+  a bootloader-documentation or hardware-test question. The flow requests 3,000,000 baud with
+  `fastboot oem uart config 3000000` only when the UART mux query does not report virtual
+  selection. With virtual muxing this step preserves the user's existing baud setup. The
+  production command line separately records 115200n8; the baud of a particular live unit
+  remains untested. The flow describes the bootloader appending `console=`; the console tty is
+  `ttyS0`. The documented workflow enters fastboot with power plus volume-down at power-on,
+  describes a roughly 60 s hold of those buttons to recover a hung development kernel, and
+  describes serial system-request (SysRq) behavior. These are instructions, not Pixel 10
+  measurements. `[doc]`
   (pixelscripts README, whose cable notes are written for the Pixel 6, and Makefile; series v4
   patch 3/4 message), `[DT]` (`lga-pixel-common.dtsi`, series v4, `chosen` and `aliases`;
   `lga-b0.dtb`, laguna-kernel-prebuilts, `chosen`). `TODO (verify on hardware)`: the Pixel 10

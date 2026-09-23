@@ -23,65 +23,62 @@ otherwise. Proposed files are explicitly labeled; their names are not working in
 
 ## Design authority and completion boundary
 
-Reuse the existing [design](DESIGN.md), [validation proposal](VALIDATION-PROPOSAL.md),
-[evaluation plan](EVAL-PLAN.md), and [reconstruction protocol](RECONSTRUCTION.md). The source
-snapshot is repository commit `7068a53`; this includes the explanatory
-[overview](DRIVER-QUALITY.md). The design is not materially amended here, so the project-plan
-skill's existing-design gate is satisfied. The proposal's R1–R9 are design-direction requirements;
-its section 10 limits initial delivery. New architectural choices still require design review.
+The user reprioritized this plan on 2026-09-20: prioritize the **Linux driver mechanism**
+following an independent assessment of whether direct implementation and verification would
+serve the practical goal better than the remaining experimental preparation. This revision
+adopts that direction. The immediate deliverable is one Linux driver produced using the spec
+and existing skills, independently reviewed and meaningfully tested, with demonstrated gaps
+repaired in working copies of the driver and spec.
 
-For current state and experimental rules, the frozen pilot artifacts and later reconstruction
-protocol take precedence over historical status paragraphs. In particular, the ledger and
-documentary scorer already exist. This plan does not reopen them as implementation tasks.
-The planning checkpoint's [review evidence](evidence/PLAN-REVIEW.md) remains part of the design record.
+The [overview](DRIVER-QUALITY.md) defines success as less engineering time to a defined quality
+bar. The active milestone below tests that useful development loop directly. It does not try
+to establish that an authoring skill caused better results independently of model knowledge
+or outside assistance. Controlled comparisons can follow after this mechanism demonstrates value.
 
-The companion-skill deliverable initially consists of the existing board-expert, authoring,
-implementation, and verification skills, with tested usage instructions and any necessary fixes.
-A hardware-specific entry point may select the spec without duplicating the shared procedures.
-A new general validation skill waits until a second device demonstrates reuse, as the proposal
-requires. M15 makes this existing skill set's usability an explicit deliverable.
+Reuse the [design](DESIGN.md), [validation proposal](VALIDATION-PROPOSAL.md), and completed
+preparation where useful. Preserve the [evaluation plan](EVAL-PLAN.md),
+[reconstruction protocol](RECONSTRUCTION.md), and frozen trial artifacts as the authority for
+any later **spec-only experiment**. Their isolation, scoring, pairing and attribution gates
+remain binding for those experiments; they are not prerequisites for the separately labeled
+Linux engineering pass. Do not relabel its outputs as M05, a paired arm, or a qualified
+spec-only result. The original [plan review](evidence/PLAN-REVIEW.md) records the earlier scope;
+this revision's review is recorded [separately](evidence/LINUX-PRIORITY.md).
 
-The immediate deliverable is a reproducible public ENC28J60 pilot and a demonstrated path from
-specification to implementation, tests, diagnosis, and maintained evidence. There are two distinct
-completion decisions:
+The existing board-expert, authoring, implementation and verification skills remain the
+companion-skill deliverable. Exercise the useful parts in the Linux pass and repair concrete
+usability defects. No new general validation framework or skill is needed to start.
 
-1. **Evaluation complete:** the declared experiments, reviews, and replay are complete, including
-   negative results. A failed candidate is a useful result; it is not a validated deliverable.
-2. **Workflow qualified for its declared scope:** documentary, implementation, hardware, and
-   companion-skill checks meet their respective frozen acceptance rules. Missing physical checks
-   or unresolved critical evidence keep this decision blocked. A failed experiment may require
-   a separately authorized repair or a design revision before qualification is possible.
+**Immediate completion:** one independently reviewed Linux driver with recorded behavior under
+a declared test scope, a requirement-to-evidence table, and versioned spec/driver repairs.
+A build-only result is partial. A failed behavior check or unresolved critical requirement is
+not a pass; exhausting the agreed effort limit produces an incomplete checkpoint with findings.
+Do not erase failed attempts. Completion establishes only the tested Linux behavior and the
+observed usefulness of this development pass—not spec completeness, cross-OS portability,
+absence of prior knowledge, or a causal skill advantage.
 
-Neither decision establishes universal correctness, stable skill advantage across devices, or
-zero-review operation on unfamiliar hardware. Wider validation, private/vendor automation, and
-Fuchsia integration have separate entry gates below. They are not quietly counted as complete.
+Full documentary acceptance and the wider experimental/workflow qualification decisions remain
+separate, deferred outcomes. The current spec's incomplete documentary review remains visible;
+using it diagnostically cannot change its frozen acceptance result.
 
 ## Conventions and authorization
 
-- Name the working conversation after its active milestone: `M01 — Make trial preparation executable`
-  for this unit, and the corresponding plan heading for later units. If the harness offers no
+- Name the working conversation after its active milestone: `L01 — Implement and verify the Linux driver`
+  for the immediate engineering pass. If the harness offers no
   thread-renaming control, state the intended title without claiming it was changed.
-- Planning branch: `docs/driver-porting-implementation-plan`. Execution uses a new topic branch
-  per milestone and a PR; never push directly to main. This request authorizes planning and
-  Claude consultation, not new paid experiments, hardware operations, or publishing this branch.
-- Checkpoint prefix: `driver-porting: Mxx —`; this planning checkpoint uses `driver-porting: PLAN —`.
-  Record starting revision and pre-existing changes;
-  stage only that milestone's files. Review and fixes precede the checkpoint commit.
-- The explanation was excluded from the trial-documentation PR. This plan is a separate
-  change; recheck merged state before execution rather than assuming a pending PR has landed.
-  This branch is stacked on the local explanation commits over the trial-preparation commit.
-  PR 68's trial-only scope was verified merged during planning. Before publishing a plan PR,
-  fetch current main and choose an explicit base: the explanation branch, or main after its
-  required explanation references have landed. Do not accidentally publish the entire stack.
-  If the trial landed squashed, use `git cherry` and the actual diff to establish equivalence
-  before omitting its local copy from a rebase. Never drop a commit with unique work.
-- User decisions: procedure trial first, paired run afterward; model choices, spending caps,
-  and experiment reviewers remain pending. No waiver of experiment authorization or design gates.
+- Execution uses a topic branch and a PR; never push directly to main. This revision authorizes
+  planning and its Claude review, not a new paid implementation run, hardware operation or push.
+  Record the starting revision and pre-existing changes; review and fixes precede local commits.
+  Use `driver-porting: L01 —` for engineering checkpoints and `driver-porting: PLAN —` for this revision.
+- The current branch contains the completed M02a export and source-audit checkpoints. Preserve
+  them; do not rewrite their outcomes. Fetch and inspect the current target branch before any PR.
+- The previous procedure-trial-then-pair sequence is deferred. L01 comes first; models and a
+  bounded implementation/repair effort limit still need selection before launching that work.
+  A separate experimental budget, two attribution reviewers and an adjudicator are not L01 gates.
 - Complete one session-sized milestone or named unit, verify, review, checkpoint, and stop for
   inspection. Aim to retain ample context for fixes and handoff; split before execution if the
-  scope cannot fit. Unexpected compaction requires an incomplete checkpoint, not silent continuation.
-  Sizing refers to the operator's session, including packaging, audit and checkpoint; launched
-  experiment sessions have their own caps under D2. Split long-running operations at preserved
+  scope cannot fit. Record unfinished work accurately if context is compacted.
+  Sizing refers to the operator's session; separately launched sessions have their own agreed
+  effort limits. Split long-running operations at preserved
   launch/collection boundaries without calling an unfinished attempt complete.
 - Default implementation review: `review-swarm` for code, schemas, access controls, and execution
   machinery. For a documentation-only milestone, use `consult` with Claude. These methods are
@@ -89,6 +86,8 @@ Fuchsia integration have separate entry gates below. They are not quietly counte
   and failure-attribution reviewers are separately selected and budgeted; a code-review swarm is
   not a substitute for their independence. If a method is unavailable, record the failure and
   leave required review incomplete; do not silently replace independent review with self-review.
+  In L01, code review must also include a source/requirement-based driver review by someone other
+  than the implementer; the general code-review swarm alone does not establish hardware correctness.
 - Evidence location: proposed `evidence/<milestone-or-unit-id>.md`, with sanitized commands,
   outcomes, review findings and resolutions, and references to retained private/raw artifacts.
   Keep only status, evidence link, and limitations here after moving completed detail to evidence.
@@ -112,13 +111,137 @@ Fuchsia integration have separate entry gates below. They are not quietly counte
 | Corpus and ledger | Frozen; 213 rows, 203 active; policy `enc28j60-1.4` |
 | Documentary scoring | `prepare.py`, `score.py`, and `skills/board-expert/scripts/strict_accept.py` implemented; strict acceptance is documentary only |
 | Practice candidate | Frozen hash in [PRACTICE-RUN.md](evals/enc28j60/PRACTICE-RUN.md); review incomplete and acceptance blocked |
-| Preparation gates and reconstruction design | Existing protocols; [R1a trial draft](evals/enc28j60/RECONSTRUCTION-TRIAL.md) specifies proposed checks and unresolved choices |
+| Reference build | Pinned Linux v6.12 reference kernel, module and Pi 4 DTB compiled after correcting case-colliding extraction; [evidence](evidence/M02a.md). No physical qualification implied. |
+| Source sanitization | Export/transfer verified; five related-controller exclusions reviewed but not implemented; full audit and isolation incomplete. Deferred for L01. |
+| Preparation gates and reconstruction design | Existing protocols retained for a later spec-only experiment; [R1a trial draft](evals/enc28j60/RECONSTRUCTION-TRIAL.md) remains unchanged |
 | Paired generation, reconstruction, physical execution | Not run; no qualified runner or fixture established by these documents |
 | Checks at `de2bb68` | All `.github/workflows/checks.yml` unit suites: 228 tests, one skipped, no failures; board checker: nine existing verification warnings. PR 68 CI also passed. These were observed before planning, not rerun by Claude and not evidence of driver behavior. |
 
 Keep the corpus, ledger, scoring policy, fact lists, format, and lock unchanged. Additional
 execution requirements live outside that lock. A correction to the answer key requires a new
 benchmark version and explicit rescoring policy, preserving all old attempts.
+
+## L01 — Implement and verify the Linux driver
+
+**Priority:** active next milestone. A diagnostic engineering pass, not the frozen reconstruction
+trial. Reuse the pinned ENC28J60 spec, Linux v6.12 source/toolchain and Pi 4 preparation. The
+existing requirement ledger is a review checklist, not a new scoring project. Keep its locked
+bytes and the historical spec intact; improvements go into separately versioned working copies.
+
+Keep the working records small: one brief, one requirement-to-evidence table, a gap/repair log,
+and source/build/test artifacts. Markdown and existing tools suffice; do not create generic
+schemas, a runner framework, or a replay system before the driver can be exercised.
+Choose the smallest feature scope that exercises the spec-to-driver-to-verification mechanism.
+The Linux pass is a bounded proving step, not a prerequisite to completing every requirement
+of this controller before useful work on another platform can start.
+
+### First unit: implement, build and independently review
+
+1. Write the short brief: target/revision assumptions, supported feature scope, build inputs,
+   concrete acceptance checks, known fixture uncertainties, selected agent/model and a bounded
+   implementation/repair effort limit. Reuse the trial's relevant requirements and reference
+   preparation; do not wait for exhaustive documentary scoring. Establish expected outcomes
+   from the ledger and source evidence before judging implementation output.
+   The user selects the model and effort limit. The preparer and independent reviewer agree on
+   the critical requirements and the few checks to challenge with deliberate defects before
+   evaluating the driver. Justify feature exclusions against the relevant ledger requirements.
+   If scope or checks change after observing results, version the brief, record why, and keep
+   the original results visible. Keep driver code in a separate run working directory outside
+   the skills repository; record its license and preserve notices on reused code before coding.
+2. Start a fresh implementer with the spec and normal Linux development inputs. Ask it to work
+   from the spec first and record missing information and assumptions. Permit deliberate,
+   logged consultation of reference source, general documentation or operator clarification
+   when needed. Record consulted inputs and any source-access uncertainty; source exposure
+   limits claims about spec sufficiency but does not invalidate this engineering pass.
+   Apply actual source-access restrictions if any separately exist; this public Linux pass
+   does not waive requirements for a future cross-OS or restricted-source implementation.
+   Record participant/context identities and source exposure so eligibility for later clean-side
+   experimental roles can be checked. Reusing a model does not mean reusing an exposed context.
+3. Build the driver with the pinned kernel/toolchain and preserve commands, configuration,
+   artifacts and logs. Use fresh outputs and case-sensitive extraction with complete source
+   identity checks, reusing the existing verifier where appropriate. The earlier extraction
+   defect is a real build-integrity issue, independent of experimental isolation.
+   L01 uses the ordinary upstream v6.12 tree, including the original target driver/header;
+   record that access explicitly. It does not use the incomplete sanitized packet.
+4. Have an independent reviewer compare the first driver revision against the relevant ledger
+   requirements, source evidence and reference implementation. Cover initialization, receive
+   and transmit paths, buffer management, shutdown and required errata/recovery behavior.
+   Disagreement with the reference is investigated rather than automatically treated as a defect.
+   Run the normal code-review procedure too. Record uncovered requirements and unavailable tests.
+
+**First-unit checkpoint:** a buildable driver or a concrete blocked/failed attempt, independent
+review findings, and a short list of spec gaps versus implementation errors. A buildable driver
+with unresolved findings is ready for repair/testing, not declared correct. Do not finish the
+1,010-path manufacturer audit or M02b harness qualification to reach this checkpoint.
+At this checkpoint, explicitly decide whether the next useful step is Linux hardware testing,
+a bounded repair, or applying the mechanism to another target. Physical Linux acceptance is
+not a prerequisite for the latter; preserve the partial status and transfer only supported
+conclusions. Do not let fixture delays trigger unrelated preparation work.
+
+### Second unit: test real behavior and repair demonstrated gaps
+
+- Confirm the actual module, power/wiring, board, boot path and test limits before hardware use.
+  Reuse the Pi 4/netboot proposal; historical captures and a reference build do not verify wiring
+  or prove the currently booted image. Record the reference/candidate module and image identities.
+  Verify which built module is actually loaded and bound; only one driver controls the device
+  at a time. Use a documented device-reset procedure between runs to prevent carried-over state.
+- Exercise reference and candidate under the same documented configuration and test conditions.
+  Changes to required kernel/fixture configuration require a corresponding reference check.
+  Start with initialization and link, then bidirectional traffic, packet-size boundaries,
+  receive-buffer wrap, repeated stop/start and selected observable error/recovery behavior.
+  Select repetitions, traffic conditions and expected results before running each primary check.
+  Record evidence that the intended condition occurred, such as actual frame sizes, a buffer
+  wrap or the injected fault; a passing verdict without that evidence does not cover the case.
+- Verify a few important checks by introducing relevant deliberate defects in disposable test
+  copies. For example, a receive-pointer defect must be detected by a suitable wrap test; a
+  required delay can be checked through source or trace evidence when timing cannot be faulted
+  reliably on the fixture. Do not claim a test is effective because a mutation merely exists.
+- Use the compact requirement-to-evidence table to distinguish tested behavior, source-reviewed
+  requirements, failures, untested/unobservable cases and explicitly out-of-scope requirements.
+  A successful ping is only a smoke test.
+  Missing critical evidence keeps the corresponding acceptance decision incomplete.
+- Repair demonstrated driver and spec gaps within the agreed effort limit, independently review
+  affected changes, and rerun affected checks. Preserve original failures and each repair.
+  Record whether a successful behavior was supported by the original spec, outside information,
+  or remains unattributable. This is an engineering explanation, not blinded causal attribution.
+
+**Accept L01:** the agreed behavior checks pass; relevant critical source-review findings are
+resolved; representative negative controls actually fail as expected; hardware/boot identities
+and unavailable coverage are recorded; and the final driver/spec revisions and evidence are
+retained. Claims are scoped to those checks. If hardware is unavailable, finish the first unit
+and report a partial result; do not substitute simulated or documentary evidence for physical
+success. A bounded failure is useful evidence but is not L01 acceptance.
+
+**Measure:** implementation, debugging, review and repair effort where available; model cost;
+spec gaps discovered; tested requirements and residual uncertainty. This is one observation of
+engineering usefulness, not a measured speedup without a comparison baseline.
+L01 supplies scoped evidence toward R1 (requirement records), R5 (supported tests), R6 (physical
+identity/results) and R8 (actionable repairs); it does not discharge the proposal's full
+requirements or establish R2/R3/R4/R7 experimental acceptance.
+
+**At each checkpoint:** inspect whether the spec/skill helped, what caused actual failures, and what the
+next device or OS port needs. Choose further experiments only for an unanswered question worth
+their cost. L01 outputs do not retroactively satisfy frozen trial or paired-run requirements.
+
+## What is deferred from the immediate path
+
+| Work | Disposition |
+| --- | --- |
+| Complete source sanitization, related-controller removals and harness isolation (remaining M02) | Preserve the current artifacts and audit findings. Resume only for an explicitly selected spec-only experiment; not required for L01. |
+| Generic execution contracts and synthetic replay (M03–M04) | Use a brief, evidence table and ordinary build/test logs for L01. Build shared machinery only after demonstrated need. |
+| Frozen spec-only trial and dual blinded attribution (M05/M08) | L01 permits logged outside assistance and repairs; keep these experimental conditions separate. |
+| Fixture and meaningful test qualification (parts of M06–M07) | Keep the necessary hardware identity, expected outcomes and negative controls in L01; do not require the generic experimental infrastructure. |
+| Paired authoring/implementation and complete documentary scoring (M09–M13, P01) | Optional follow-on to answer comparative questions; no immediate gate. |
+| Test-authoring experiments and companion-skill ablation (M14–M15) | Exercise useful existing skills in L01; defer controlled comparisons. |
+| Automated maintenance/invalidation and full pilot qualification (M16–M17) | Preserve versioned evidence now; defer general machinery and broader claims. |
+
+## Deferred experimental plan
+
+The remaining D1–D6 decisions, M01–M17/P01 dependency table, detailed milestone acceptance
+criteria and wider follow-ons below preserve the earlier **experimental** plan. They apply
+only if that work is explicitly resumed. None is an implicit prerequisite for L01. Deferred
+means unfinished, not waived or complete. In particular, L01 cannot be scored or published as
+an instance of the frozen spec-only trial. Completed evidence remains valid for its stated scope.
 
 ## Decisions and bounded investigations
 
@@ -140,23 +263,23 @@ design amendment returns to the design approval gate before dependent implementa
 | ID | Outcome | Depends on | Status |
 | --- | --- | --- | --- |
 | M01 | Trial inputs located and design choices recorded | Existing trial draft; D1–D3 investigations | complete; launch blockers retained ([evidence](evidence/M01.md)) |
-| M02 | Sanitized implementation environment and tested isolation | M01, D1 | in progress; M02a entry/build preparation ([evidence](evidence/M02a.md)) |
-| M03 | Versioned execution contracts and result fixtures | M01, D3 | pending |
-| M04 | One complete synthetic execution/replay path | M03 | pending |
-| M05 | Frozen offline trial implementation | M02, M03, D2 authorization | pending |
-| M06 | Qualified physical fixture and reference smoke path | D1, approved hardware envelope | pending |
-| M07 | Independent offline and physical check qualification | M03/M04 for offline; M06/D4 additionally for physical | pending |
-| M08 | Trial results and independent attribution | M05/M07-offline for partial result; M07-physical for full result; D2 | pending |
-| M09 | Post-trial paired design freeze | M08-offline; retain all trial findings and physical deferrals | pending |
-| M10 | Two frozen specifications | M09, D2 author authorization | pending |
-| M11 | Both documentary reviews completed before either score | M10, D2 reviewer authorization | pending |
-| M12 | Two frozen implementations, no evaluation feedback | M10, M02 as refrozen by M09, D2 implementer authorization | pending |
-| M13 | Paired execution, attribution, and separate results | M08-physical, M11, M12, physical check qualification from M07/M09 | pending |
-| M14 | Independent assessment of implementer-authored tests | M02/M04 environment; M05/M07-offline for diagnostic trial, or M13 for paired inputs; D5 and separate authorization | pending, design-gated |
-| M15 | Companion-skill use and bounded repair demonstrated | M05/M07-offline for diagnostic use; M08 or M13 attribution for repair; D5 and separate authorization | pending, design-gated |
-| M16 | Maintenance/feedback invalidation and replay | M03, M04, D6; reconstruction prioritized | pending, design-gated |
-| M17 | Final pilot verification and qualification decision | M13–M16 and required physical evidence | pending |
-| P01 | Fresh review of the same frozen practice spec | Own D2 budget/reviewers | pending, independent work |
+| M02 | Sanitized implementation environment and tested isolation | M01, D1 | deferred, incomplete; M02a source-export unit ([evidence](evidence/M02a-export.md)); baseline [build evidence](evidence/M02a.md) |
+| M03 | Versioned execution contracts and result fixtures | M01, D3 | deferred |
+| M04 | One complete synthetic execution/replay path | M03 | deferred |
+| M05 | Frozen offline trial implementation | M02, M03, D2 authorization | deferred |
+| M06 | Qualified physical fixture and reference smoke path | D1, approved hardware envelope | deferred |
+| M07 | Independent offline and physical check qualification | M03/M04 for offline; M06/D4 additionally for physical | deferred |
+| M08 | Trial results and independent attribution | M05/M07-offline for partial result; M07-physical for full result; D2 | deferred |
+| M09 | Post-trial paired design freeze | M08-offline; retain all trial findings and physical deferrals | deferred |
+| M10 | Two frozen specifications | M09, D2 author authorization | deferred |
+| M11 | Both documentary reviews completed before either score | M10, D2 reviewer authorization | deferred |
+| M12 | Two frozen implementations, no evaluation feedback | M10, M02 as refrozen by M09, D2 implementer authorization | deferred |
+| M13 | Paired execution, attribution, and separate results | M08-physical, M11, M12, physical check qualification from M07/M09 | deferred |
+| M14 | Independent assessment of implementer-authored tests | M02/M04 environment; M05/M07-offline for diagnostic trial, or M13 for paired inputs; D5 and separate authorization | deferred, design-gated |
+| M15 | Companion-skill use and bounded repair demonstrated | M05/M07-offline for diagnostic use; M08 or M13 attribution for repair; D5 and separate authorization | deferred, design-gated |
+| M16 | Maintenance/feedback invalidation and replay | M03, M04, D6; reconstruction prioritized | deferred, design-gated |
+| M17 | Final pilot verification and qualification decision | M13–M16 and required physical evidence | deferred |
+| P01 | Fresh review of the same frozen practice spec | Own D2 budget/reviewers | deferred, independent work |
 
 M06 can proceed alongside M01–M05 when authorized. Hardware delays need not block offline
 qualification, a partial trial report, M09–M12, diagnostic M14/M15, P01, or bounded M16 design work.
@@ -222,7 +345,8 @@ overlap dispositions are frozen. Mechanical scans alone do not establish isolati
 tests for changed helpers. Review environment mounts, provider transport and inherited context.
 **Sizing:** Separate M02a sanitized-build and M02b harness-isolation sessions, each with tests and
 review. [M02a evidence](evidence/M02a.md) records the incomplete entry/build checkpoint and
-netboot/wiring decisions; sanitized build and full isolation qualification remain open.
+netboot/wiring decisions; the [source-export unit](evidence/M02a-export.md) adds archive
+transformation and transfer verification. Sanitized build and full isolation remain open.
 M02b evidence is still proposed as `evidence/M02b.md`.
 
 ## M03 — Freeze execution contracts without changing documentary scoring
@@ -536,7 +660,7 @@ Before generation, from `plugins/driver-porting/evals/enc28j60/`, run
 must pass too. Scoring commands and expected exit codes remain authoritative in
 [SCORING-RUN.md](evals/enc28j60/SCORING-RUN.md). A valid blocked result is not a tool failure or
 permission to claim acceptance. Build, runner and hardware commands are discovered and recorded
-in M01–M07; none exist by assertion in this plan.
+in the relevant milestone (L01 for the active engineering pass); none exist by assertion in this plan.
 
 ## Conditional follow-ons and unresolved wider scope
 
@@ -569,31 +693,27 @@ pretending the pilot plan completes an unspecified platform-wide system.
   freezing reviewer instructions; use the actual script/schema and version-3 contract meanwhile.
   No change to the locked policy is implied.
 - **Historical status text:** DESIGN.md and VALIDATION-PROPOSAL.md contain older ledger/scorer
-  status descriptions. Current pilot artifacts govern; refresh those descriptions when publishing
+  status descriptions; DRIVER-QUALITY.md describes the controlled evaluation now deferred.
+  Current pilot artifacts and this priority revision govern; refresh those descriptions when publishing
   the next status update, without changing their design decisions or calling new work complete.
 - Record further discoveries with impact and owner milestone. A completion blocker stays in its
   milestone; this backlog cannot be used to waive a failed acceptance criterion.
 
 ## Next session
 
-- Current phase: M02a entry/build preparation, incomplete. M01 merged in PR 70; this unit
-  starts from clean `60755d2` on `driver-porting/m02a-sanitized-build` after fetching origin.
-  See [M02a evidence](evidence/M02a.md) for actual build outcome, review and remaining gates.
-  Baseline compilation passed after correcting a case-collision extraction defect. Claude's
-  substantive findings are resolved; exact amended-text confirmation remains open after the
-  helper refused a second confirmation in the same cycle. Do not claim completed M02a acceptance.
-- The user identified an existing paniolo Pi 4 Model B fixture, prefers netboot, and supplied
-  the HiLetgo 3.3 V module schematic. Wiring is a proposal pending physical confirmation;
-  existing captures are historical. No boot or hardware test was performed in this unit.
-- Next action: continue M02a after inspecting this checkpoint. Resolve final board/boot facts,
-  preserve recoverable build inputs, export/audit the sanitized kernel, API documentation and
-  minimal scaffolding, then demonstrate the offline placeholder build. Qualify the selected
-  Codex/Linux arrangement in M02b before M05. Preserve every M01 access-test category.
-  M03–M17 and P01 remain pending. Leave models, spending caps and experiment reviewers pending
-  until the user chooses them; no experiment or hardware launch is authorized by this checkpoint.
-- Read first: this plan, RECONSTRUCTION.md, and the trial preparation record; use ARMS.md and
-  SCORING-RUN.md at the stages that need them.
-- At each session end, update this section with the actual unit, evidence, failures and next
-  action. Use the existing excluded HANDOFF.md only when checkpointing a context reset; it does
-  not replace durable milestone evidence. Commit verified planning work after Claude review,
-  then stop for inspection.
+- **Start L01's first unit.** Prepare the short Linux engineering brief and requirement-to-evidence
+  table from the existing spec, ledger and reference build. Obtain the user's selection of implementer/model and
+  bounded effort limit before launching a separate implementation session. Then implement,
+  build and independently review the driver. Do not resume the manufacturer-path audit first.
+- Reuse [reference-build evidence](evidence/M02a.md), including the corrected case-sensitive
+  source identity. Pi 4/netboot and module wiring remain proposals pending physical confirmation;
+  qualify those before the hardware unit, not before offline implementation/review.
+- Preserve the [export](evidence/M02a-export.md) and
+  [related-controller audit](evidence/M02a-source-audit.md). Five removals/edits are reviewed,
+  not implemented; 1,010 other `microchip` name/content matches and broader source review remain
+  pending for the deferred experimental path. No implementer packet was approved by that audit.
+- The historical spec remains diagnostically usable but documentary acceptance is still blocked.
+  Version working repairs separately; never edit the frozen corpus, ledger or historical score.
+- This revision is planning authorization. No implementation experiment, hardware launch or push
+  occurred. Record actual implementation/hardware authorization at the relevant launch boundary.
+- Checkpoint the first useful Linux result and stop for inspection before expanding scope.
