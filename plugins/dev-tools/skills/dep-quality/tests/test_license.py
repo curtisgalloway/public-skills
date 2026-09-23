@@ -62,6 +62,23 @@ class LicenseGateTest(unittest.TestCase):
         self.assertFalse(allowed("(MIT"))
         self.assertFalse(allowed("MIT Apache-2.0"))
 
+    def test_current_lgpl_ids(self):
+        self.assertTrue(allowed("LGPL-3.0-only"))
+        self.assertTrue(allowed("LGPL-2.1-or-later"))
+        self.assertFalse(allowed("GPL-3.0-only"))
+
+    def test_pypi_prefers_license_expression(self):
+        # psycopg's real metadata: legacy field empty, expression set.
+        info = {"license": "", "license_expression": "LGPL-3.0-only"}
+        self.assertEqual(depscore._pypi_license(info), "LGPL-3.0-only")
+        self.assertTrue(allowed(depscore._pypi_license(info)))
+
+    def test_pypi_falls_back_to_legacy_field(self):
+        self.assertEqual(depscore._pypi_license({"license": "MIT"}), "MIT")
+        self.assertEqual(
+            depscore._pypi_license({"license": "", "license_expression": None}),
+            None)
+
     def test_override_allowlist(self):
         self.assertTrue(depscore.license_allowed("GPL-3.0", {"GPL-3.0"}))
         self.assertFalse(depscore.license_allowed("MIT", {"GPL-3.0"}))
