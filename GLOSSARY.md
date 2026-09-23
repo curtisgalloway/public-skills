@@ -20,6 +20,8 @@ evaluation; add other terms as the documents that use them are updated.
 | SDK | Software development kit: headers, libraries, and tools for building against a platform. |
 | Corpus | The pinned collection of source code and documents used as reference evidence. |
 | Pin | An exact revision, edition, or file digest identifying an input. |
+| RTL | Register-transfer level: the hardware design written in a language such as Verilog or VHDL. As evidence (`[rtl]`), the strongest authority for digital register behavior on the revision it names. |
+| Conflict entry | A recorded disagreement between evidence sources, kept beside the claim with both readings, the resolution, and the assumption that justified it. |
 | Hash / digest | A fingerprint of file contents; identifies bytes, not their correctness. |
 | Claim / verification record | A statement checked against evidence / the separate report recording that comparison and its limits. |
 | Carry-forward | Retaining an earlier finding for unchanged text; it is not a fresh reading of its sources. |

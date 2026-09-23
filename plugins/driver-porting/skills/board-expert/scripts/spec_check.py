@@ -116,7 +116,7 @@ FACT_SECTIONS = {
     "Programming model",
     "Known variants and quirks",
 }
-TAG_NAMES = "databook|standard|DT|source-observed|doc|hardware|press|inference"
+TAG_NAMES = "databook|standard|rtl|DT|source-observed|doc|hardware|press|inference"
 TAG_CLASSES = tuple(TAG_NAMES.split("|"))
 TAG_RE = re.compile(rf"\[({TAG_NAMES})\]")
 TODO_RE = re.compile(r"TODO \(verify on hardware\)")
@@ -129,7 +129,7 @@ TAIL_RE = re.compile(
 )
 GAP_RE = re.compile(r"^- (?:\*\*[^*]+\*\*\s*)?`?TODO \(verify on hardware\)")
 # Tags that must be followed by a parenthetical naming their source.
-NAMED_TAGS = ("doc", "DT", "inference")
+NAMED_TAGS = ("doc", "DT", "inference", "rtl")
 UNNAMED_RES = {
     tag: re.compile(rf"\[{tag}\](?:`|(?!`))(?!\s*\()") for tag in NAMED_TAGS
 }
@@ -794,6 +794,7 @@ def check_tags(spec: Spec, findings: list[Finding]) -> None:
                     "doc": "its source",
                     "DT": "the file (and its origin, for a blob)",
                     "inference": "its premises and derivation",
+                    "rtl": "the design, its revision, and the module",
                 }[tag]
                 findings.append(
                     Finding("error", where, f"[{tag}] must be followed by a parenthetical naming {what}")

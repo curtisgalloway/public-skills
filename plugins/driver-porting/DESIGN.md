@@ -31,6 +31,8 @@ SPDX-License-Identifier: Apache-2.0
 - **Provenance tag:** a marker identifying a fact's support, such as a datasheet or observed code.
 - **Anchor:** a citation to a repository-relative file, line range, and usually symbol at a pin.
 - **Pin:** an exact source revision or document edition and hash used to make a reading repeatable.
+- **RTL:** the hardware design in a description language such as Verilog; the `[rtl]` class.
+- **Conflict entry:** a recorded disagreement between sources, kept beside the claim with its resolution.
 - **Clean room:** a workflow separating source readers from implementers through checked reports.
 - **Encumbered source:** source the workflow treats as unavailable for copying into the target.
 - **Dirty side:** the contexts authorized to read encumbered driver or firmware source.
@@ -178,9 +180,10 @@ itself, a confidentiality control or permission to publish.
 ### Make the kind of evidence visible
 
 The investigation tags distinguish `[databook]`, `[standard]`, `[DT]`, `[source-observed]`, and
-`[inference]`. Board specs add `[doc]`, `[hardware]`, and `[press]`. These mean, respectively,
-hardware documentation, a standard, device-tree values, observed software, a reasoned conclusion,
-project or vendor documentation, a measurement, and third-party reporting. The format specifies
+`[inference]`. Board specs add `[rtl]`, `[doc]`, `[hardware]`, and `[press]`. These mean,
+respectively, hardware documentation, a standard, device-tree values, observed software, a
+reasoned conclusion, the hardware design itself, project or vendor documentation, a measurement,
+and third-party reporting. The format specifies
 where tags go and what accompanying citations and cautions they require.
 
 The important distinction is between seeing a driver do something and establishing that hardware
@@ -188,6 +191,89 @@ requires it. Source-only ordering carries "order not known to be required"; sour
 constants carry "re-derive on hardware". An inference states its premises, derivation, confidence,
 and how to test it. Board facts tagged as source-observed, press, or inference also retain an
 explicit hardware-verification TODO. A tag makes limited support visible; it does not strengthen it.
+What each class is trusted for, and what that trust assumes, is the next section.
+
+## Evidence model: what we trust and why
+
+A tag says what kind of evidence supports a fact. It does not say why that kind deserves belief
+or how it goes wrong. Leaving that implicit makes two mistakes easy: treating a working driver's
+behavior as a hardware requirement, and letting whichever source was read last win a
+disagreement. This section states the assumptions so they can be checked and argued with.
+
+### Every class rests on an assumption
+
+| Evidence | Trusted for | Assumes | Known failure modes |
+| --- | --- | --- | --- |
+| `[rtl]` | Digital register behavior: field layout, reset values, side effects, access types | The design matches the silicon revision and configuration parameters in use | Analog, electrical, and PHY behavior, firmware, and board wiring are not in it; the wrong revision's RTL misleads with full confidence |
+| `[hardware]` | What this board did under stated conditions | The measurement method observes what it claims to | One board, revision, temperature, and firmware image; absence of an effect is weak evidence |
+| `[databook]`, `[standard]` | Documented programming model and required behavior | The edition applies to the silicon revision | Errata, stale editions, silicon that does not follow its own document |
+| `[DT]` | Placement: addresses, interrupts, clocks, and wiring for the image it came from | It is the description the bootloader actually selects | Overlays and bootloader changes; binding examples that are not production values |
+| `[source-observed]` | What a working driver does | The driver works on this revision | Workarounds for other revisions, delays nobody measured, bugs the driver happens to survive |
+| Independent drivers agreeing (Linux and a BSD, for example) | Raises confidence in a `[source-observed]` fact | They were written independently | One copied from the other, or both from the same vendor code: agreement then adds nothing |
+| `[doc]` | What a vendor or project says about its own work | The author knew and the text is current | Marketing pages, docs for a different part or revision |
+| `[press]`, forums, other low-confidence reports | A lead worth checking | None | Allowed only with `TODO (verify on hardware)`, as today |
+| `[inference]` | A conclusion from tagged premises | The derivation is sound | Carries its own confidence; never stronger than its weakest premise |
+| Model recall | Nothing | n/a | Not evidence and never tagged; a fact with no source is a gap |
+
+Two rules follow from the table:
+
+- **Confidence is scoped.** `[rtl]` for revision A says nothing certain about revision B0, and a
+  `[hardware]` result on one board is a result for that board. The citation must carry the scope:
+  the revision, board, image, or conditions.
+- **Low-confidence evidence is allowed, labeled.** A forum post that names a register quirk is
+  worth recording as a lead. The tag and its TODO keep it from reading as settled fact.
+
+### Conflicts are recorded, never overwritten
+
+The table is not a strict ranking. `[rtl]` outranks a databook for digital behavior, and a
+`[hardware]` observation outranks a databook when an erratum exists, but a databook outranks a
+single board's measurement taken under unusual conditions. So a conflict between classes is not
+settled by editing the losing claim. It becomes a conflict entry beside the claim: both readings,
+their evidence and scope, the resolution, and which assumption from the table justified it. The
+losing reading stays visible, the way an erratum stays visible beside the datasheet it corrects.
+An unresolved conflict is a gap.
+
+`reference-driver-review` already applies one instance of this ("the reference is evidence, not
+truth: the databook breaks ties"). The ENC28J60 corpus already separates `vendor_confirmed` errata
+from `implementation_observed` workarounds. The general conflict entry is proposed, not shipped.
+
+### The spec learns from debugging and testing
+
+A spec is not finished when it is accepted. Implementation, debugging, and testing produce
+evidence, and that evidence belongs in the spec rather than in a test log nobody rereads:
+
+1. A test or debugging result becomes a `[hardware]` fact, citing the test, board, revision,
+   image, and conditions.
+2. It confirms, contradicts, or narrows an existing claim. A `[source-observed]` ordering marked
+   "order not known to be required" can become required, or shown not to be. A source-only
+   constant can be re-derived.
+3. A contradiction produces a conflict entry, as above, not a silent edit.
+4. Only claims that depend on the changed fact are re-verified; the rest of the verification record
+   stands. A hash change today marks the whole record stale, which is correct but coarse.
+5. An answered spec gap is folded in the same way, with the evidence that answered it.
+
+The first place this loop runs is the ENC28J60 Linux rebuild (L01 in
+[`IMPLEMENTATION-PLAN.md`](IMPLEMENTATION-PLAN.md)): its differential tests against the original
+driver produce exactly these results. A settled `[hardware]` result closes a claim without a person
+reviewing it, which is the scalable path. Humans are needed for conflicts the table's assumptions do
+not resolve. Dependency-scoped re-verification is the deferred M16 work; until it exists, a changed
+spec is re-verified whole.
+
+### When there is no existing driver
+
+Everything above is easier while a working driver exists: it supplies the facts, it is the
+reference for differential tests, and it breaks ties. For new hardware with no driver anywhere,
+`[source-observed]` disappears and all three jobs move elsewhere:
+
+- **Facts** come from `[rtl]`, the databook, and the hardware designers.
+- **The reference** becomes a simulation or emulation of the design (RTL simulation, an FPGA
+  build, a behavioral model) and published conformance suites where they exist.
+- **Ties** are broken by independent implementations from the same spec, whose disagreements
+  expose ambiguity but not a misreading they share, and by questions to the designers.
+
+In that setting the spec's gap list is the main product: a precise list of questions for the
+people who designed the hardware, each tied to the claim it blocks. This mode is not designed or
+tested yet; it is recorded here so the evidence model does not assume a reference driver.
 
 ## The pieces, grouped by role
 
