@@ -40,9 +40,6 @@ Antigravity and other harnesses that read skill directories: link the skill you 
   session can cold-start from (task, state, decisions, dead ends, next steps); resume mode reads
   it back and continues. The reasoning behind it is in
   [How To Claude](../../docs/how-to-claude.md).
-- **`wrapup`** — after: a concise summary of all sessions since the last commit, covering what
-  was asked for, how it was driven, and which skills were used. Written to paste into a PR
-  description or commit message.
 - **`learn`** — after: review the session transcript for lessons that would have made it go
   smoother (failed commands, wrong tool arguments, user corrections, environment surprises) and
   propose additions to the workspace or global instruction file. The promotion path from
@@ -55,7 +52,7 @@ before parsing: where the live Claude Code transcript is on disk and how to extr
 prompts from it (filter rules, slash-command pair collapsing, noise stripping). It is not a
 user-invocable skill.
 
-> `learn`, `teach`, `wrapup`, and `claude-session-transcript` are written against Claude Code's
+> `learn`, `teach`, and `claude-session-transcript` are written against Claude Code's
 > session layout and have not been ported to other harnesses yet.
 
 ## Reviewing a document with someone
