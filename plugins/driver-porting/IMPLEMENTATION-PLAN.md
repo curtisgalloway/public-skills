@@ -123,6 +123,10 @@ benchmark version and explicit rescoring policy, preserving all old attempts.
 
 ## L01 — Implement and verify the Linux driver
 
+**Status:** `in_progress`. First unit complete 2026-09-22 ([evidence](evidence/L01.md)):
+buildable candidate, three independent reviews plus a repair review, spec gaps separated from
+implementation errors, repair round 1 of 2 used. Second unit not started; gated on fixture wiring.
+
 **Priority:** active next milestone. A diagnostic engineering pass, not the frozen reconstruction
 trial. Reuse the pinned ENC28J60 spec, Linux v6.12 source/toolchain and Pi 4 preparation. The
 existing requirement ledger is a review checklist, not a new scoring project. Keep its locked
@@ -701,19 +705,21 @@ pretending the pilot plan completes an unspecified platform-wide system.
 
 ## Next session
 
-- **Start L01's first unit.** Prepare the short Linux engineering brief and requirement-to-evidence
-  table from the existing spec, ledger and reference build. Obtain the user's selection of implementer/model and
-  bounded effort limit before launching a separate implementation session. Then implement,
-  build and independently review the driver. Do not resume the manufacturer-path audit first.
-- Reuse [reference-build evidence](evidence/M02a.md), including the corrected case-sensitive
-  source identity. Pi 4/netboot and module wiring remain proposals pending physical confirmation;
-  qualify those before the hardware unit, not before offline implementation/review.
-- Preserve the [export](evidence/M02a-export.md) and
-  [related-controller audit](evidence/M02a-source-audit.md). Five removals/edits are reviewed,
-  not implemented; 1,010 other `microchip` name/content matches and broader source review remain
-  pending for the deferred experimental path. No implementer packet was approved by that audit.
-- The historical spec remains diagnostically usable but documentary acceptance is still blocked.
-  Version working repairs separately; never edit the frozen corpus, ledger or historical score.
-- This revision is planning authorization. No implementation experiment, hardware launch or push
-  occurred. Record actual implementation/hardware authorization at the relevant launch boundary.
-- Checkpoint the first useful Linux result and stop for inspection before expanding scope.
+- **L01 second unit: test real behavior.** The first unit is complete
+  ([evidence](evidence/L01.md)). Before any hardware step, confirm the fixture: the ENC28J60
+  module wired to the Pi 4 (SPI bus and chip select, interrupt pin, reset, 3.3 V), the chip
+  revision read from EREVID, and the boot path. Wiring is unverified; ask the user first.
+- The candidate and all run records are in the private run store under
+  `enc28j60-l01-20260922-01` (candidate at workspace commit `15dea2c`, module SHA-256
+  `f09985b6…`). The offline build script there rebuilds any round.
+- Test reference and candidate under the same conditions, one driver bound at a time. The
+  reference driver is evidence, not the acceptance rule: reviewer A recorded eight reference
+  defects the candidate avoids (for example R-01, ETXND widened before a retransmit).
+- One repair round remains. Batch the five low repair-review findings with whatever the
+  hardware demonstrates. **Implementer for further turns: a fresh Claude Opus 5.5 subagent**
+  (the user's Codex usage is exhausted); record the change and that it shares the reviewers'
+  model family. The operator context is evaluator-exposed and must not write driver code.
+- Feed results back into a separately versioned working copy of the spec: the two spec defects
+  and four gaps in the evidence file, plus every `[hardware]` result. Never edit the frozen
+  candidate, corpus, or ledger.
+- Checkpoint the hardware result and stop for inspection. No push has occurred.
