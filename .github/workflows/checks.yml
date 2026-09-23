@@ -63,6 +63,9 @@ jobs:
           plugins/driver-porting/evals/enc28j60/author_manifest.py
           --check plugins/driver-porting/evals/enc28j60/author-manifest.yaml
 
+      - name: dep-quality tests
+        run: python3 -m unittest discover -s plugins/dev-tools/skills/dep-quality/tests -v
+
       - name: review-swarm tests
         run: python3 -m unittest discover -s plugins/dev-tools/skills/review-swarm/tests -v
 
