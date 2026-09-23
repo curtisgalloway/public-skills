@@ -20,6 +20,8 @@ NOW = datetime.now(timezone.utc)
 DEFAULT_LICENSES = {
     "MIT", "Apache-2.0", "BSD-2-Clause", "BSD-3-Clause", "ISC", "MPL-2.0",
     "LGPL-2.1", "LGPL-3.0", "Zlib", "Unlicense", "CC0-1.0", "0BSD",
+    # Current SPDX ids for LGPL; the bare forms above are deprecated since 3.0.
+    "LGPL-2.1-only", "LGPL-2.1-or-later", "LGPL-3.0-only", "LGPL-3.0-or-later",
     "IJG",  # Independent JPEG Group: permissive, attribution only
 }
 
@@ -109,7 +111,7 @@ def resolve_registry(eco, name, use_cache):
         if err:
             out["notes"].append(f"pypi: {err}"); return out
         info = d.get("info", {})
-        out["license"] = _spdx_guess(info.get("license") or "")
+        out["license"] = _pypi_license(info)
         urls = info.get("project_urls") or {}
         for k in ("Source", "Source Code", "Repository", "Homepage", "Code"):
             r = _gh_repo_from_url(urls.get(k))
@@ -128,6 +130,12 @@ def _gh_repo_from_url(url):
         return None
     m = re.search(r"github\.com[/:]([\w.-]+)/([\w.-]+?)(?:\.git)?(?:[/#?].*)?$", url)
     return f"{m.group(1)}/{m.group(2)}" if m else None
+
+def _pypi_license(info):
+    """PEP 639 packages put an SPDX expression in license_expression and leave
+    the legacy free-text license field empty, so read the expression first."""
+    return (info.get("license_expression") or "").strip() or \
+        _spdx_guess(info.get("license") or "")
 
 def _spdx_guess(text):
     t = text.strip()

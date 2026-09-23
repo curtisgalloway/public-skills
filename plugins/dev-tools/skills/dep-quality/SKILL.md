@@ -55,7 +55,8 @@ Rules of thumb when comparing alternatives:
 
 **Stage 1 — gates** (fail ⇒ reject):
 1. License in allowlist (default: MIT, Apache-2.0, BSD-2/3-Clause, ISC,
-   MPL-2.0, LGPL-2.1/3.0, Zlib, Unlicense, CC0-1.0, 0BSD, IJG; override
+   MPL-2.0, LGPL-2.1/3.0 in both bare and `-only`/`-or-later` forms, Zlib,
+   Unlicense, CC0-1.0, 0BSD, IJG; override
    with `--licenses`). SPDX expressions are evaluated, not string-matched:
    `OR` (and the legacy crates.io `/`) passes if any side is allowed, `AND`
    needs every side, and `X WITH exception` is judged by `X`. An expression
