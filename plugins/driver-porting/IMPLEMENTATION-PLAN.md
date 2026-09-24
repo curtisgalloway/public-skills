@@ -229,7 +229,7 @@ their cost. L01 outputs do not retroactively satisfy frozen trial or paired-run 
 
 ## L02 — An e1000 driver from a spec, tested differentially in QEMU
 
-**Status:** `in_progress`; L02a and L02b complete 2026-09-23. Design:
+**Status:** `in_progress`; L02a and L02b complete 2026-09-23, L02c 2026-09-24. Design:
 [QEMU-DIFFERENTIAL.md](QEMU-DIFFERENTIAL.md), approved 2026-09-22 with decisions D1–D4
 resolved. Runs alongside L01, whose hardware unit waits on the fixture. Outcomes O1–O5 and
 acceptance criteria A1–A7 are the design's.
@@ -241,6 +241,8 @@ the test host by role only. Review: `spec-verifier` for the spec, `review-swarm`
 reviewer subagent for harness and driver code, the L01 review trio for the candidate. The
 operator context reads the reference driver and the QEMU model and so never writes candidate
 code; implementer turns go to a separately launched implementer whose model the user selects.
+Possible process improvements noticed while working go to [PROCESS-NOTES.md](PROCESS-NOTES.md)
+(user request, 2026-09-24), not into evidence files or this plan.
 
 Dependencies: L02a → L02b → L02c → L02e → L02f → L02g; L02d needs only L02a and may run in
 parallel with L02b–L02c.
@@ -271,10 +273,17 @@ parallel with L02b–L02c.
 
 ### L02c — Verify the spec and measure recall
 
-- **Outcome:** two fresh verification readings (A1) and the spec's recall against the L02a list.
+- **Status:** `complete` 2026-09-24 ([evidence](evidence/L02c.md)). Covers A1 through two
+  full readings of revision 3, one independent accuracy reading of the revision-4 draft changes,
+  and a diff check of the final citation correction.
+- **Outcome:** two fresh readings of revision 3 found 6 errors, all fixed in revision 4: 1,601 lines, SHA-256 `0490a888…3472`, landed in private run
+  `e1000-l02c-20260924-01`. Recall on revision 3 was 63 of 66 rows covered and 3 partial, none
+  missing; the list and per-row table are published in [`evals/e1000/`](evals/e1000/).
 - **Accept:** no unresolved FAIL; every GAP and UNVERIFIABLE recorded; recall reported by row,
   with each missing critical row either added to a spec revision or recorded as a gap.
-- **Size:** one session.
+- **Open limitations:** revision 4's changes had one independent reading, not two; recall was
+  not re-measured on revision 4; four claims rest on unread PCI/IEEE standards; row INIT-005
+  overstates the manual and stays in the frozen list.
 
 ### L02d — Build the QEMU harness and prove it on the reference driver
 
@@ -799,21 +808,23 @@ pretending the pilot plan completes an unspecified platform-wide system.
 
 ## Next session
 
-L02a and L02b are complete ([L02a](evidence/L02a.md), [L02b](evidence/L02b.md)). Resume
-whichever unit the user picks; do not start two in one session.
+L02a, L02b and L02c are complete ([L02a](evidence/L02a.md), [L02b](evidence/L02b.md),
+[L02c](evidence/L02c.md)). Resume whichever unit the user picks; do not start two in one session.
 
-- **L02c (ready now):** two fresh `spec-verifier` readings of the landed spec (revision 3,
-  SHA-256 `b93d7ef0…d11f`, in run `e1000-l02b-20260923-01`), then recall against the L02a blind
-  list. Fold in the findings the L02b evidence carries (NB-1 to NB-3 and the transfer-review
-  advisories) in the same spec revision, through the transfer loop. The operator may read the
-  blind list at this stage; the spec is already written.
-- **L02d (ready now):** the QEMU harness. It needs only L02a and may run in parallel with L02c.
-  It must decide how the ITR scenario reads the value back (L02b finding C-2), for example from
-  the register trace.
+- **L02d (ready now):** the QEMU harness. It must decide how the ITR scenario reads the value
+  back (L02b finding C-2), for example from the register trace. Revision 4 of the spec now says
+  ITR = 0 is valid ("throttling off") and recommends 500 or more; scenarios should cover both.
+- **L02e (ready once the user picks an implementer model):** brief a fresh implementer with spec
+  revision 4 (SHA-256 `0490a888…3472`, run `e1000-l02c-20260924-01`, `docs/e1000-spec.md`), the
+  manual, and kernel `include/` and `Documentation/` only. Its spec-gap log is that run's
+  `docs/spec-gaps/e1000.md`. It depends on L02c, not on L02d.
 - **L01 second unit (blocked on the fixture):** confirm the ENC28J60 module is wired to the
   Pi 4 before any hardware step; the rest of the handoff is in [evidence/L01.md](evidence/L01.md)
   and the L01 section above. One repair round remains; implementer turns use a fresh subagent
   whose model the user selects.
 - Transcripts: record each subagent's transcript path in the run's ledger; do not copy them
   (user rule, 2026-09-23).
-- The L02b checkpoint is committed on `driver-porting/l02b`; push and PR wait for the user.
+- Process improvements go to [PROCESS-NOTES.md](PROCESS-NOTES.md) as they come up.
+- Branches: L02b is PR #82. The L02c checkpoint is committed on `driver-porting/l02c`, which is
+  cut from `driver-porting/l02b`; rebase it onto `origin/main` after #82 merges. Push and PR
+  wait for the user.
