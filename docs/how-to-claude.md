@@ -55,6 +55,38 @@ Keep an eye on the size of the context window; in Claude Code you can use the `/
 to check on it. Once it gets over half full, consider wrapping things up and starting a new
 session (or clearing the context).
 
+If you use the Claude Code command line tool, you can set up the status line to show you the current
+state of the context so you can keep an eye on it as you work.  Try using this prompt:
+
+```markdown
+Build me a Claude Code status line: a single-line Python 3 script with no
+dependencies. Save it as ~/.claude/statusline.py, make it executable, and
+point statusLine in ~/.claude/settings.json at it.
+
+Claude Code sends the session status as JSON on stdin. Print these segments,
+separated by two spaces, and skip any segment whose data is missing or the
+wrong type. Never print a traceback: if stdin isn't valid JSON, print nothing
+and exit 0.
+
+1. Directory: workspace.current_dir, falling back to cwd, then
+    workspace.project_dir. Show the home directory as "~". If the result is
+    longer than 40 characters, drop leading path components and prefix "…/",
+    keeping only whole trailing components that fit (always keep at least the
+    last one).
+
+2. Model: model.display_name (fall back to model.id). If thinking.enabled is
+    exactly false, append " no thinking". Otherwise append effort.level if it
+    is present, e.g. "Opus 5.5 high". If neither applies, show just the name.
+
+3. Context bar: "ctx: " + 10 cells + percentage, from
+    context_window.used_percentage. Clamp it to 0-100. Filled cells =
+    round(pct / 10), drawn as ▓, and the rest as ░. Format it like
+    "ctx: ▓▓▓▓░░░░░░ 42%". Omit the segment when the value is null.
+
+When it's done, test it by piping in sample JSON for each case above: a long
+path, thinking disabled, null context, and "{}". Show me the output.
+```
+
 ## Do some thinking up front before your first message
 
 It's tempting to just start a conversation with what's on the top of your mind, and expect to add
