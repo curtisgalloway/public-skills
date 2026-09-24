@@ -108,8 +108,10 @@ a tool. Findings about the project itself belong in the project's backlog or tra
 here.
 
 Do not edit instructions or skills from the log on your own. It feeds the user's review
-or a lesson-extraction skill such as `learn`, where available. When a fix is applied,
-append an entry recording where, rather than editing the original.
+or a lesson-extraction skill such as `learn`, where available. When an entry is decided,
+append an entry with the same title recording `fixed in <where>` or `declined: <reason>`,
+rather than editing the original. An entry with neither is open; a declined record keeps
+it from being proposed again.
 
 ## Resuming
 

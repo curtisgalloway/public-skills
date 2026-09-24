@@ -91,5 +91,6 @@ Status: open
 ```
 
 Categories: `failed command`, `surprise`, `user correction`, `sizing miss`,
-`instruction gap`. When a fix is applied, append an entry with the same title and
-`Status: fixed in <where>` rather than editing the original.
+`instruction gap`. When an entry is decided, append an entry with the same title and
+`Status: fixed in <where>` or `Status: declined: <reason>` rather than editing the
+original. An entry with neither is open.
