@@ -71,8 +71,10 @@ skill you want from `plugins/agent-workflow/skills/<name>` into your skills root
   [How To Claude](../../docs/how-to-claude.md).
 - **`learn`** — after: review the session transcript for lessons that would have made it go
   smoother (failed commands, wrong tool arguments, user corrections, environment surprises) and
-  propose additions to the workspace or global instruction file. The promotion path from
-  private auto-memory into reviewed, versioned instructions.
+  propose additions to the workspace or global instruction file. Also reads the project's
+  `lab-notebook` process log, routes each open entry to where its fix belongs, and records
+  the outcome back in the log. The promotion path from private auto-memory into reviewed,
+  versioned instructions.
 - **`teach`** — later: summarize past sessions into teaching-oriented Markdown, one file per
   session not yet summarized (keyed on the session id in existing summary frontmatter).
 
