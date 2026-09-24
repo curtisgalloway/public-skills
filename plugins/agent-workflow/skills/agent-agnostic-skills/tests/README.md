@@ -49,11 +49,13 @@ that check exists to prevent.
 
 ## Known findings elsewhere in this repo
 
-Running the scanner over `skills/` reports findings in the transcript-reading
-skills (`claude-session-transcript`, `teach`) and in a few places where the
-clean-room skills name Antigravity's layout specifically. Those are true
+Running the scanner over the skills under `plugins/` reports findings in the
+transcript-reading skills (`claude-session-transcript`, `teach`) and in a few
+places where the clean-room skills name Antigravity's layout specifically. Those are true
 statements, not bugs: the transcript skills are bound to one agent's session
 format by definition, and the clean-room install steps target one harness on
-purpose. They are left unsuppressed so the report keeps telling the truth about
-what is portable and what isn't — suppress a finding when you have *decided*
-something is deliberately harness-specific, not to reach zero.
+purpose.
+
+They are left unsuppressed so the report keeps telling the truth about what is
+portable and what isn't. Suppress a finding when you have *decided* something
+is deliberately harness-specific, not to reach zero.
