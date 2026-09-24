@@ -11,34 +11,34 @@ Python 3 stdlib only, no dependencies. From the repo root:
 python3 -m unittest discover -s plugins/driver-porting/skills/cleanroom-implementer/tests -v
 ```
 
-Every test points `CLEANROOM_PROJECT_DIR` at a fresh temp directory, so running
-the suite never writes a hook log into a real project or into this repo. One
-case instead supplies `workspacePaths` and no variable at all, which is how
-Antigravity actually reports the workspace; the legacy `GEMINI_PROJECT_DIR` and
+Every test points `CLEANROOM_PROJECT_DIR` at a fresh temp directory, so the
+suite never writes a hook log into a real project or into this repo. One case
+instead supplies `workspacePaths` and no variable at all, which is how
+Antigravity actually reports the workspace. The legacy `GEMINI_PROJECT_DIR` and
 `CLAUDE_PROJECT_DIR` fallbacks have their own case too.
 
 ## What is being pinned
 
-These suites exist mostly to protect decisions that look like bugs until you
-know why they are there. Five in particular:
+Mostly decisions that look like bugs until you know why they are there:
 
 - **`test_allow_is_explicit`** / **`test_allow_does_not_auto_approve`** — the
-  allow path prints `{"decision": "allow"}`, and exactly that. Antigravity's
-  PreToolUse contract does not accept empty stdout as permission to proceed, so
-  a hook that stays silent on the happy path can deny every tool call in the
-  session; an enforcement layer that breaks normal work gets deleted by
-  lunchtime. But allow must not be broadcast the way deny is: Claude Code's
-  `hookSpecificOutput.permissionDecision: "allow"` auto-approves the call and
-  consumes the user's permission prompt, so copying the deny pattern here would
-  silently grant every benign call the hook inspects. Withholding permission is
-  safe to repeat; granting it is not.
+  allow path prints `{"decision": "allow"}`, and exactly that.
+  - Antigravity's PreToolUse contract does not accept empty stdout as
+    permission to proceed. A hook that stays silent on the happy path can deny
+    every tool call in the session, and an enforcement layer that breaks normal
+    work gets removed.
+  - Allow must not be broadcast the way deny is. Claude Code's
+    `hookSpecificOutput.permissionDecision: "allow"` auto-approves the call and
+    consumes the user's permission prompt, so copying the deny pattern here
+    would silently grant every benign call the hook inspects. Withholding
+    permission is safe to repeat; granting it is not.
 - **`test_edit_content_is_not_scanned`** / **`test_code_edit_content_is_not_scanned`**
   — the hook checks tool *targets*, not written *content*. A code comment
   mentioning `trusted-firmware-a`, or a pre-fetch list naming `kernel.org`, must
-  not block the edit that adds it. Content-level leaks are `session_audit.py`'s
-  job and the pre-merge output scan's, not the hook's. The second case is the
-  load-bearing one: unrecognized argument keys *are* scanned for URLs, so
-  `CodeEdit` has to stay exempt by name.
+  not block the edit that adds it. Content-level leaks are for `session_audit.py`
+  and the pre-merge output scan. The second case matters most: unrecognized
+  argument keys *are* scanned for URLs, so `CodeEdit` has to stay exempt by
+  name.
 - **`test_malformed_input_allows_explicitly`** — bad input exits 0 *and* prints
   the allow object. A hook that blocks on its own parse failure would wedge
   every session in the workspace.
@@ -53,16 +53,18 @@ know why they are there. Five in particular:
   is ever severed, this test goes red rather than the two silently drifting.
 - **`TestToolVocabularies`** — nothing keys off a tool-name table.
   `view_file`, `run_command`, `grep_search` and `read_file` are caught by their
-  *argument names* — `TargetFile`, `CommandLine`, `Cwd`, `SearchDirectory`,
-  `file_path` — case-folded, which is what lets one hook survive Antigravity's
-  PascalCase arguments, its renames between releases, and MCP tools nobody
-  anticipated.
+  *argument names* (`TargetFile`, `CommandLine`, `Cwd`, `SearchDirectory`,
+  `file_path`), case-folded. That lets one hook survive Antigravity's PascalCase
+  arguments, its renames between releases, and MCP tools nobody anticipated.
 
-Also pinned: role scoping allows *and still logs* (the log is the evidentiary
-record, so an authorized read that goes unlogged is a failure), matcher `.*`
-coverage of unknown MCP-style tools, policy discovery under `.agents/` with no
-env var set, and the hook recording `transcriptPath`/`artifactDirectoryPath` so
-the pre-merge audit can find what to read instead of guessing.
+Also pinned:
+
+- Role scoping allows *and still logs*. The log is the evidentiary record, so an
+  authorized read that goes unlogged is a failure.
+- Matcher `.*` covers unknown MCP-style tools.
+- Policy is discovered under `.agents/` with no env var set.
+- The hook records `transcriptPath`/`artifactDirectoryPath`, so the pre-merge
+  audit can find what to read instead of guessing.
 
 ## Fixtures
 
@@ -82,6 +84,6 @@ read:
 - The SQLite case builds its store in a temp dir at runtime — no binary
   fixtures in the repo.
 
-Contaminated fixtures carry license *markers* — `MODULE_LICENSE`, an SPDX GPL
-tag, an `EXPORT_SYMBOL_GPL` line — because markers are what the auditor
-detects; they hold no real source, and should never be made to.
+Contaminated fixtures carry license *markers* (`MODULE_LICENSE`, an SPDX GPL
+tag, an `EXPORT_SYMBOL_GPL` line), because markers are what the auditor
+detects. They hold no real source and never should.
