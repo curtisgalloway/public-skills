@@ -50,6 +50,7 @@ Unknown, impact, investigation/decision needed, and dependent work blocked by it
 
 Design: [design](design.md), revision <identifier>
 Project checks: <known commands and prerequisites>
+Notebook: [index](notebook/index.md); process log: [process log](process-log.md)
 
 ## Conventions
 Working branch: <branch>
@@ -95,6 +96,7 @@ Budget for implementation, tests, review, fixes, and handoff before compaction.
 ### Evidence and findings
 Status: pending
 Evidence: [M1 evidence](evidence/M1.md)
+Notebook: [M1 chapter](notebook/M1.md)
 Limitations and blockers: <record any unmet requirements>
 
 When complete, move this milestone's detailed entry into its evidence file and retain
@@ -116,7 +118,8 @@ their milestone; this section cannot be used to waive acceptance criteria.
 - Remaining work, blockers, and decisions: <specifics>
 - Context boundary: <normal completion / early stop / unexpected compaction>
 - Resume action: <resume unfinished milestone OR begin next eligible milestone>
-- Read first: <design, milestone, evidence, and a small set of relevant files>
+- Read first: <design, milestone, notebook index and current chapter, evidence, and a
+  small set of relevant files>
 ```
 
 ## Milestone evidence
@@ -128,6 +131,7 @@ Keep output excerpts relevant to the verdict rather than copying entire logs.
 # M1 — <Outcome> evidence
 
 Design: <relative link and revision>
+Notebook: <relative link to the milestone's chapter>
 Starting revision and pre-existing changes: <record at execution start>
 
 ## Milestone definition
