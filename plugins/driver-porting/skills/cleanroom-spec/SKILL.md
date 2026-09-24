@@ -196,6 +196,12 @@ Retain everything: the ledger, the scan reports under `docs/provenance/`, and th
 investigator/verifier session transcripts. Together they are the evidence that the clean room
 existed and was enforced — the thing you can hand to counsel.
 
+Retain a transcript by reference: record its path in the ledger line, and do not copy it.
+Never read, copy, or hash the harness's own state from the shell — `~/.claude/`, `~/.gemini/`,
+or a subagent's `tasks/*.output` file, which is a symlink into `~/.claude/`. Those are
+protected paths: touching them stops an unattended run at a permission prompt that allow rules
+cannot pre-approve. If a copy or hash is required, name the path and have the person run it.
+
 ### The spec-gap protocol (the sanctioned path when a spec is insufficient)
 
 Implementer contamination is usually gap-driven, not defiance-driven: the spec is missing
