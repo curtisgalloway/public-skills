@@ -5,7 +5,7 @@ SPDX-License-Identifier: Apache-2.0
 
 # How To Claude
 
-Curtis Galloway — 2026-08-28
+Curtis Galloway — updated 2026-09-23
 
 Here are some tips for using Claude based on what I've learned by using it for a number of coding
 and non-coding projects. While I haven't verified them with other AI tools, I think much of the
