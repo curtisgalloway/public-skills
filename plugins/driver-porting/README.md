@@ -4,12 +4,34 @@ Skills for writing and reviewing device drivers against source you may or may no
 to copy from: a clean-room pipeline for encumbered source, source-anchored specs and reviews
 for source you own, and board experts that supply the per-SoC facts both need.
 
+## Installing
+
+### Claude Code
+
+Add this repo as a plugin marketplace (once per machine), then install the plugin:
+
 ```
+/plugin marketplace add curtisgalloway/public-skills
 /plugin install driver-porting@curtisg-skills
 ```
 
-Antigravity and other harnesses that read skill directories: link the skill you want from
-`plugins/driver-porting/skills/<name>` into your skills root.
+`curtisg-skills` is the marketplace's name, set in `.claude-plugin/marketplace.json`; it is
+what follows the `@`. Outside a session, the same commands run as `claude plugin marketplace
+add ...` and `claude plugin install ...`. To install from a local clone instead, pass the
+clone's path to `marketplace add`. To pick up new versions later:
+
+```
+/plugin marketplace update curtisg-skills
+```
+
+Skip this if you installed the `everything` plugin, which already includes these skills;
+installing both loads every skill twice.
+
+### Other agents
+
+Antigravity and other harnesses that read skill directories: clone the repo and link the
+skill you want from `plugins/driver-porting/skills/<name>` into your skills root. The
+[top-level README](../../README.md#installing) has the paths for each harness.
 
 ## Which one do I want?
 
