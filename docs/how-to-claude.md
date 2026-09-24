@@ -104,7 +104,7 @@ short!
 The solution is to have Claude write a "handoff prompt" for its next incarnation. The basic idea is
 to tell Claude to write a prompt for an agent on how to continue from the current state of the
 conversation. If it has important information that isn't saved somewhere, it should either save it
-or include it directly in the handoff. The [`handoff`](../plugins/agent-workflow/skills/handoff/SKILL.md) skill in this
+or include it directly in the handoff. The [`handoff`](../plugins/agent-workflow/README.md#a-session-start-to-finish) skill in this
 repo does exactly this: `/handoff` writes a `HANDOFF.md` the next session can cold-start from, and
 reads it back on resume.
 
@@ -114,7 +114,7 @@ agent there read it to pick up the results.
 
 ## Teach Claude how to learn from its mistakes
 
-Because Claude doesn't remember things between sessions, it can make the same mistakes repeatedly unless you help it learn from its mistakes.  When you correct it in a chat, tell Claude to add a rule to remember the correction in CLAUDE.md; you can use the [`/learn`](../plugins/agent-workflow/skills/learn/SKILL.md) skill to turn an entire session's lessons into a set of proposed instruction changes automatically.
+Because Claude doesn't remember things between sessions, it can make the same mistakes repeatedly unless you help it learn from its mistakes.  When you correct it in a chat, tell Claude to add a rule to remember the correction in CLAUDE.md; you can use the [`/learn`](../plugins/agent-workflow/README.md#a-session-start-to-finish) skill to turn an entire session's lessons into a set of proposed instruction changes automatically.
 
 ## Trust, but verify
 
@@ -126,12 +126,12 @@ The fix is to ask Claude to show its work: ask for quotes, test output and actua
 
 Treat your top-level conversation as the orchestrator - the manager of a collection of subagents.  This will save the context of the agent you talk to from getting polluted by all the details of complex operations where you really only want to get the result.
 
-Examples are things like researching a topic, implementing a specific code feature, reviewing code, or confirming the results of something you've previously done.  The `/delegate-implementation` skill is good for farming out code writing to cheaper models and then checking the result; [`/review-swarm`](../plugins/dev-tools/skills/review-swarm/SKILL.md) does something similar for reviewing source code.
+Examples are things like researching a topic, implementing a specific code feature, reviewing code, or confirming the results of something you've previously done.  The `/delegate-implementation` skill is good for farming out code writing to cheaper models and then checking the result; [`/review-swarm`](../plugins/dev-tools/README.md#skills) does something similar for reviewing source code.
 
 ## Get a second opinion
 
-Whenever you get a result from Claude, it never hurts to get a second opinion from a fresh agent.  The [`/review-swarm`](../plugins/dev-tools/skills/review-swarm/SKILL.md) skill is a special case of this by farming out code review to a set of agents, but you can use it for other things too.  Not sure if Claude's design for something is a good idea?  Have it write it out and ask a second session to review it.  Or, better yet, hand it off to a completely different model - use the [`/consult`](../plugins/agent-workflow/skills/consult/SKILL.md) skill to give it to Codex or your other favorite agent.
+Whenever you get a result from Claude, it never hurts to get a second opinion from a fresh agent.  The [`/review-swarm`](../plugins/dev-tools/README.md#skills) skill is a special case of this by farming out code review to a set of agents, but you can use it for other things too.  Not sure if Claude's design for something is a good idea?  Have it write it out and ask a second session to review it.  Or, better yet, hand it off to a completely different model - use the [`/consult`](../plugins/agent-workflow/README.md#a-session-start-to-finish) skill to give it to Codex or your other favorite agent.
 
 ## Keep design and implementation separate
 
-Claude does better when you iterate on the design first and then move into implementation.  Use skills like [`/design-partner`](../plugins/agent-workflow/skills/design-partner/SKILL.md) to collaborate up front on a design for what you're trying to do, and then write it out to a document.  Then create an implementation plan that Claude can follow.  The [`/project-plan`](../plugins/agent-workflow/skills/project-plan/SKILL.md) skill is a good way to create a detailed plan with milestones that fit into a single context session, with instructions to do detailed review at the end of each milestone and record its progress so you can move on to the next milestone with the [`/handoff`](../plugins/agent-workflow/skills/handoff/SKILL.md) skill to clear out the session.
+Claude does better when you iterate on the design first and then move into implementation.  Use skills like [`/design-partner`](../plugins/agent-workflow/README.md#a-session-start-to-finish) to collaborate up front on a design for what you're trying to do, and then write it out to a document.  Then create an implementation plan that Claude can follow.  The [`/project-plan`](../plugins/agent-workflow/README.md#a-session-start-to-finish) skill is a good way to create a detailed plan with milestones that fit into a single context session, with instructions to do detailed review at the end of each milestone and record its progress so you can move on to the next milestone with the [`/handoff`](../plugins/agent-workflow/README.md#a-session-start-to-finish) skill to clear out the session.
