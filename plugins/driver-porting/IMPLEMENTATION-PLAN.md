@@ -229,7 +229,7 @@ their cost. L01 outputs do not retroactively satisfy frozen trial or paired-run 
 
 ## L02 — An e1000 driver from a spec, tested differentially in QEMU
 
-**Status:** `in_progress`; L02a complete 2026-09-23. Design:
+**Status:** `in_progress`; L02a and L02b complete 2026-09-23. Design:
 [QEMU-DIFFERENTIAL.md](QEMU-DIFFERENTIAL.md), approved 2026-09-22 with decisions D1–D4
 resolved. Runs alongside L01, whose hardware unit waits on the fixture. Outcomes O1–O5 and
 acceptance criteria A1–A7 are the design's.
@@ -259,14 +259,15 @@ parallel with L02b–L02c.
 
 ### L02b — Author the spec
 
-- **Outcome:** a clean-room spec of the 82540EM core path (O1, first half).
-- **Steps:** run `cleanroom-spec` with `os-investigator` over the pinned Linux driver and the
-  manual (the copy in the L02a run's `pins/`, not the one beside the blind list). The QEMU
-  model is not an input. The spec author must not read the blind list, the L02a run's
-  `blind/` directory, or `evidence/L02a.md`, so that L02c's recall stays a measurement.
-  Transfer review and leak scan as the skill requires.
+- **Status:** `complete` 2026-09-23 ([evidence](evidence/L02b.md)).
+- **Outcome:** a clean-room spec of the 82540EM core path (O1, first half): revision 3,
+  1,530 lines, SHA-256 `b93d7ef0…d11f`, landed in private run `e1000-l02b-20260923-01`.
+  Revision 3 passed its transfer review after one FAIL: an ordering the manual does not
+  prescribe had been tagged `[databook]`. Acceptance review found nothing blocking.
 - **Accept:** transfer review PASS; every fact tagged; scope and non-goals match the design.
-- **Size:** one to two sessions; split by subsystem (init/PHY, then rings/interrupts) if needed.
+- **Open limitations:** accuracy was sampled only (L02c). Three non-blocking findings, the
+  undefined ITR read-back, and two advisories are carried to L02c and L02d. Reviews used fresh
+  Claude subagents because `consult` was unavailable.
 
 ### L02c — Verify the spec and measure recall
 
@@ -798,17 +799,21 @@ pretending the pilot plan completes an unspecified platform-wide system.
 
 ## Next session
 
-L02a is complete ([evidence](evidence/L02a.md)). Three units are ready or pending. Resume
-whichever the user picks; do not start two in one session.
+L02a and L02b are complete ([L02a](evidence/L02a.md), [L02b](evidence/L02b.md)). Resume
+whichever unit the user picks; do not start two in one session.
 
-- **L02b (ready now):** author the 82540EM core-path spec with `cleanroom-spec` and
-  `os-investigator` from the pinned Linux e1000 files and the manual in the L02a run's `pins/`
-  directory (run `e1000-l02a-20260922-01`); the QEMU model is not an input. The spec author
-  must not read the blind list, the run's `blind/` directory, or `evidence/L02a.md`.
-- **L02d (ready now):** the QEMU harness; it needs only L02a and may run in parallel with
-  L02b–L02c.
+- **L02c (ready now):** two fresh `spec-verifier` readings of the landed spec (revision 3,
+  SHA-256 `b93d7ef0…d11f`, in run `e1000-l02b-20260923-01`), then recall against the L02a blind
+  list. Fold in the findings the L02b evidence carries (NB-1 to NB-3 and the transfer-review
+  advisories) in the same spec revision, through the transfer loop. The operator may read the
+  blind list at this stage; the spec is already written.
+- **L02d (ready now):** the QEMU harness. It needs only L02a and may run in parallel with L02c.
+  It must decide how the ITR scenario reads the value back (L02b finding C-2), for example from
+  the register trace.
 - **L01 second unit (blocked on the fixture):** confirm the ENC28J60 module is wired to the
   Pi 4 before any hardware step; the rest of the handoff is in [evidence/L01.md](evidence/L01.md)
   and the L01 section above. One repair round remains; implementer turns use a fresh subagent
   whose model the user selects.
-- The L02a checkpoint is committed on `driver-porting/l02a-sources`; push and PR wait for the user.
+- Transcripts: record each subagent's transcript path in the run's ledger; do not copy them
+  (user rule, 2026-09-23).
+- The L02b checkpoint is committed on `driver-porting/l02b`; push and PR wait for the user.
