@@ -229,9 +229,10 @@ their cost. L01 outputs do not retroactively satisfy frozen trial or paired-run 
 
 ## L02 — An e1000 driver from a spec, tested differentially in QEMU
 
-**Status:** `pending`. Design: [QEMU-DIFFERENTIAL.md](QEMU-DIFFERENTIAL.md), approved
-2026-09-22 with decisions D1–D4 resolved. Runs alongside L01, whose hardware unit waits on the
-fixture. Outcomes O1–O5 and acceptance criteria A1–A7 are the design's.
+**Status:** `in_progress`; L02a complete 2026-09-23. Design:
+[QEMU-DIFFERENTIAL.md](QEMU-DIFFERENTIAL.md), approved 2026-09-22 with decisions D1–D4
+resolved. Runs alongside L01, whose hardware unit waits on the fixture. Outcomes O1–O5 and
+acceptance criteria A1–A7 are the design's.
 
 **Conventions for L02.** One topic branch and PR per unit, prefix `driver-porting: L02<x> —`.
 Raw runs, the candidate driver, traces, captures, and the manual stay in the private run store
@@ -246,23 +247,24 @@ parallel with L02b–L02c.
 
 ### L02a — Pin sources and write the blind requirement list
 
-- **Outcome:** exact identities for every input, and about 50 critical e1000 requirements
-  written from the manual alone, before any spec exists. Covers D4.
-- **Steps:** acquire the Intel 8254x manual and record edition and SHA-256; record the Linux
-  v6.12 `drivers/net/ethernet/intel/e1000/` file hashes from the verified archive; record the
-  QEMU package version and the `e1000` model name on the test host. A fresh agent that has not
-  read the Linux driver writes the requirement list from the manual (core path only, legacy
-  descriptors), in the ENC28J60 ledger's row format; a second fresh reader checks each row
-  against the cited manual section.
+- **Status:** `complete` 2026-09-23 ([evidence](evidence/L02a.md)). Covers D4.
+- **Outcome:** manual 317453-006 rev 4.0, the Linux v6.12 e1000 files, and QEMU
+  `10.2.1+ds-1ubuntu3.2` (`e1000`, alias `e1000-82540em`) pinned; a 66-row blind list (60
+  critical) written from the manual by one fresh agent, checked row by row by a second, and
+  frozen by hash.
 - **Accept:** all pins recorded and re-fetchable; list frozen with a hash; every row cites a
   manual section; the second reader's disagreements are resolved or recorded.
-- **Size:** one session. Split point: pins first, list second.
+- **Open limitations:** the list is private until L02c publishes it with the recall result;
+  errata were not an input; the model family may have seen the Linux driver in training.
 
 ### L02b — Author the spec
 
 - **Outcome:** a clean-room spec of the 82540EM core path (O1, first half).
 - **Steps:** run `cleanroom-spec` with `os-investigator` over the pinned Linux driver and the
-  manual. The QEMU model is not an input. Transfer review and leak scan as the skill requires.
+  manual (the copy in the L02a run's `pins/`, not the one beside the blind list). The QEMU
+  model is not an input. The spec author must not read the blind list, the L02a run's
+  `blind/` directory, or `evidence/L02a.md`, so that L02c's recall stays a measurement.
+  Transfer review and leak scan as the skill requires.
 - **Accept:** transfer review PASS; every fact tagged; scope and non-goals match the design.
 - **Size:** one to two sessions; split by subsystem (init/PHY, then rings/interrupts) if needed.
 
@@ -796,14 +798,17 @@ pretending the pilot plan completes an unspecified platform-wide system.
 
 ## Next session
 
-Two tracks are open. Resume whichever the user picks; do not start both in one session.
+L02a is complete ([evidence](evidence/L02a.md)). Three units are ready or pending. Resume
+whichever the user picks; do not start two in one session.
 
-- **L02a (ready now):** pin the Intel 8254x manual, the Linux e1000 files, and the test host's
-  QEMU version; then have a fresh agent that has not read the Linux driver write the ~50-row
-  blind requirement list from the manual. See L02a above and
-  [QEMU-DIFFERENTIAL.md](QEMU-DIFFERENTIAL.md). The test host has KVM and the kernel build tools.
+- **L02b (ready now):** author the 82540EM core-path spec with `cleanroom-spec` and
+  `os-investigator` from the pinned Linux e1000 files and the manual in the L02a run's `pins/`
+  directory (run `e1000-l02a-20260922-01`); the QEMU model is not an input. The spec author
+  must not read the blind list, the run's `blind/` directory, or `evidence/L02a.md`.
+- **L02d (ready now):** the QEMU harness; it needs only L02a and may run in parallel with
+  L02b–L02c.
 - **L01 second unit (blocked on the fixture):** confirm the ENC28J60 module is wired to the
   Pi 4 before any hardware step; the rest of the handoff is in [evidence/L01.md](evidence/L01.md)
   and the L01 section above. One repair round remains; implementer turns use a fresh subagent
   whose model the user selects.
-- Neither track has pushed anything beyond this plan revision.
+- The L02a checkpoint is committed on `driver-porting/l02a-sources`; push and PR wait for the user.
