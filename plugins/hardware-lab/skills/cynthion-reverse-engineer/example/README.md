@@ -1,12 +1,12 @@
-# Worked Example: "Example Widget" Synthetic Protocol
+# Worked example: the "Example Widget" protocol
 
-This example demonstrates the full `cynthion-reverse-engineer` pipeline using
-synthetic captures of a simple vendor-specific USB device — no hardware required.
+The full `cynthion-reverse-engineer` pipeline, run on synthetic captures of a simple
+vendor-specific USB device. No hardware required.
 
 ## Scenario
 
-The imaginary device (`VID=0x1234`, `PID=0xabcd`, product: "Example Widget") uses a
-4-byte command/response protocol on EP1 (bulk bidirectional):
+The imaginary device (`VID=0x1234`, `PID=0xabcd`, product "Example Widget") speaks a 4-byte
+command/response protocol on EP1 (bulk, bidirectional):
 
 ```
 OUT (host → device):  [opcode, arg0, reserved, seq]
@@ -17,16 +17,16 @@ opcodes:
   0x02  SET_BRIGHTNESS — arg0 = new level;  response data0 = echo of arg0
 ```
 
-## Step 0 — Generate captures
+## Step 0: generate captures
 
 ```bash
 python3 generate_synthetic.py
 ```
 
-Creates `status_query.json` and `set_brightness.json`, each containing 5
-enumeration-phase control transfers followed by 10 paired bulk transactions.
+Writes `status_query.json` and `set_brightness.json`. Each holds 5 enumeration-phase control
+transfers followed by 10 paired bulk transactions.
 
-## Step 1 — Diff
+## Step 1: diff
 
 ```bash
 python3 ../scripts/diff_transactions.py \
@@ -34,7 +34,7 @@ python3 ../scripts/diff_transactions.py \
     --label status_query set_brightness --format text
 ```
 
-Expected output — EP1 OUT:
+Expected EP1 OUT output:
 
 ```
 byte[ 0] ^ monotonic   ...   ← opcode (0x01 vs 0x02 differ by 1; diff sees "monotonic")
@@ -43,11 +43,11 @@ byte[ 2] . constant    ...   ← reserved
 byte[ 3] . constant    ...   ← seq counter (same values at each position in both captures)
 ```
 
-> **Note:** `diff_transactions.py` does pairwise comparison — a byte that
-> differs by exactly 1 between the two captures is labeled "monotonic" even
-> if it is actually an opcode. `infer_commands.py` resolves this correctly.
+> **Note:** `diff_transactions.py` compares pairwise, so a byte that differs by exactly 1
+> between the two captures is labeled "monotonic" even when it is an opcode.
+> `infer_commands.py` gets this right.
 
-## Step 2 — Infer command structure
+## Step 2: infer the command structure
 
 ```bash
 python3 ../scripts/infer_commands.py \
@@ -55,38 +55,39 @@ python3 ../scripts/infer_commands.py \
     --label status_query set_brightness > hypothesis.json
 ```
 
-The infer step correctly identifies:
-- **EP1 OUT byte[0]** as `opcode` (values 0x01/0x02, one per label)
-- **EP1 OUT byte[1]** as `opcode` (values 0x00/0x80, one per label — this is actually the argument; real captures with more labels would separate it)
-- **EP1 IN byte[1]** as `opcode` (0x40 = current brightness / 0x80 = echo)
+The infer step labels:
 
-## Step 3 — Generate replay script
+- **EP1 OUT byte[0]** as `opcode` (0x01/0x02, one per label). Correct.
+- **EP1 OUT byte[1]** as `opcode` (0x00/0x80, one per label). It is really the argument; real
+  captures with more labels would separate the two.
+- **EP1 IN byte[1]** as `opcode` (0x40 = current brightness, 0x80 = echo).
+
+## Step 3: generate a replay script
 
 ```bash
 python3 ../scripts/gen_replay.py hypothesis.json status_query.json -o replay.py
 python3 replay.py   # requires: pip install libusb1 && device plugged in
 ```
 
-The replay script opens the device by VID/PID, replays the observed control
-transfers, then replays the bulk OUT/IN transactions observed in `status_query.json`.
+The replay script opens the device by VID/PID, replays the observed control transfers, then
+replays the bulk OUT/IN transactions from `status_query.json`.
 
-## Step 4 — Generate Facedancer clone
+## Step 4: generate a Facedancer clone
 
 ```bash
 python3 ../scripts/gen_facedancer_clone.py status_query.json -o clone.py
 ```
 
-> **Linux only.** Facedancer 3.x device emulation requires Linux.
+Running the clone needs Linux (Facedancer 3.x device emulation is Linux-only):
 
 ```bash
 BACKEND=cynthion python3 clone.py
 ```
 
-The clone exposes the same VID/PID and descriptors as the real device. The
-`handle_data_requested` stubs return zeroed bytes — fill them in once you
-understand the protocol.
+The clone exposes the real device's VID/PID and descriptors. Its `handle_data_requested`
+stubs return zeroed bytes; fill them in once you understand the protocol.
 
-## Step 5 — Generate protocol document
+## Step 5: generate a protocol document
 
 ```bash
 python3 ../scripts/gen_protocol_doc.py hypothesis.json \
@@ -95,13 +96,13 @@ python3 ../scripts/gen_protocol_doc.py hypothesis.json \
     -o protocol.md
 ```
 
-Produces a structured Markdown reference with device identity, endpoint map,
-inferred command table, byte-role breakdown, and open questions.
+Produces a Markdown reference with the device identity, endpoint map, inferred command table,
+byte-role breakdown, and open questions.
 
-## What a real session looks like
+## With real hardware
 
-With real hardware the workflow is identical; replace the `.json` inputs with
-`.pcap` files from Packetry and the scripts decode them automatically:
+The workflow is the same. Replace the `.json` inputs with `.pcap` files from Packetry; the
+scripts decode them automatically:
 
 ```bash
 python3 ../scripts/diff_transactions.py idle.pcap button.pcap \

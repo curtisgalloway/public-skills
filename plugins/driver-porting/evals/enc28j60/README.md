@@ -5,9 +5,19 @@ SPDX-License-Identifier: Apache-2.0
 
 # ENC28J60 pilot
 
-The calibration device for the driver-spec evaluation described in `../../EVAL-PLAN.md`. A small,
-fully public SPI Ethernet controller: the point is to get the ledger format, the scoring and the
-test quality right on something cheap before the method is pointed at a complex SoC.
+The calibration device for the driver-spec evaluation in `../../EVAL-PLAN.md`. The ENC28J60 is a
+small SPI Ethernet controller with fully public documentation. The pilot gets the ledger format,
+the scoring and the test quality right on something cheap before the method is pointed at a
+complex SoC. Shared terms are in the repository [glossary](../../../../GLOSSARY.md).
+
+## Status
+
+- **Ledger:** authored 2026-09-19, adjudicated, and frozen 2026-09-20 in `ledger.lock`.
+- **Scoring (stage A):** the scoring tool is implemented and tested. The
+  [first practice run](PRACTICE-RUN.md) exercised generation, review, scoring and replay; its
+  acceptance is blocked and its review remains incomplete. No blind paired benchmark has taken
+  place.
+- **Reconstruction:** planned. No reconstruction run or execution runner is supplied yet.
 
 ## What is here
 
@@ -28,81 +38,45 @@ test quality right on something cheap before the method is pointed at a complex 
 | `score.py` | A | scores reviewed claims and frozen fact dispositions; archives attempts and applies strict documentary acceptance |
 | `SCORING-RUN.md` | A | review contract, CLI, policy, replay, and limits |
 
-## Planned reconstruction track
+## The ledger
 
-The [procedure-trial preparation record](RECONSTRUCTION-TRIAL.md) drafts R1a for the frozen
-practice spec, with a neutral implementation brief, isolation plan, proposed checks, and pending
-launch decisions. The trial precedes preparation of the paired run.
+### How it was authored
 
-The later [M01 preparation manifest](reconstruction/M01-PREPARATION-v1.md) records recovered
-input identities, bounded target/isolation/record investigations, stage blockers and predeclared
-offline readiness criteria. Its [evidence record](../../evidence/M01.md) tracks verification
-and review. The original R1a draft is preserved; neither record authorizes execution.
+On 2026-09-19 two readers, A and B, each wrote a full ledger from the pinned corpus. Each worked
+in a fresh context, without sight of the other or of any generated specification. No ENC28J60
+candidate spec existed anywhere in this repository at the time, so the blind rule held by
+construction.
 
-The [shared OS-neutral protocol](../../RECONSTRUCTION.md) adds driver reconstruction from each
-frozen spec. The [pilot run guide](RECONSTRUCTION-RUN.md) describes the environment, scope,
-checks, isolation, and budgets to establish before running. Linux is selected by this pilot's
-existing corpus; future devices can use another reference OS. No reconstruction run or execution
-runner is supplied yet. Results will be separate from the frozen documentary scores, and the
-paired generation/review sequence in [ARMS.md](ARMS.md) remains in force.
-
-See the repository [glossary](../../../../GLOSSARY.md) for shared terminology.
-
-## Stage A
-
-The scoring tool is implemented and tested. The [first practice run](PRACTICE-RUN.md) exercised
-generation, review, scoring and replay; acceptance is blocked and the review remains incomplete.
-No blind paired benchmark has taken place. See [SCORING-RUN.md](SCORING-RUN.md) for the contract.
-
-That run's preparation failures now have gates. `prepare.py` refuses a packet carrying another
-reader's judgment vocabulary or built from an inventory still being segmented; `score.py` takes
-that packet and its inventory, refuses judgments that are not the records the readers were given,
-and archives both. The review schema is `enc28j60-review-3`, carrying the frozen fact wording and
-its unit-level prose beside each numbered disposition. `SCORING-RUN.md` settles what a review may
-cite: the manifest evidences propositions about the manifest, a claim about the device cites the
-document, and a manifest-only claim earns no coverage credit.
-
-What that establishes is correspondence between artifacts, not testimony. It does not establish
-that the readers saw only the packet or that their contexts were isolated; those stay operator
-responsibilities, and the limits are written down beside the gates. The frozen answer key, policy
-and fact lists are unchanged, and the practice run's archived attempts keep their own tools and
-replay as scored.
-
-## State of the ledger
-
-Authored 2026-09-19. Two readers, A and B, each wrote a full ledger from the pinned corpus in a
-fresh context, without sight of each other or of any generated specification; there was no
-ENC28J60 candidate spec anywhere in this repository at the time, so the blind rule held by
-construction. A merger, not an author, combined the drafts (175 and 171 rows) into one file under
-written rules: nothing dropped, A's ids kept, weight disputes recorded rather than settled. The
-proposal's author reviewed the result through the `consult` skill; the row-level corrections that
+A merger, not an author, combined the drafts (175 and 171 rows) into one file under written
+rules: nothing dropped, A's ids kept, weight disputes recorded rather than settled. The
+proposal's author reviewed the result through the `consult` skill. The row-level corrections that
 review established from the sources, and a clause-level overlap pass, were then applied and
-logged. Every step is in `LEDGER-CONFLICTS.md`.
+logged. Every step is in `LEDGER-CONFLICTS.md`, the adjudication decisions are in
+`ADJUDICATION.md`, and `ledger.lock` binds the resulting answer key.
 
-Adjudication and the freeze are complete. `ADJUDICATION.md` and `LEDGER-CONFLICTS.md` retain the
-decisions; `ledger.lock` binds the resulting answer key.
+### The ledger is frozen
 
-## The ledger is frozen
-
-Frozen 2026-09-20, recorded in `ledger.lock`. From here on:
+This command refuses any edit to `ledger.yaml`, `corpus.yaml`, `SCORING-POLICY.md`,
+`LEDGER-FORMAT.md` or `SCORING-FACTS.md`:
 
 ```bash
 uv run --with pyyaml python3 ledger_check.py ledger.yaml --lock ledger.lock
 ```
 
-refuses any edit to `ledger.yaml`, `corpus.yaml`, `SCORING-POLICY.md`, `LEDGER-FORMAT.md` or
-`SCORING-FACTS.md`, because the lock carries all five digests, the policy's version, and the
-repository revision whose tree holds those exact bytes. A correction found after a candidate has
-been read takes a new version and a declared rescoring procedure, never a quiet edit; the lock
-and `SCORING-POLICY.md` both say so.
+The lock makes that possible: it carries all five digests, the policy's version, and the
+repository revision whose tree holds those exact bytes. A correction found after a candidate has been read
+takes a new version and a declared rescoring procedure, never a quiet edit; the lock and
+`SCORING-POLICY.md` both say so.
 
-The lock also records what the freeze does and does not establish. It does not establish that the
-ledger is right: two readers can share a wrong belief, and a third reader checking two rows does
-not change that. It establishes that the answer key was written before any candidate existed,
-that its disagreements were preserved rather than settled quietly, and that its bytes cannot now
-change without saying so.
+The lock also records what the freeze does and does not establish:
 
-## How it was frozen
+- **It does not establish that the ledger is right.** Two readers can share a wrong belief, and a
+  third reader checking two rows does not change that.
+- **It does establish** that the answer key was written before any candidate existed, that its
+  disagreements were preserved rather than settled quietly, and that its bytes cannot now change
+  without saying so.
+
+### How it was frozen
 
 Run in this directory (the checker needs PyYAML):
 
@@ -119,11 +93,10 @@ The ledger is a clean-side artifact: it describes what the reference driver does
 it, so it has to pass the scanner the same way a clean-room spec does. The whitelist holds the two
 file names the corpus pins, because a row cites them in `derivation.source` by name.
 
-Then write `ledger.lock`, with **all eight** of these fields —
-`ledger_check.py ledger.yaml --json` prints the digest and version values it computes, so the lock
-can be filled from its output. The checker refuses a lock that omits any of these fields,
-including `facts_sha256` required by this pilot's policy
-(`SCORING-POLICY.md` → "Binding"):
+Then write `ledger.lock` with **all eight** fields below. `ledger_check.py ledger.yaml --json`
+prints the digest and version values it computes, so the lock can be filled from its output. The
+checker refuses a lock that omits any of these fields, including `facts_sha256`, which this
+pilot's policy requires (`SCORING-POLICY.md` → "Binding").
 
 | Field | What it holds |
 |---|---|
@@ -136,7 +109,7 @@ including `facts_sha256` required by this pilot's policy
 | `facts_sha256` | `SCORING-FACTS.md`'s digest, because that file holds the numerator of every composite fraction |
 | `format_sha256` | `LEDGER-FORMAT.md`'s digest, because the verdict definitions and authoring rules the policy builds on live there |
 
-and the adjudicator's attestation:
+Add the adjudicator's attestation:
 
 > Each scored proposition has one active scoring representation, except any duplicated
 > contributions explicitly enumerated by the frozen policy. Multi-proposition scoring units are
@@ -150,29 +123,16 @@ From then on `ledger_check.py ledger.yaml --lock ledger.lock` refuses an edited 
 candidate run names the lock it was scored against. A row added after a candidate has been read
 is not part of that denominator and says so.
 
-**What the lock check now enforces.** `ledger_check.py --lock` validates the ledger and corpus
-digests **and** the scoring policy's version string and sha256, refusing a lock that omits either
-and a policy file that declares no `Version:` line — two absent versions no longer compare equal
-and pass by accident. It also pins `LEDGER-FORMAT.md`'s bytes and requires a repository revision,
-so a score cites a policy, a format and a tree that can all be reconstructed. This was open work
-and a stated prerequisite to freezing; it is closed.
+**What the lock check enforces.** `ledger_check.py --lock` validates the ledger and corpus
+digests **and** the scoring policy's version string and sha256. It refuses a lock that omits
+either, and a policy file that declares no `Version:` line, so two absent versions no longer
+compare equal and pass by accident. It also pins `LEDGER-FORMAT.md`'s bytes and requires a
+repository revision, so a score cites a policy, a format and a tree that can all be
+reconstructed. This was a stated prerequisite to freezing, and it is done.
 
-## Input history
+## The corpus
 
-Entries a reader of a score needs, in order:
-
-- **2026-09-19, before any freeze or candidate.** `corpus.yaml` recorded DS80349C silicon issue 1
-  (MAC registers unreliable with a slow asynchronous SPI clock) as affecting B5 and B7. One of the
-  blind readers, working from the extracted text, saw the marks under B1 and B4 and flagged the
-  disagreement instead of following the manifest; the rendered Table 2 and the issue's own box
-  confirmed B1 and B4. Corrected in the manifest, and in the one ledger row that cites the issue
-  (`ENC28J60-SPI-017`). The pinned documents did not change. No score used the earlier manifest,
-  because no candidate has been scored.
-- **2026-09-19.** The remaining affected-revision lists (issues 2, 4 to 7, 9 to 12, 14 to 19) and
-  Table 3's three conformance issues were added to the manifest from the same page, so the map is
-  the source of those lists rather than the drafts.
-
-## Checking the pins
+### Checking the pins
 
 ```bash
 python3 corpus_check.py            # 0 all match, 1 drift, 3 something unreachable
@@ -180,16 +140,71 @@ python3 corpus_check.py --json
 ```
 
 Stdlib only, no network credentials. Run it before authoring against the corpus and again before
-scoring a candidate: a document that drifted between those two moments is a document the ledger and
-the candidate were judged against differently.
+scoring a candidate. A document that drifted between those two moments is one the ledger and the
+candidate were judged against differently.
 
-## Two traps this corpus exists to record
+### Two traps this corpus exists to record
 
 **Errata are renumbered between editions.** DS80349C inserts two issues ahead of the list in
 DS80349B, so every number below them shifts. A bare "issue 12" in a driver comment or a mailing
 list post names different silicon depending on which edition its author had. `errata_map` records
 both editions in full so a bare reference can be resolved, or recorded as unresolvable.
 
-**Both served errata editions accompany DS39662C, while the current data sheet is DS39662E.** There
-is no errata edition published against D or E at the vendor's url pattern. A ledger row pairing an
-erratum with a data sheet section has to say which data sheet edition it read that section in.
+**Both served errata editions accompany DS39662C, while the current data sheet is DS39662E.**
+The vendor's URL pattern serves no errata edition published against D or E. A ledger row pairing
+an erratum with a data sheet section has to say which data sheet edition it read that section in.
+
+### Input history
+
+Entries a reader of a score needs, in order:
+
+- **2026-09-19, before any freeze or candidate.** `corpus.yaml` recorded DS80349C silicon issue 1
+  (MAC registers unreliable with a slow asynchronous SPI clock) as affecting B5 and B7. One of the
+  blind readers, working from the extracted text, saw the marks under B1 and B4 and flagged the
+  disagreement instead of following the manifest. The rendered Table 2 and the issue's own box
+  confirmed B1 and B4. The fix went into the manifest and into the one ledger row that cites the
+  issue (`ENC28J60-SPI-017`). The pinned documents did not change. No score used the earlier
+  manifest, because no candidate has been scored.
+- **2026-09-19.** The remaining affected-revision lists (issues 2, 4 to 7, 9 to 12, 14 to 19) and
+  Table 3's three conformance issues were added to the manifest from the same page, so the map is
+  the source of those lists rather than the drafts.
+
+## Scoring (stage A)
+
+[SCORING-RUN.md](SCORING-RUN.md) is the contract. The first practice run's preparation failures
+now have gates:
+
+- `prepare.py` refuses a packet carrying another reader's judgment vocabulary, or one built from
+  an inventory still being segmented.
+- `score.py` takes that packet and its inventory, refuses judgments that are not the records the
+  readers were given, and archives both.
+- The review schema is `enc28j60-review-3`. It carries the frozen fact wording and its unit-level
+  prose beside each numbered disposition.
+- `SCORING-RUN.md` settles what a review may cite: the manifest evidences propositions about the
+  manifest, a claim about the device cites the document, and a manifest-only claim earns no
+  coverage credit.
+
+These gates establish correspondence between artifacts, not testimony. They do not establish that
+the readers saw only the packet or that their contexts were isolated; those stay operator
+responsibilities, and the limits are written down beside the gates. The frozen answer key, policy
+and fact lists are unchanged, and the practice run's archived attempts keep their own tools and
+replay as scored.
+
+## Reconstruction (planned)
+
+The [shared OS-neutral protocol](../../RECONSTRUCTION.md) adds driver reconstruction from each
+frozen spec. Linux is selected by this pilot's existing corpus; future devices can use another
+reference OS. Results will be separate from the frozen documentary scores, and the paired
+generation/review sequence in [ARMS.md](ARMS.md) remains in force.
+
+- The [pilot run guide](RECONSTRUCTION-RUN.md) describes the environment, scope, checks,
+  isolation, and budgets to establish before running.
+- The [procedure-trial preparation record](RECONSTRUCTION-TRIAL.md) drafts R1a for the frozen
+  practice spec, with a neutral implementation brief, isolation plan, proposed checks, and
+  pending launch decisions. The trial precedes preparation of the paired run.
+- The later [M01 preparation manifest](reconstruction/M01-PREPARATION-v1.md) records recovered
+  input identities, bounded target/isolation/record investigations, stage blockers and
+  predeclared offline readiness criteria. Its [evidence record](../../evidence/M01.md) tracks
+  verification and review.
+
+The original R1a draft is preserved; neither record authorizes execution.
