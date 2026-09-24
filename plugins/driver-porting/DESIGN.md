@@ -444,7 +444,8 @@ absence of another authority does not permit relabeling a boundary failure as a 
 
 On a boundary pass, the orchestrator lands `docs/<device>-spec.md`, hashes its contents, and appends
 the revision and scan report to `docs/provenance-ledger.md`. Scan reports live under
-`docs/provenance/`; transcripts are retained as evidence. The prescribed project index receives a
+`docs/provenance/`; transcripts are retained as evidence, by path rather than by copy,
+because they live in the harness's protected state directory. The prescribed project index receives a
 summary entry. This ledger records clean-room events, not the evaluation's list of requirements.
 
 ### 4. Establish accuracy separately
