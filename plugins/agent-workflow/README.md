@@ -50,11 +50,18 @@ skill you want from `plugins/agent-workflow/skills/<name>` into your skills root
   plan. Requires approval for a new or materially revised design unless waived, reuses
   an unchanged authoritative design, and builds cohesive milestones sized for roughly
   75% of a fresh session's context. Requires testing, review, and linked evidence before
-  completion. Commits at every checkpoint by default and stops after one milestone for
+  completion, and keeps a `lab-notebook` chapter per milestone. Commits at every
+  checkpoint by default and stops after one milestone for
   user review, with a handoff for a fresh session; unfinished work is handed off without
   advancing. Triggers on
   "plan this project", "turn this design into an implementation plan", or "break this
   work into milestones".
+- **`lab-notebook`** — during: keep an append-only, timestamped notebook with one chapter
+  per unit of work (attempts, dead ends, decisions, surprises), an index with timestamps
+  that show when it has fallen behind, and a per-project process log of where the agent's
+  process cost time, as input for improving its instructions and skills. `project-plan`
+  uses it with one chapter per milestone. Triggers on "keep a lab notebook" or "take notes
+  as you go".
 - **`intern-mode`** — during: a loop-safety posture. After twelve turns without meaningful
   progress the agent stops, files a stuck report, and waits for direction. Stays active until
   explicitly released. For "stop if you get stuck" and protection against silent thrashing.

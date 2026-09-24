@@ -34,7 +34,8 @@ project's build and test tools; identify these in the plan.
 
 Follow the project's documentation conventions and user-specified locations. Otherwise,
 use `docs/design.md` and `docs/implementation-plan.md`; use topic-specific filenames when
-the project has several workstreams. Link the documents using relative paths.
+the project has several workstreams. Link the documents using relative paths. The
+notebook and process log (see "Keep notes as you go") live beside them.
 
 A planning request authorizes producing these documents, with one pause: after the
 design is written or materially revised, stop and ask the user to approve it before
@@ -49,6 +50,21 @@ Orient from the documents' contents, not just their existence: establish whether
 design needs work, the plan is ready, or a milestone is unfinished. State the current
 phase and next action briefly. Use the templates in [templates.md](templates.md) when
 creating documents; adapt their structure to existing project conventions.
+
+## Keep notes as you go
+
+Follow the `lab-notebook` skill from the first design session onward. Its SKILL.md is in
+a sibling directory of this skill's base directory (the harness reports the base
+directory when a skill is invoked): read `<base-dir>/../lab-notebook/SKILL.md` before
+writing the first entry. It defines the chapter entries and their triggers, the
+timestamped index, the process log, and their templates. This skill decides only where
+chapters begin and end:
+
+- One chapter per milestone, named by its ID (`docs/notebook/M3.md`).
+- A `design` chapter for design and planning work, and one chapter per bounded
+  investigation, named by its ID.
+- The milestone's evidence file is its verdict record; link the chapter from it.
+- The plan's backlog, not the process log, holds findings about the project.
 
 ## 1. Establish the design
 
@@ -144,12 +160,15 @@ room for verification. Without a meter, watch for growing investigation, repeate
 re-reading, and repeated debugging attempts without new evidence. If finishing safely
 before compaction looks unlikely, save an incomplete handoff and stop early. If compaction
 happens unexpectedly, disclose that the sizing goal was missed, reconstruct the state
-from files, and write a safe handoff rather than continuing implementation in that session.
+from files (the current notebook chapter first), log the miss in the process log, and
+write a safe handoff rather than continuing implementation in that session.
 A session boundary does not make a milestone complete.
 
 ## 3. Execute and close milestones when authorized
 
-On resumption, read the design, plan, latest checkpoint, and relevant working-tree state.
+On resumption, read the design, plan, latest checkpoint, the notebook index, the current
+milestone's chapter, and relevant working-tree state. Read other chapters only when the
+index points to one that matters; do not read the whole notebook.
 Check that prerequisites still hold and that the design has not drifted. Implement the
 milestone identified by the handoff within the user's authorized scope: resume an
 unfinished milestone before advancing; after a completed one, start the next eligible
@@ -157,7 +176,8 @@ milestone when the user asks to resume. If no handoff exists, use plan status an
 to choose. Mark it `in_progress` and briefly state its acceptance criteria.
 
 Record the starting revision when available and any pre-existing working-tree changes
-so the milestone's actual changes can be identified for review. Write tests alongside
+so the milestone's actual changes can be identified for review; open or resume the
+milestone's notebook chapter with an entry recording them. Write tests alongside
 implementation. Put unrelated discoveries in the plan's backlog with their impact and
 follow-up, rather than expanding the current milestone silently.
 
@@ -186,8 +206,10 @@ Before declaring **any milestone complete**:
 4. Write full evidence (commands/checks, outcomes, output excerpts, review findings and
    resolutions) to a linked evidence file, `docs/evidence/<milestone-id>.md` unless the
    project has a convention. Keep only status, the evidence link, and open limitations
-   in the plan's evidence block. Mark complete only when acceptance criteria and required
-   verification pass and blocking review findings are resolved. At completion, move the
+   in the plan's evidence block. Link the milestone's notebook chapter from the evidence
+   file rather than copying from it. Mark complete only when acceptance criteria and
+   required verification pass, blocking review findings are resolved, the chapter has a
+   closing entry, and its index row is current. At completion, move the
    detailed milestone entry into the evidence file, preserving design coverage and
    acceptance criteria there; retain its ID, outcome, dependencies, status, evidence link,
    and open limitations in the plan. Finished milestones should cost each new session a
@@ -247,13 +269,14 @@ At completion or an early stop, update the plan and write a handoff using the pr
 existing handoff convention, or the plan's `Next session` section when none exists.
 Record the current milestone and status, work done, relevant files and working-tree state,
 test/review evidence, outstanding failures or decisions, and the exact next action.
-Distinguish required work from optional backlog items. Do not require a separate handoff
-skill or create competing records.
+Distinguish required work from optional backlog items. Append the checkpoint entry to the
+notebook chapter and refresh its index row and `Updated:` timestamp. Do not require a
+separate handoff skill or create competing records.
 
-Commit the milestone's changes together with the evidence and plan/handoff update at
-every checkpoint, completed or early-stopped, on the project's working branch, under a
-message that names the milestone (`<prefix>: M3 — <title>`). Record the branch and message
-prefix in the plan's conventions block. A user instruction or project workflow that
+Commit the milestone's changes together with the evidence, notebook, process log, and
+plan/handoff update at every checkpoint, completed or early-stopped, on the project's
+working branch, under a message that names the milestone (`<prefix>: M3 — <title>`).
+Record the branch and message prefix in the plan's conventions block. A user instruction or project workflow that
 forbids agent commits overrides this; make the uncommitted state clear in the handoff.
 Include only the milestone's changes, preserving unrelated pre-existing work. Record
 existing milestone commits and identify the checkpoint commit by its message when its
@@ -278,7 +301,8 @@ For planning-only work, report the design and plan paths, the milestone sequence
 unresolved decisions or verification prerequisites. Make clear that implementation has
 not run. For execution, lead with a progress line ("M3 of 6 complete" or "M3 of 6
 incomplete: <reason>"), then two or three bullets on what now works and how it was
-verified, any design change or unexpected compaction, and the handoff link. Give the
-next action for a fresh session as a single line, resuming unfinished work when needed.
+verified, any design change or unexpected compaction, the handoff link, and the number
+of process-log entries added this session. Give the next action for a fresh session as a
+single line, resuming unfinished work when needed.
 Keep the documents authoritative so a new session can proceed without reconstructing
 decisions from chat.
