@@ -1,7 +1,7 @@
 {
   "name": "everything",
-  "version": "2.0.0",
-  "description": "Every skill in this repo in one plugin: hardware-lab, driver-porting, agent-workflow and dev-tools combined.",
+  "version": "3.0.0",
+  "description": "Every skill in this repo in one plugin: hardware-lab, agent-workflow and dev-tools combined. driver-porting moved to the driver-lab repository.",
   "author": {
     "name": "curtisgalloway",
     "url": "https://github.com/curtisgalloway"
@@ -16,10 +16,6 @@
     "productivity",
     "safety",
     "learning",
-    "clean-room",
-    "hardware",
-    "bring-up",
-    "raspberry-pi",
-    "rockchip"
+    "hardware"
   ]
 }

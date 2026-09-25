@@ -26,13 +26,6 @@ import unittest
 HERE = pathlib.Path(__file__).resolve().parent
 SCAN = HERE.parent / "scripts" / "portability_scan.py"
 FIX = HERE / "fixtures"
-REPO = next(p for p in HERE.parents if (p / ".claude-plugin" / "marketplace.json").is_file())
-
-
-def sibling_skill(name: str) -> pathlib.Path:
-    """A skill elsewhere in this repo, whichever theme directory holds it."""
-    hits = sorted(REPO.glob(f"plugins/*/skills/{name}")) or [REPO / "skills" / name]
-    return hits[0]
 
 
 def run_scan(*args):
@@ -81,16 +74,6 @@ class TestPortableSkill(unittest.TestCase):
         rc, out = run_scan(FIX / "portable_skill")
         self.assertEqual(rc, 0, out)
         self.assertIn("0 finding(s)", out)
-
-    def test_reference_implementation_is_clean(self):
-        """The scripts this skill points at as worked examples must pass.
-
-        If a change to the clean-room hook or auditor reintroduces a
-        tool-name table or a single-harness path, this goes red — the skill
-        should not be able to recommend code that fails its own check.
-        """
-        rc, out = run_scan(sibling_skill("cleanroom-implementer") / "scripts")
-        self.assertEqual(rc, 0, out)
 
 
 class TestHeuristics(unittest.TestCase):

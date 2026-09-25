@@ -212,7 +212,8 @@ then fall back to text. Walk directories rather than demanding a file. Recognize
 shapes in one pass — nested `toolCall` objects, `toolCalls[]` arrays, `functionCall` parts,
 `tool_use` blocks — because a build can change how it records a session without telling you.
 
-`skills/cleanroom-implementer/scripts/session_audit.py` is the worked example.
+[`cleanroom-implementer/scripts/session_audit.py`](https://github.com/curtisgalloway/driver-lab/blob/main/skills/cleanroom-implementer/scripts/session_audit.py)
+in the driver-lab repository is the worked example.
 
 ## Write the documentation portably too
 
