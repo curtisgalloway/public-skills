@@ -75,8 +75,8 @@ def skill_is_registered(name: str, text: str) -> bool:
 
     A bare `name in text` false-passes whenever the name also occurs in the
     surrounding prose, and the plugin-README region is the whole file. Several
-    skills are in that state (teach, jj, os-investigator, cleanroom-implementer,
-    agent-agnostic-skills among them), so delisting any of them would go
+    skills are in that state (teach, jj, agent-agnostic-skills among them),
+    so delisting any of them would go
     undetected by a loose check. Requiring the backticks also kills prefix
     bleed for free: the closing backtick stops `cynthion-capture` from
     satisfying a hypothetical `cynthion-capture-foo`.

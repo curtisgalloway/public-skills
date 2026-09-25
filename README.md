@@ -6,17 +6,21 @@ supports skills or slash commands. Terms are defined in the [glossary](GLOSSARY.
 
 ## Plugins
 
-Skills are grouped by theme into four plugins under `plugins/`, each with its own README.
+Skills are grouped by theme into plugins, each with its own README. Three live under
+`plugins/` here; `driver-porting` lives in its own repository,
+[driver-lab](https://github.com/curtisgalloway/driver-lab), and this marketplace's entry for it
+points there.
 
 | Plugin | What it covers | Skills |
 | --- | --- | --- |
 | [`hardware-lab`](plugins/hardware-lab/README.md) | USB traffic capture, decoding and protocol reverse-engineering with a Cynthion; bench instruments | `cynthion-setup`, `cynthion-capture`, `cynthion-pcap-decode`, `cynthion-reverse-engineer`, `usb-device-profile`, `mcci-3411`, `bus-pirate`, `siglent-scope` |
-| [`driver-porting`](plugins/driver-porting/README.md) | Clean-room driver specs from encumbered source, source-anchored specs and reviews for code you own, board specs and board experts | `os-investigator`, `cleanroom-spec`, `cleanroom-implementer`, `anchored-peripheral-spec`, `reference-driver-review`, `board-expert`, `rpi-expert`, `rpi4-expert`, `indiedroid-nova-expert`, `pixel10-expert`, `board-spec-scaffold`, `spec-verifier` |
+| [`driver-porting`](https://github.com/curtisgalloway/driver-lab) (in driver-lab) | Clean-room driver specs from encumbered source, source-anchored specs and reviews for code you own, board specs and board experts | `os-investigator`, `cleanroom-spec`, `cleanroom-implementer`, `anchored-peripheral-spec`, `reference-driver-review`, `board-expert`, `rpi-expert`, `rpi4-expert`, `indiedroid-nova-expert`, `pixel10-expert`, `board-spec-scaffold`, `spec-verifier` |
 | [`agent-workflow`](plugins/agent-workflow/README.md) | Working with a coding agent over time: design partnership, counterpart consultation, project planning, loop safety, lab notebooks, handoffs, session learning, document review, portable skill authoring | `design-partner`, `consult`, `project-plan`, `lab-notebook`, `intern-mode`, `handoff`, `learn`, `teach`, `claude-session-transcript`, `gdoc-review-loop`, `agent-agnostic-skills` |
 | [`dev-tools`](plugins/dev-tools/README.md) | Engineering utilities | `jj`, `dep-quality`, `cli-conventions`, `review-swarm`, `release-train` |
 
-A fifth plugin, `everything`, bundles all four. Install it or the themed plugins, not both,
-or every skill loads twice.
+One more plugin, `everything`, bundles the three themes kept here; it cannot include
+`driver-porting`, which is installed on its own. Install `everything` or the themed plugins,
+not both, or every skill loads twice.
 
 Each skill is a directory, `plugins/<theme>/skills/<name>/`, holding a `SKILL.md` and often
 scripts, references, or templates.
@@ -41,8 +45,9 @@ install the themes you want:
 /plugin install dev-tools@curtisg-skills
 ```
 
-Or install `everything@curtisg-skills` to get all four. To use a local clone, pass its path
-to `/plugin marketplace add` instead.
+Or install `everything@curtisg-skills` to get the three themes kept here, plus
+`driver-porting@curtisg-skills` if you want it. To use a local clone, pass its path to
+`/plugin marketplace add` instead.
 
 ### Codex
 
@@ -56,7 +61,7 @@ codex plugin add agent-workflow@curtisg-skills
 codex plugin add dev-tools@curtisg-skills
 ```
 
-As with Claude Code, `everything@curtisg-skills` gets all four, and a local clone's path works
+As with Claude Code, `everything@curtisg-skills` gets the three themes kept here, and a local clone's path works
 in place of `curtisgalloway/public-skills`. Codex also loads any skill directory you link into
 `~/.agents/skills/`.
 
@@ -77,13 +82,14 @@ or a plugin's `skills/` directory.
 
 ```bash
 git clone https://github.com/curtisgalloway/public-skills ~/src/public-skills
-ln -s ~/src/public-skills/plugins/driver-porting/skills/cleanroom-spec ~/.gemini/antigravity/skills/cleanroom-spec
+ln -s ~/src/public-skills/plugins/agent-workflow/skills/handoff ~/.gemini/antigravity/skills/handoff
 ```
 
 Run `/skills` to confirm they loaded. Antigravity has moved these paths between releases, so
 check before assuming an install worked.
 
-Two pieces are subagent roles, not skills: `os-investigator` and
+In [driver-lab](https://github.com/curtisgalloway/driver-lab), two pieces of `driver-porting`
+are subagent roles, not skills: `os-investigator` and
 `cleanroom-implementer/assets/driver-implementer.md`. Install each as
 `<workspace>/.agents/agents/<name>.md` with `subagent: true` in the frontmatter; they appear
 under `/agents`. Workspace-wide instructions go in `AGENTS.md` at the workspace root or in
@@ -95,7 +101,7 @@ under `/agents`. Workspace-wide instructions go in `AGENTS.md` at the workspace 
   skills for checking out the source tree, bridging its Gemini-oriented agent config into
   Claude Code, running parallel workstreams, answering deep source questions, debugging driver
   binding, and the hardware bench and boot-test CI. They hand off to `driver-porting` skills
-  by name.
+  (in [driver-lab](https://github.com/curtisgalloway/driver-lab)) by name.
 
   ```
   /plugin marketplace add curtisgalloway/fuchsia-skills

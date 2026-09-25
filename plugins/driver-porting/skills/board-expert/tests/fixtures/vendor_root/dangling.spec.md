@@ -1,5 +1,0 @@
----
-overlays: nosuchboard
----
-
-# dangling overlay

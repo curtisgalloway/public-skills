@@ -1,7 +1,0 @@
-# SPDX-FileCopyrightText: 2026 contributors
-# SPDX-License-Identifier: Apache-2.0
-#
-# Root marker for the public board specs shipped with board-expert: boards with
-# no home source tree, and the worked examples. See ../SPEC-FORMAT.md.
-layer: public
-name: driver-porting

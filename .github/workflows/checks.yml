@@ -30,43 +30,6 @@ jobs:
       - name: consult tests
         run: python3 -m unittest discover -s plugins/agent-workflow/skills/consult/tests -v
 
-      - name: os-investigator tests
-        run: python3 -m unittest discover -s plugins/driver-porting/skills/os-investigator/tests -v
-
-      - name: cleanroom-implementer tests
-        run: python3 -m unittest discover -s plugins/driver-porting/skills/cleanroom-implementer/tests -v
-
-      - name: board-expert tests
-        run: python3 -m unittest discover -s plugins/driver-porting/skills/board-expert/tests -v
-
-      - name: board specs
-        run: |
-          python3 plugins/driver-porting/skills/board-expert/scripts/spec_check.py \
-            plugins/driver-porting/skills/board-expert/specs \
-            --stubs-from plugins/driver-porting/skills
-
-      - name: ENC28J60 YAML dependency
-        run: |
-          python3 -m venv "$RUNNER_TEMP/enc28j60-tests"
-          "$RUNNER_TEMP/enc28j60-tests/bin/python" -m pip install PyYAML
-
-      - name: enc28j60 corpus tests
-        run: >-
-          "$RUNNER_TEMP/enc28j60-tests/bin/python" -m unittest discover
-          -s plugins/driver-porting/evals/enc28j60/tests -v
-
-      # The author's manifest is what a candidate run is given. Regenerating it on every push is
-      # how a corpus edit that would change what an author sees becomes visible in review.
-      - name: enc28j60 author manifest
-        run: >-
-          "$RUNNER_TEMP/enc28j60-tests/bin/python"
-          plugins/driver-porting/evals/enc28j60/author_manifest.py
-          --check plugins/driver-porting/evals/enc28j60/author-manifest.yaml
-
-      # Only the parts that need no QEMU; the harness itself runs on the test host.
-      - name: e1000 QEMU harness tests
-        run: python3 -m unittest discover -s plugins/driver-porting/evals/e1000/harness/tests -v
-
       - name: dep-quality tests
         run: python3 -m unittest discover -s plugins/dev-tools/skills/dep-quality/tests -v
 
