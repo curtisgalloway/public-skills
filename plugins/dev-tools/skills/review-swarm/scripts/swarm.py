@@ -12,14 +12,18 @@ Two subcommands, stdlib only:
       is checked against ROOT: the file exists, the range is inside it, and
       the whitespace-normalized evidence_quote occurs within the range (or
       within --slack lines of it, in which case the range is corrected).
-      Findings that fail are dropped with a reason. Plainly identical
+      Findings that fail are dropped with a reason. When DIR/diff.patch
+      exists, a finding whose lines touch no hunk of the diff is kept but
+      marked outside_diff, for the referee to judge. Plainly identical
       findings are merged; overlapping ones are flagged as duplicate
       candidates for the referee. Writes DIR/verified.json.
 
-  table --run DIR [--json]
+  table --run DIR [--json | --format pr --blob-url URL]
       Render DIR/final.json (the referee's output) or, failing that,
       DIR/verified.json marked UNREFEREED, as a ranked Markdown table with
-      the arm-status lines above it.
+      the arm-status lines above it. --format pr renders the same result
+      as a pull request comment, each location a permalink under URL
+      (https://github.com/<owner>/<repo>/blob/<full head sha>).
 
 Exit codes follow the dev-tools/cli-conventions contract:
 
@@ -39,12 +43,13 @@ import sys
 from pathlib import Path
 
 SCHEMA = "review-swarm/1"
-DEFAULT_ARMS = ("security", "correctness", "compat", "docs")
+DEFAULT_ARMS = ("security", "correctness", "compat", "docs", "history", "conventions", "perf")
 SEVERITIES = ("critical", "high", "medium", "low")
 REQUIRED = ("severity", "file", "line_range", "claim", "evidence_quote", "suggested_fix")
 DEFAULT_SLACK = 3
 MERGE_SIMILARITY = 0.5
 _TOKEN = re.compile(r"[a-z0-9_]{3,}")
+_HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@")
 
 
 def norm(text: str) -> str:
@@ -197,6 +202,39 @@ def check_finding(repo: Path, finding: dict, slack: int) -> dict:
 
 
 # --------------------------------------------------------------------------
+# Diff hunks
+# --------------------------------------------------------------------------
+
+
+def diff_hunks(patch: str) -> dict[str, list[tuple[int, int]]]:
+    """Map each head-side path in a unified diff to its hunks' line ranges.
+
+    A range is the hunk's whole head-side span, context lines included, so a
+    finding next to a changed line still counts as touching the change. A
+    pure deletion (zero head lines) is recorded as the one line it sits at.
+    Deleted files have no head side and are absent from the map.
+    """
+    hunks: dict[str, list[tuple[int, int]]] = {}
+    current: str | None = None
+    for line in patch.splitlines():
+        if line.startswith("+++ "):
+            target = line[4:].split("\t")[0].strip()
+            current = None if target == "/dev/null" else target.removeprefix("b/")
+            continue
+        m = _HUNK.match(line)
+        if m and current is not None:
+            start = int(m.group(1))
+            count = 1 if m.group(2) is None else int(m.group(2))
+            hunks.setdefault(current, []).append((max(start, 1), max(start, 1) + max(count, 1) - 1))
+    return hunks
+
+
+def touches_diff(finding: dict, hunks: dict[str, list[tuple[int, int]]]) -> bool:
+    first, last = finding["line_range"]
+    return any(a <= last and first <= b for a, b in hunks.get(finding["file"], []))
+
+
+# --------------------------------------------------------------------------
 # Dedup
 # --------------------------------------------------------------------------
 
@@ -268,6 +306,9 @@ def cmd_verify(args: argparse.Namespace) -> int:
         print("usage error: --arms is empty", file=sys.stderr)
         return 2
 
+    patch = run / "diff.patch"
+    hunks = diff_hunks(patch.read_text(encoding="utf-8", errors="replace")) if patch.is_file() else None
+
     arm_report: dict[str, dict] = {}
     findings: list[dict] = []
     dropped: list[dict] = []
@@ -294,6 +335,8 @@ def cmd_verify(args: argparse.Namespace) -> int:
                 )
                 continue
             verified += 1
+            if hunks is not None and not touches_diff(checked, hunks):
+                checked["outside_diff"] = True
             findings.append({"id": fid, "arms": [arm], **checked})
         arm_report[arm] = {
             "status": loaded["status"],
@@ -311,6 +354,7 @@ def cmd_verify(args: argparse.Namespace) -> int:
         "findings": kept,
         "dropped": dropped,
         "dup_candidates": candidates,
+        "diff_checked": hunks is not None,
     }
     (run / "verified.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
 
@@ -330,6 +374,11 @@ def cmd_verify(args: argparse.Namespace) -> int:
     for d in dropped:
         print(f"dropped {d['id']} [{d['arm']}] {d['file']}: {d['reason']}", file=report)
     merged = sum(len(f.get("merged_from", [])) for f in kept)
+    if hunks is None:
+        print(f"no {patch}; findings were not checked against the diff's hunks", file=report)
+    else:
+        outside = sum(1 for f in kept if f.get("outside_diff"))
+        print(f"{outside} finding(s) touch no hunk of the diff (marked outside_diff)", file=report)
     print(
         f"{len(kept)} findings verified ({merged} merged as identical), "
         f"{len(dropped)} dropped, {len(candidates)} duplicate-candidate group(s); "
@@ -380,6 +429,8 @@ def render_table(data: dict, refereed: bool) -> str:
         for n, f in enumerate(ranked, 1):
             a, b = f["line_range"]
             loc = f"`{f['file']}:{a}`" if a == b else f"`{f['file']}:{a}-{b}`"
+            if f.get("outside_diff"):
+                loc += " (outside diff)"
             lines.append(
                 f"| {n} | {f['id']} | {f['severity']} | {', '.join(f.get('arms', []))} | {loc} "
                 f"| {_cell(f['claim'])} | {_cell(f['suggested_fix'], 160)} |"
@@ -401,7 +452,52 @@ def render_table(data: dict, refereed: bool) -> str:
     return "\n".join(lines) + "\n"
 
 
+def render_pr(data: dict, refereed: bool, blob_url: str) -> str:
+    """The same ranked result as a pull request comment with permalinks.
+
+    Arm failures and an unrefereed result are stated in the comment too: a
+    reader of the PR must be able to tell a partial review from a clean one.
+    """
+    blob_url = blob_url.rstrip("/")
+    ranked = sorted(data.get("findings", []), key=rank_key)
+    arms = data.get("arms", {})
+    lines = ["### Review swarm", ""]
+    if not refereed:
+        lines += ["**UNREFEREED**: the referee produced no result; findings passed only the quote check.", ""]
+    trouble = [a for a, i in arms.items() if i.get("status") in ("FAILED", "PARTIAL")]
+    for arm in trouble:
+        lines.append(f"- **ARM {arms[arm]['status']}: {arm}** — {_cell(arms[arm].get('reason', ''))}")
+    if trouble:
+        lines.append("")
+    ok = [a for a in arms if a not in trouble]
+    lines.append(f"Arms that delivered: {', '.join(ok) if ok else 'none'}.")
+    lines.append("")
+    if not ranked:
+        lines.append("No findings survived.")
+    else:
+        lines.append(f"Found {len(ranked)} issue(s):")
+        lines.append("")
+        for n, f in enumerate(ranked, 1):
+            a, b = f["line_range"]
+            link = f"{blob_url}/{f['file']}#L{max(a - 1, 1)}-L{b + 1}"
+            tag = f"{f['severity']}, {', '.join(f.get('arms', []))}"
+            if f.get("outside_diff"):
+                tag += ", outside diff"
+            lines.append(f"{n}. **{tag}** — {_cell(f['claim'])}")
+            lines.append(f"   Fix: {_cell(f['suggested_fix'])}")
+            lines.append("")
+            lines.append(f"   {link}")
+            lines.append("")
+    return "\n".join(lines).rstrip() + "\n"
+
+
 def cmd_table(args: argparse.Namespace) -> int:
+    if args.format == "pr" and not args.blob_url:
+        print("usage error: --format pr needs --blob-url", file=sys.stderr)
+        return 2
+    if args.format == "pr" and args.json:
+        print("usage error: --json and --format pr are exclusive", file=sys.stderr)
+        return 2
     run = Path(args.run).resolve()
     if not run.is_dir():
         print(f"missing precondition: run directory not found: {run}", file=sys.stderr)
@@ -431,6 +527,8 @@ def cmd_table(args: argparse.Namespace) -> int:
             indent=2,
         )
         sys.stdout.write("\n")
+    elif args.format == "pr":
+        sys.stdout.write(render_pr(data, refereed, args.blob_url))
     else:
         sys.stdout.write(render_table(data, refereed))
     trouble = any(i.get("status") in ("FAILED", "PARTIAL") for i in data.get("arms", {}).values())
@@ -455,6 +553,10 @@ def main(argv: list[str] | None = None) -> int:
     t = sub.add_parser("table", help="render the ranked findings table")
     t.add_argument("--run", required=True, help="run directory")
     t.add_argument("--json", action="store_true", help="emit the ranked list as JSON")
+    t.add_argument(
+        "--format", choices=("markdown", "pr"), default="markdown", help="terminal table or PR comment"
+    )
+    t.add_argument("--blob-url", help="permalink base for --format pr: .../blob/<full head sha>")
     t.set_defaults(func=cmd_table)
 
     args = parser.parse_args(argv)
