@@ -75,6 +75,7 @@ types, and comments say it does, and code that is wrong under concurrency.
 **What does not count:**
 
 - Anything an attacker has to be present for (security arm).
+- Slowness without a wrong result (perf arm).
 - Persisted-format changes and migrations (compat arm), unless the code that reads or writes
   them is itself wrong in a way this list covers.
 - Style, naming, and structure. A confusing function that computes the right answer is not a
@@ -154,7 +155,125 @@ tests in the change describe behavior that the code in the change does not have.
 - Missing documentation. Absence is not a contradiction, unless the change removes docs that
   still-present code needs.
 - Typos, tone, and formatting.
+- A comment or instruction file that tells the author what to do rather than describing what the
+  code does ("do not call this with the lock held"). Breaking an instruction is the conventions
+  arm's; you check descriptions.
 
 **What you must quote:** both sides, always: the documentation line that makes the claim and the
 code line that contradicts it. Put the doc quote in `evidence_quote` and cite the code location
 and its quote inside `claim`. A docs finding with only one side quoted is not a finding.
+
+---
+
+## history
+
+**You look for:** ways the change undoes, repeats, or ignores something the project's own history
+already learned: a bug fix it reverts, a pattern an earlier commit removed on purpose, review
+feedback given on an earlier change to the same code that applies again here.
+
+**How to look:** for each changed region, read `git log -L <first>,<last>:<file>` or
+`git blame -w <base> -- <file>` on the lines the diff touches, and open the commits whose
+messages say *fix*, *revert*, *regression*, *race*, *leak*, *security*, or name an issue. Where the
+`gh` CLI works and the repository is on GitHub, list the merged pull requests that touched the
+changed files (`gh pr list --state merged --search <path>`) and read their review comments
+(`gh pr view <n> --comments`, and `gh api repos/{owner}/{repo}/pulls/<n>/comments` for the
+line comments). Spend at most a third of your budget on pull requests; history in git comes
+first. When neither git history nor `gh` is available (a shallow clone, a tarball), write
+`"findings": []` with `"note": "no history available"` — that is a complete arm, not a failure.
+
+**What counts:**
+
+- A regression: the change reintroduces code that a named earlier commit removed or rewrote to
+  fix a bug, or removes the guard that commit added.
+- A repeated mistake: the change does to a new site what an earlier commit fixed at an old one
+  (the same unchecked call, the same missing lock, the same off-by-one), and the earlier fix's
+  message or diff says why it was wrong.
+- Ignored feedback: a reviewer on an earlier pull request asked for something about this code
+  ("always go through `open_atomic`", "this must stay sorted"), the author agreed or the change
+  was made, and this change undoes it.
+
+**What does not count:**
+
+- A bug you would report without the history. If the defect is visible from the code alone it
+  belongs to another arm; you report only what the history reveals.
+- Churn: code that was changed back and forth with no fix, revert, or review reason attached.
+- Review comments the earlier author rejected, or that the thread left unresolved.
+
+**What you must quote:** the line in the head checkout that reintroduces or repeats the defect,
+in `evidence_quote`. In `claim`, name the earlier commit by its full hash (or the pull request by
+number and the comment by author) and quote the line of its message, diff, or comment that shows
+why this was wrong before. A history finding without a named commit or comment is not a finding.
+
+---
+
+## conventions
+
+**You look for:** places where the change breaks a rule the project wrote down for itself: its
+agent instruction files and contributor docs, and directive comments in the code next to the
+change.
+
+**Where the rules are:** `AGENTS.md` and `CLAUDE.md` (and the other harness's equivalent, such as
+`GEMINI.md`) at the repository root and in every directory on the path from the root to each
+changed file; `CONTRIBUTING.md`, a style or conventions doc the README links to; and comments in
+the changed files that give an instruction rather than a description — "do not call this with
+the lock held", "keep in sync with `schema.sql`", "must stay sorted", `SAFETY:` notes, "never
+log this". An instruction file applies to the files in its own directory and below.
+
+**What counts:**
+
+- The change does what a rule forbids or skips what a rule requires, and the rule plainly covers
+  this code: a forbidden API or pattern, a required wrapper, a "keep in sync" pair where one side
+  changed and the other did not, a `SAFETY:` invariant the new code breaks.
+- A rule about a class of file the change adds to without meeting it: a required license header,
+  a registration step, a test file the rule says every module has.
+
+**What does not count:**
+
+- Rules about how the agent should *work* rather than what the code must be: commit message
+  wording, when to push, how to phrase a reply. Instruction files mix both; you enforce only the
+  second.
+- A rule the code explicitly silences at that site (a lint allow, a comment saying why this site
+  is the exception).
+- Anything a formatter, linter, or compiler the project runs would catch.
+- A comment that *describes* behavior the code does not have (docs arm). You enforce
+  instructions; the docs arm checks descriptions.
+- Style preferences no written rule states.
+
+**What you must quote:** the line in the changed code that breaks the rule, in `evidence_quote`.
+In `claim`, give the rule's file and line and quote the rule verbatim. A convention finding
+without the rule quoted is not a finding.
+
+---
+
+## perf
+
+**You look for:** ways the change makes the code slower, hungrier, or unbounded on inputs it will
+realistically see.
+
+**What counts:**
+
+- Complexity: work that grows quadratically or worse in the size of an input where linear was
+  available — a lookup in a list inside a loop over the same data, repeated string concatenation
+  in a loop, re-sorting inside a loop.
+- Repeated expensive work: a query, request, file read, regex compile, or process spawn inside a
+  loop that could run once (N+1 queries are the common case); a cache that is built and then
+  bypassed.
+- Unbounded growth: a collection, buffer, log, or queue with no size limit or eviction fed by
+  external input or by time; reading a whole file or response into memory where it can be large.
+- Blocking in a latency path: synchronous I/O or sleeps on an event loop, a UI thread, an
+  interrupt handler, or a request path the surrounding code keeps non-blocking.
+- Missing limits on external calls: no timeout, no pagination on a list call whose result grows.
+
+**What does not count:**
+
+- Micro-optimization: allocation or copies that do not change complexity on a path that is not
+  hot. If you cannot say why this path is hot or this input is large, it is not a finding.
+- A lock held across a blocking call when the problem is deadlock or wrong results (correctness
+  arm); you report it only when the cost is latency.
+- Memory or resource *leaks* on error paths (correctness arm).
+- Denial of service that needs an attacker to supply the input (security arm).
+
+**What you must quote:** the loop header or call site that does the repeated or unbounded work,
+and, when the cost comes from the interaction, the inner operation too (name its location in
+`claim`). State in `claim` what grows and roughly how: "one query per row of `orders`",
+"O(n²) in the number of files".

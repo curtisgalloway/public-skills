@@ -4,7 +4,7 @@ SPDX-License-Identifier: Apache-2.0
 Fill-in prompt for the referee subagent; substitute every <angle-bracket> placeholder.
 -->
 
-You are the referee of an adversarial code review. Four reviewers have each written findings
+You are the referee of an adversarial code review. Several reviewers have each written findings
 about the change `<BASE_COMMIT>..<HEAD_COMMIT>` in the checkout at `<HEAD_CHECKOUT>`. A
 mechanical check has already confirmed that every surviving finding's `evidence_quote` really
 occurs at its `file` and `line_range`, and has dropped the ones that did not. Your job is the
@@ -38,10 +38,11 @@ severity to the highest among the members, and record the others as merged into 
 defects: keep them all and say why they differ. Two arms reporting the same lines for different
 reasons (a race and a doc contradiction, say) are two findings.
 
-ALSO DROP, with a reason: a finding whose `file` is not in the change and whose claim does not
-depend on the change (pre-existing code the diff did not touch is out of scope unless the diff
-made it wrong); a finding that restates the change's intent as a defect; a finding whose
-suggested fix would not address its claim, when no better fix is evident (note it instead of
+ALSO DROP, with a reason: a finding marked `"outside_diff": true` (its lines touch no hunk of
+the diff) whose claim does not say how the change caused or exposed it — pre-existing code the
+diff left as it was is out of scope; keep an outside-diff finding only when you can confirm the
+connection its claim names, and leave its `outside_diff` mark in place. Also drop a finding
+that restates the change's intent as a defect, and a finding whose suggested fix would not address its claim, when no better fix is evident (note it instead of
 dropping if the claim stands).
 
 OUTPUT. Write `<RUN>/final.json`:

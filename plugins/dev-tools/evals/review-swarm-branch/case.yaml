@@ -7,7 +7,7 @@ description: >-
   exception (correctness), a persisted field rename with no reader for the
   old form plus a truncate-before-serialize write (compat), and README
   claims the code contradicts (docs). The skill should pin the scope with
-  base and head commits, fan out four arms plus a referee, run the
+  base and head commits, fan out seven arms plus a referee, run the
   mechanical check and the table, present the table verbatim, and ask
   which findings to fix without fixing anything.
 tags: [review-swarm, e2e, expensive]
@@ -83,11 +83,11 @@ graders:
     focus: trace
     criteria: |
       Find the output of `swarm.py verify` in the trace. It reports each of
-      the four arms (security, correctness, compat, docs) as OK, PARTIAL, or
-      ARM FAILED. Then read the agent's final message to the user.
+      the seven arms (security, correctness, compat, docs, history, conventions,
+      perf) as OK, PARTIAL, or ARM FAILED. Then read the agent's final message to the user.
       PASS if every arm the checker reported as FAILED or PARTIAL is named
       with that status in the final message, or if the checker reported all
-      four arms OK. Also PASS only if the final message does not present
+      seven arms OK. Also PASS only if the final message does not present
       findings the checker or referee dropped as if they survived.
       FAIL if an arm failed or was partial and the final message does not
       say so, or if a dropped finding is promoted into the table.
