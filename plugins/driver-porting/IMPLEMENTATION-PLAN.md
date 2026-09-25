@@ -229,7 +229,7 @@ their cost. L01 outputs do not retroactively satisfy frozen trial or paired-run 
 
 ## L02 — An e1000 driver from a spec, tested differentially in QEMU
 
-**Status:** `in_progress`; L02a and L02b complete 2026-09-23, L02c and L02e 2026-09-24. Design:
+**Status:** `in_progress`; L02a and L02b complete 2026-09-23, L02c, L02e and L02d1 2026-09-24. Design:
 [QEMU-DIFFERENTIAL.md](QEMU-DIFFERENTIAL.md), approved 2026-09-22 with decisions D1–D4
 resolved. Runs alongside L01, whose hardware unit waits on the fixture. Outcomes O1–O5 and
 acceptance criteria A1–A7 are the design's.
@@ -302,7 +302,21 @@ parallel with L02b–L02c.
 - **Review:** `review-swarm` on the harness code, plus a fresh reviewer on whether each
   scenario actually exercises what it claims (for example, that a ring-wrap run really wraps).
 - **Size:** one to two sessions; split point: boot-and-capture first, scenarios and mutations
-  second.
+  second. Split 2026-09-24 at that point into two units:
+- **L02d1 — boot and capture.** Status: `complete` 2026-09-24
+  ([evidence](evidence/L02d1.md), [notebook](notebook/L02d1.md)). One command on the test
+  host boots the DUT (reference `e1000`) and a virtio-net peer, runs `smoke` (probe, MAC,
+  carrier, pings both ways, unload), and stores the register trace, both captures, consoles,
+  command logs, verdicts and hashes per run; harness in `evals/e1000/harness/`. Verdicts are
+  PASS, FAIL (a guest misbehaved; exit 1) or ERROR (harness or host; exit 2). Open
+  limitations: smoke does not check the kernel log; the EEPROM check shows use of the
+  interface, not the MAC's source; `--accel tcg` untested; the late-connect fix not reproduced
+  live.
+- **L02d2 — scenarios and mutations.** Status: `pending`. The rest of the design's §5
+  scenario list, the ITR read-back decision, the L02e open-item probes, a kernel-log check in
+  every scenario (warnings, call traces, transmit hangs; log taken after unload), per-phase
+  trace grouping for L02f's comparison, the planted defects, and the scenario-coverage
+  reviewer. Accept and review as L02d above.
 
 ### L02e — Implement, build, and review the candidate
 
@@ -816,26 +830,27 @@ pretending the pilot plan completes an unspecified platform-wide system.
 
 ## Next session
 
-L02a, L02b, L02c and L02e are complete ([L02a](evidence/L02a.md), [L02b](evidence/L02b.md),
-[L02c](evidence/L02c.md), [L02e](evidence/L02e.md)). Resume whichever unit the user picks; do
-not start two in one session. Read [notebook/index.md](notebook/index.md) first.
+L02a, L02b, L02c, L02e and L02d1 are complete ([L02a](evidence/L02a.md), [L02b](evidence/L02b.md),
+[L02c](evidence/L02c.md), [L02e](evidence/L02e.md), [L02d1](evidence/L02d1.md)). Resume
+whichever unit the user picks; do not start two in one session. Read
+[notebook/index.md](notebook/index.md) first.
 
-- **L02d (ready now; L02f needs it):** the QEMU harness. The test host already has the verified
-  v6.12 tree built with `gcc-14` (`x86_64_defconfig`, `CONFIG_E1000=m`) from L02e; check its
-  identity before reuse. It must decide how the ITR scenario reads the value back (L02b
-  finding C-2); spec revision 4 allows ITR = 0. Scenarios should also be able to exercise
-  L02e's open items: the DMA mask (reference review M2), the reset path (M3), transmits queued
-  at link loss (L4), and the post-reset timing gap.
-- **L02f (after L02d):** the differential run of `e1000_l02` (run `e1000-l02e-20260924-01`,
-  `candidate/`, SHA-256 `673e4787…402be74c`) against the reference. The repair cap for L02e is
-  spent; L02f has its own repair budget.
+- **L02d2 (ready now; L02f needs it):** scenarios and planted defects on the L02d1 harness.
+  Start from [the harness README](evals/e1000/harness/README.md) and the L02d1 evidence's
+  open limitations. The harness runs on the test host from a synced copy; the private run
+  store holds every L02d1 run. Decide how the ITR scenario reads the value back (L02b finding
+  C-2; spec revision 4 allows ITR = 0). Scenarios should also exercise L02e's open items: the
+  DMA mask (reference review M2), the reset path (M3), transmits queued at link loss (L4),
+  and the post-reset timing gap. Add the kernel-log check to every scenario.
+- **L02f (after L02d2):** the differential run of `e1000_l02` (run `e1000-l02e-20260924-01`,
+  `candidate/`, SHA-256 `673e4787…402be74c`) against the reference. The candidate must be
+  rebuilt against the harness kernel's tree (the L02e build tree is the same one). The repair
+  cap for L02e is spent; L02f has its own repair budget.
 - **Spec revision 5 (whenever convenient, before L02f's feedback):** amend §5.4 G4 and §9.2 to
   set PSCON bit 11, per the L02e spec-error gap.
 - **L01 second unit (blocked on the fixture):** unchanged; see [evidence/L01.md](evidence/L01.md).
 - Transcripts: record each subagent's transcript path in the run's ledger; do not copy them
-  (user rule, 2026-09-23). A transcript audit is run by the user from a one-line script in the
-  run directory.
-- Branches: L02b merged as PR #82 (2026-09-24). L02c is PR #84, now against `main`. L02e is on
-  `driver-porting/l02e`, cut from `driver-porting/l02c` at `c111a9d`, which #84 still
-  contains; its checkpoint commit is the one that adds this line. Rebase or merge it onto
-  `origin/main` after #84 merges.
+  (user rule, 2026-09-23).
+- Branches: L02d1 is on `driver-porting/l02d`, cut from `origin/main` at `a1a37be`; its
+  checkpoint commit is the one that adds this line. L02d2 can continue on the same branch
+  after its PR merges, or on a new branch from `origin/main`.

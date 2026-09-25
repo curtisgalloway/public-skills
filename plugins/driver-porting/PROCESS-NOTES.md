@@ -190,3 +190,37 @@ Cost: none beyond this correction.
 Prevention: write log entries when the event happens, and name the mechanism from the code.
 Fix belongs in: lab-notebook practice (no instruction change)
 Status: open
+
+### 2026-09-24T16:23-07:00 — instruction gap: resuming session had to search for the run store
+Chapter: [L02d1](notebook/L02d1.md)
+What happened: the plan's "Next session" and the evidence files name runs by ID and say
+"the run store" but never where it is, correctly, since the path is a private home path. The
+resuming session found it with a filesystem search after three misses (Spotlight does not
+index it; the harness had no Grep tool, so one search call failed outright).
+Cost: about six tool calls before any L02d work.
+Prevention: record the run store's location somewhere private that a session loads: the
+agent's project memory, or an environment variable the plan can name without the path.
+Fix belongs in: user instructions or agent memory for this project (not the public plan)
+Status: open
+
+### 2026-09-24T16:23-07:00 — surprise: a QEMU trace-log prefix assumed, not checked
+Chapter: [L02d1](notebook/L02d1.md)
+What happened: the trace filter was written for QEMU's `pid@sec.usec:` log prefix; with
+`-msg timestamp=on` this QEMU writes an ISO time instead, so the first run counted zero e1000
+accesses in a 124,006-line trace.
+Cost: one failed run (about 15 s) and a fix.
+Prevention: look at one line of real output before writing a parser for it.
+Fix belongs in: practice (no instruction change)
+Status: open
+
+### 2026-09-24T16:51-07:00 — failed fix: a guest read timeout lost commands
+Chapter: [L02d1](notebook/L02d1.md)
+What happened: the fix for review finding F4 (a lost READY line) made the guest poll its
+command channel with busybox `read -t 1`. That builtin drops a partly read line on timeout,
+so four of eleven follow-up runs lost a command. The rerun of the acceptance runs caught it
+before the checkpoint.
+Cost: one round of eleven host runs (about 4 minutes) and a second fix.
+Prevention: rerunning every acceptance and failure-path run after review fixes, which
+project-plan already requires; it worked here. For guest scripts, prefer blocking reads.
+Fix belongs in: practice (no instruction change)
+Status: open
