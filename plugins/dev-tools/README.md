@@ -65,18 +65,21 @@ skills. Installing both loads every skill twice.
   Triggers when writing or reviewing a CLI, or deciding what a command should return when it
   fails.
 - **`review-swarm`** — adversarial review of a diff or pull request.
-  - Four independent reviewer subagents with non-overlapping mandates: security and secrets;
+  - Seven independent reviewer subagents with non-overlapping mandates: security and secrets;
     correctness and concurrency; data loss, migration and backward compatibility;
-    documentation versus reality. Each may report only what it can quote verbatim from the
-    checkout.
+    documentation versus reality; regressions against the project's git and pull-request
+    history; the project's own written rules in its instruction files and directive comments;
+    performance. Each may report only what it can quote verbatim from the checkout.
   - A stdlib checker (`scripts/swarm.py verify`) re-reads every cited `file:line`, drops
-    findings whose quote is not there, and merges plain duplicates. Any arm that produced no
-    usable output is marked `ARM FAILED` in capitals instead of vanishing.
-  - A referee subagent then judges whether the code supports each surviving claim and
-    resolves the remaining duplicates.
+    findings whose quote is not there, merges plain duplicates, and marks findings that touch
+    no hunk of the diff. Any arm that produced no usable output is marked `ARM FAILED` in
+    capitals instead of vanishing.
+  - A referee subagent then judges whether the code supports each surviving claim, drops
+    problems the change did not cause, and resolves the remaining duplicates.
 
-  Ends with one ranked table and the question of which findings to fix. Triggers on "review
-  this PR", "adversarial review", "red-team this diff".
+  Ends with one ranked table and the question of which findings to fix; on request, posts the
+  result to the pull request with permalinks. Triggers on "review this PR", "adversarial
+  review", "red-team this diff".
 - **`release-train`** — cut a release only after every distribution channel has passed: a
   `.deb` through an apt repo, a Homebrew keg, a portable zip, a from-source install, a
   registry.

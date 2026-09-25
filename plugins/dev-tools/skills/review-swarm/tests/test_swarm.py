@@ -36,7 +36,7 @@ fn main() {
 }
 """
 
-ARMS = ("security", "correctness", "compat", "docs")
+ARMS = ("security", "correctness", "compat", "docs", "history", "conventions", "perf")
 
 
 def finding(**over):
@@ -87,9 +87,9 @@ class SwarmCase(unittest.TestCase):
         data = json.loads((self.run / "verified.json").read_text())
         return proc, data
 
-    def table(self):
+    def table(self, *extra):
         return subprocess.run(
-            [sys.executable, str(SWARM), "table", "--run", str(self.run)],
+            [sys.executable, str(SWARM), "table", "--run", str(self.run), *extra],
             capture_output=True,
             text=True,
             check=False,
@@ -302,13 +302,89 @@ class TableTests(SwarmCase):
         proc = self.table()
         self.assertEqual(proc.returncode, 0)
         self.assertNotIn("UNREFEREED", proc.stdout)
-        self.assertIn("All 4 arms delivered.", proc.stdout)
+        self.assertIn("All 7 arms delivered.", proc.stdout)
         self.assertIn("No findings survived.", proc.stdout)
         self.assertIn("referee dropped 1", proc.stdout)
 
     def test_table_without_any_result_is_a_precondition_error(self):
         proc = self.table()
         self.assertEqual(proc.returncode, 3)
+
+    def test_pr_format_links_every_finding_and_names_failed_arms(self):
+        for arm in ARMS[:-1]:
+            self.write_arm(arm, [])
+        self.write_arm("correctness", [finding()])
+        self.verify()
+        blob = "https://github.com/o/r/blob/" + "a" * 40
+        proc = self.table("--format", "pr", "--blob-url", blob + "/")
+        self.assertEqual(proc.returncode, 1)
+        out = proc.stdout
+        self.assertIn("**ARM FAILED: perf**", out)
+        self.assertIn("UNREFEREED", out)
+        self.assertIn(f"{blob}/src/main.rs#L2-L5", out)
+        self.assertNotIn("| F", out)
+
+    def test_pr_format_needs_blob_url(self):
+        self.write_all()
+        self.verify()
+        self.assertEqual(self.table("--format", "pr").returncode, 2)
+        self.assertEqual(
+            self.table("--format", "pr", "--blob-url", "https://x/blob/s", "--json").returncode, 2
+        )
+
+
+PATCH = """\
+diff --git a/src/main.rs b/src/main.rs
+--- a/src/main.rs
++++ b/src/main.rs
+@@ -2,3 +2,4 @@ fn main() {
+     let port = open_port();
++    for attempt in 0..RETRIES {
+         port.write_all(&image)?;
+         if ack(&port) { break; }
+diff --git a/src/gone.rs b/src/gone.rs
+--- a/src/gone.rs
++++ /dev/null
+@@ -1,2 +0,0 @@
+-fn gone() {}
+-
+"""
+
+
+class DiffTests(SwarmCase):
+    def test_finding_outside_every_hunk_is_marked_not_dropped(self):
+        (self.run / "diff.patch").write_text(PATCH)
+        lock = finding(
+            claim="Lock held across a blocking call.",
+            line_range=[7, 8],
+            evidence_quote="let lock = STATE.lock().unwrap();\n    do_blocking_call();",
+        )
+        self.write_all({"correctness": [finding()], "perf": [lock]})
+        proc, data = self.verify()
+        self.assertEqual(proc.returncode, 0)
+        self.assertTrue(data["diff_checked"])
+        by_line = {f["line_range"][0]: f for f in data["findings"]}
+        self.assertNotIn("outside_diff", by_line[3])
+        self.assertTrue(by_line[7]["outside_diff"])
+        self.assertIn("1 finding(s) touch no hunk", proc.stdout)
+        self.assertIn("(outside diff)", self.table().stdout)
+
+    def test_without_a_patch_nothing_is_marked_and_the_gap_is_said(self):
+        self.write_all({"correctness": [finding(line_range=[9, 9], evidence_quote="drop(lock);")]})
+        proc, data = self.verify()
+        self.assertFalse(data["diff_checked"])
+        self.assertNotIn("outside_diff", data["findings"][0])
+        self.assertIn("not checked against the diff", proc.stdout)
+
+    def test_pure_deletion_hunk_counts_as_its_line(self):
+        (self.run / "diff.patch").write_text(
+            "+++ b/src/main.rs\n@@ -9,2 +8,0 @@\n-    old();\n-    older();\n"
+        )
+        self.write_all(
+            {"correctness": [finding(line_range=[8, 8], evidence_quote="do_blocking_call();")]}
+        )
+        _, data = self.verify()
+        self.assertNotIn("outside_diff", data["findings"][0])
 
 
 if __name__ == "__main__":
