@@ -63,6 +63,10 @@ jobs:
           plugins/driver-porting/evals/enc28j60/author_manifest.py
           --check plugins/driver-porting/evals/enc28j60/author-manifest.yaml
 
+      # Only the parts that need no QEMU; the harness itself runs on the test host.
+      - name: e1000 QEMU harness tests
+        run: python3 -m unittest discover -s plugins/driver-porting/evals/e1000/harness/tests -v
+
       - name: dep-quality tests
         run: python3 -m unittest discover -s plugins/dev-tools/skills/dep-quality/tests -v
 

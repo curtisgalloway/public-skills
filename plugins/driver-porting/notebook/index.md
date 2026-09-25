@@ -5,7 +5,7 @@ SPDX-License-Identifier: Apache-2.0
 
 # Notebook index
 
-Updated: 2026-09-24T13:09-07:00
+Updated: 2026-09-24T17:03-07:00
 
 A row is stale when its chapter has an entry newer than "indexed through". The notebook
 starts with L02e; earlier units' paths are in their [evidence files](../evidence/). The
@@ -13,6 +13,15 @@ process log for this project is [PROCESS-NOTES.md](../PROCESS-NOTES.md). Terms: 
 one unit's append-only notes; see the [glossary](../../../GLOSSARY.md) (lab notebook, process log).
 
 ## Chapters
+
+### [L02d1 — QEMU harness, boot and capture](L02d1.md)
+Entries: 2026-09-24T16:17-07:00 through 2026-09-24T17:03-07:00
+Outcome: complete; smoke passes on the reference; failure paths exit as documented.
+- Dead end: busybox `read -t` on the guest command channel drops partial lines; use a
+  blocking read and repeat READY from a background loop.
+- QEMU 10.2.1 `-msg timestamp=on` prefixes trace lines with an ISO time, not `pid@time:`.
+- The reference reads its EEPROM by bit-banging EECD (about 6,700 accesses), not EERD.
+- Smoke does not yet check the kernel log (L02d2).
 
 ### [L02e — Implement, build, and review the candidate](L02e.md)
 Entries: 2026-09-24T12:22-07:00 through 2026-09-24T13:09-07:00
