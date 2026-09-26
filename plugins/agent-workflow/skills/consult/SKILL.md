@@ -1,10 +1,11 @@
 ---
 name: consult
 description: >-
-  Collaborate with the other coding agent on a question or proposed approach:
-  Claude Code consults Codex, and Codex consults Claude Code, through a persistent
-  peer session. Use when the user asks to consult the counterpart, compare both
-  agents' perspectives, or work toward consensus. The original agent leads the
+  Collaborate with another coding agent on a question or proposed approach:
+  any of Claude Code, Codex and Antigravity (agy) consults another through a
+  persistent peer session. Use when the user asks to consult the counterpart (or
+  Codex, Claude, agy, or Gemini by name), compare agents' perspectives, or work
+  toward consensus. The original agent leads the
   exchange and reports the agreed recommendation or unresolved disagreement.
 ---
 
@@ -24,8 +25,10 @@ an existing interactive counterpart session.
 
 - Python 3.9+ on macOS or Linux; standard library only (uses Unix process groups
   and `flock`). Windows is not supported.
-- The counterpart's CLI on `PATH`, already authenticated: `claude` when you are
-  Codex, `codex` when you are Claude Code. Normal CLI usage charges/limits apply.
+- The counterpart's CLI on `PATH`, already authenticated: `claude`, `codex` or
+  `agy`. Normal CLI usage charges/limits apply.
+- For an `agy` counterpart: bubblewrap (`bwrap`) on Linux, or `sandbox-exec` on
+  macOS, and no MCP servers or plugins configured in agy (see below).
 - Permission to launch the counterpart and reach its provider. If the host's
   sandbox blocks this, use its normal approval mechanism; do not bypass it.
 - A trusted project directory and selected task context. Invocation authorizes
@@ -39,15 +42,29 @@ Both adapters enforce restrictions on every invocation, including resume:
 | --- | --- |
 | Claude Code | Only `Read`, `Glob`, `Grep`; permission mode `dontAsk`; no MCP servers, hooks, Chrome, or skills; user/project settings excluded |
 | Codex | Read-only sandbox, approvals `never`; user config and exec rules excluded; MCP/plugin maps cleared; hooks, multi-agent delegation, and app integrations disabled |
+| agy | Runs inside an OS sandbox whose filesystem is read-only except agy's own state directory (`~/.gemini/antigravity-cli`) and a private temp directory; never `--dangerously-skip-permissions`; `--sandbox` (terminal restrictions); slash commands and skills disabled; refused if any MCP server or plugin is configured |
 
 These controls are deliberately different. Claude cannot run shell commands;
-Codex can run commands within its read-only sandbox. If evidence needs a test or
+Codex can run commands within its read-only sandbox.
+
+agy is enforced from outside because it has no read-only flag. In a live check
+(agy 1.2.11, 2026-09-26), `--mode plan` wrote a file into the project with
+default settings, no approval and no `--dangerously-skip-permissions`, so plan
+mode is never used. Without it, agy's own headless check denied the same write,
+but the adapter does not rely on that: bubblewrap mounts `/` read-only, and a
+write fails with "Read-only file system". agy has no flag to turn off
+configured MCP servers or plugins for one run, and the filesystem sandbox cannot
+stop what they do over the network. So `start` refuses unless `agy mcp list`
+and `agy plugin list` both report none. If evidence needs a test or
 an unavailable tool, gather it in the original session under existing permissions
 and share the result. CLI-owned authentication/session writes still occur. This
 is not an isolation boundary for hostile projects or compromised CLIs.
 
 Adapter flags were checked against Claude Code 2.1.277 and Codex CLI 0.155.0 on
-2026-09-18. Older releases may reject flags. Fail visibly rather than removing
+2026-09-18, and against agy 1.2.11 on Linux on 2026-09-26: a three-turn live
+consultation, with the context kept and the write denied. **The macOS
+`sandbox-exec` profile for agy has not been run yet.** On first use on a Mac,
+run the live check under Validation before relying on it. Older releases may reject flags. Fail visibly rather than removing
 restrictions to make a command work. Ground truth: `claude --help`, `codex exec
 --help`, and `codex exec resume --help`. See the official
 [Claude programmatic guide](https://code.claude.com/docs/en/headless) and
@@ -102,6 +119,10 @@ Use files or quoted heredocs, never interpolate prose into shell command strings
 python3 <skill-dir>/scripts/consult.py start --from codex \
   --project <project> --message-file <brief-file>
 
+# Any direction can name the counterpart; --to is required from agy.
+python3 <skill-dir>/scripts/consult.py start --from claude --to agy \
+  --project <project> --message-file <brief-file>
+
 python3 <skill-dir>/scripts/consult.py status <id>
 python3 <skill-dir>/scripts/consult.py read <id>
 
@@ -127,7 +148,8 @@ or failed peer turn, 2 = invalid command-line usage. Inspect `status`, not just 
 exit code. Peer stdout/stderr and worker errors are retained for diagnosis; do not
 paste raw logs into a public report without reviewing them.
 
-`start` accepts `--task thinking|coding`, `--rounds N`, `--timeout SECONDS` (per
+`start` accepts `--to claude|codex|agy` (the counterpart; defaults to Codex from
+Claude and to Claude from Codex), `--task thinking|coding`, `--rounds N`, `--timeout SECONDS` (per
 turn; default 600), and `--model NAME` (the **counterpart's** model).
 
 `--task` sets the counterpart's reasoning effort on every turn, resume included.
@@ -136,10 +158,12 @@ and any other judgment call run at **max** effort, whichever direction the
 consultation goes (Codex, or Claude such as Opus 5.5). Pass `--task coding`
 only when the counterpart's job is to draft or check code mechanically; it runs
 at **medium**. When a consultation mixes the two, use `thinking`. The adapters
-pass `--effort <level>` to `claude` and `-c model_reasoning_effort=<level>` to
-`codex`. Both accept `max` and `medium` (checked 2026-09-26: `claude --help`
-lists `low, medium, high, xhigh, max`; the Codex API's list of valid values
-is `none, minimal, low, medium, high, xhigh, max`). Without a model override, its CLI
+pass `--effort <level>` to `claude` and `agy`, and `-c model_reasoning_effort=<level>`
+to `codex`. All three accept `max` and `medium` (checked 2026-09-26: `claude --help`
+lists `low, medium, high, xhigh, max`; `agy --help` lists `low|medium|high|max`;
+the Codex API's list of valid values is `none, minimal, low, medium, high,
+xhigh, max`). A Gemini model under agy follows the same rule; name it with
+`--model` when a specific one is wanted (`agy models` lists them). Without a model override, its CLI
 default applies with the restricted configuration; it need not match the model
 in another interactive session. Specify an override only when requested or needed
 for the user's stated constraints. There is no cross-provider dollar-budget cap.
@@ -180,4 +204,6 @@ The tests use fake CLIs and make no model calls. After adapter changes, also run
 a small real consultation in each direction: initial assessment, a follow-up that
 depends on initial context, and explicit confirmation of the exact final proposal.
 Verify inspection succeeds, mutation is denied, and the session ID stays constant.
+For agy, also ask the counterpart to write a file in the project, and confirm
+that no file appears.
 Record failures honestly; fixture tests alone do not prove live compatibility.

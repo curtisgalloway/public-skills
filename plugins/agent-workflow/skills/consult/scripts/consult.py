@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-FileCopyrightText: 2026 contributors
 # SPDX-License-Identifier: Apache-2.0
-"""Persistent, bounded Claude Code <-> Codex consultations (Python 3.9+, Unix)."""
+"""Persistent, bounded consultations among Claude Code, Codex and Antigravity (Python 3.9+, Unix)."""
 
 import argparse
 import contextlib
@@ -9,6 +9,7 @@ import fcntl
 import json
 import os
 from pathlib import Path
+import platform
 import shutil
 import signal
 import subprocess
@@ -28,6 +29,11 @@ with that exact proposal or enumerate remaining objections. Missing access or
 evidence must be disclosed. The initiating agent owns implementation.
 """
 ACTIVE = {"running", "closing"}
+PEERS = ("claude", "codex", "agy")
+DEFAULT_PEER = {"claude": "codex", "codex": "claude"}
+# agy keeps its sign-in, conversations and logs here; it is the only persistent
+# path its sandbox may write.
+AGY_STATE = Path.home() / ".gemini" / "antigravity-cli"
 
 
 class ConsultError(Exception):
@@ -79,11 +85,46 @@ def location(root, identity):
 EFFORT = {"thinking": "max", "coding": "medium"}
 
 
-def adapter(state):
+def sandbox(project, scratch):
+    """Wrap agy so the filesystem is read-only except its state and a private temp dir.
+
+    agy has no read-only flag, and in plan mode it wrote files without approval
+    (agy 1.2.11, 2026-09-26), so the restriction is enforced by the OS instead.
+    """
+    writable = [str(AGY_STATE), str(scratch)]
+    if platform.system() == "Linux":
+        bwrap = shutil.which("bwrap")
+        if not bwrap:
+            raise ConsultError("agy consultations need bubblewrap (bwrap) on Linux")
+        command = [bwrap, "--ro-bind", "/", "/", "--dev", "/dev", "--proc", "/proc"]
+        for path in writable:
+            command += ["--bind", path, path]
+        return command + ["--setenv", "TMPDIR", str(scratch), "--die-with-parent",
+                          "--new-session", "--chdir", project]
+    if platform.system() == "Darwin":
+        rules = " ".join('(subpath "%s")' % os.path.realpath(path) for path in writable)
+        profile = ("(version 1)(allow default)(deny file-write*)"
+                   '(allow file-write* %s (literal "/dev/null") (literal "/dev/tty"))' % rules)
+        return ["/usr/bin/sandbox-exec", "-p", profile, "/usr/bin/env", "TMPDIR=" + str(scratch)]
+    raise ConsultError("agy consultations are supported on Linux and macOS only")
+
+
+def adapter(state, scratch=None):
     """Reapply permission controls on *every* turn, including resume."""
     executable = state["executable"]
     session = state.get("session_id")
     effort = EFFORT[state.get("task", "thinking")]
+    if state["peer"] == "agy":
+        # Never --dangerously-skip-permissions, and never --mode plan: plan mode
+        # let agy write files without approval.
+        command = sandbox(state["project"], scratch) + [
+            executable, "--input-format", "stream-json", "--output-format", "stream-json",
+            "--sandbox", "--disable-slash-commands", "--effort", effort]
+        if session:
+            command += ["--conversation", session]
+        if state.get("model"):
+            command += ["--model", state["model"]]
+        return command + ["-p="]
     if state["peer"] == "claude":
         command = [executable, "-p", "--output-format", "json",
                    "--tools", "Read,Glob,Grep", "--allowedTools", "Read,Glob,Grep",
@@ -112,7 +153,17 @@ def adapter(state):
 
 
 def parse_response(peer, raw):
-    if peer == "claude":
+    if peer == "agy":
+        results = [event["result"] for event in
+                   (json.loads(line) for line in raw.splitlines() if line.strip())
+                   if event.get("event") == "result"]
+        if len(results) != 1 or results[0].get("status") != "SUCCESS":
+            raise ConsultError("agy did not return one successful result; inspect stdout.jsonl")
+        result = results[0]
+        if result.get("denied_actions") and not (result.get("response") or "").strip():
+            raise ConsultError("agy stopped on a denied action; inspect stdout.jsonl")
+        session, answer = result.get("conversation_id"), result.get("response")
+    elif peer == "claude":
         result = json.loads(raw)
         if result.get("is_error") or result.get("subtype") != "success":
             raise ConsultError("Claude did not return a successful result; inspect stdout.jsonl")
@@ -210,10 +261,19 @@ def worker(directory, lease_fd):
         env = dict(os.environ, CONSULT_PEER="1")
         # The subprocess is a new, restricted peer; it is not the parent's Claude session.
         env.pop("CLAUDECODE", None)
-        with (job_dir / "prompt.md").open() as prompt, \
+        stdin = job_dir / "prompt.md"
+        scratch = None
+        if state["peer"] == "agy":
+            # agy reads prompts from stdin only as stream-json messages.
+            scratch = directory / "agy-tmp"
+            scratch.mkdir(mode=0o700, exist_ok=True)
+            stdin = job_dir / "prompt.ndjson"
+            stdin.write_text(json.dumps({"event": "user", "message": {
+                "role": "user", "content": (job_dir / "prompt.md").read_text()}}) + "\n")
+        with stdin.open() as prompt, \
                 (job_dir / "stdout.jsonl").open("w") as output, \
                 (job_dir / "stderr.log").open("w") as errors:
-            process = subprocess.Popen(adapter(state), cwd=state["project"], env=env,
+            process = subprocess.Popen(adapter(state, scratch), cwd=state["project"], env=env,
                                        stdin=prompt, stdout=output, stderr=errors,
                                        start_new_session=True)
             deadline = time.monotonic() + state["timeout"]
@@ -253,6 +313,20 @@ def worker(directory, lease_fd):
             os.close(lease_fd)
 
 
+def check_agy(executable):
+    """Refuse agy with MCP servers or plugins: no flag disables them per run, and
+    the filesystem sandbox cannot stop what they do over the network."""
+    if not AGY_STATE.is_dir():
+        raise ConsultError("agy has no state directory; sign in with agy first")
+    expected = {"mcp": "No MCP servers configured.", "plugin": "No imported plugins."}
+    for command, empty in expected.items():
+        result = subprocess.run([executable, command, "list"], capture_output=True,
+                                text=True, timeout=60, stdin=subprocess.DEVNULL)
+        if result.returncode != 0 or result.stdout.strip() != empty:
+            raise ConsultError("agy has %s entries configured (or `agy %s list` failed); "
+                               "consultations require none" % (command, command))
+
+
 def positive(value):
     number = int(value)
     if number <= 0:
@@ -268,7 +342,9 @@ def main(argv=None):
         "CONSULT_STATE_DIR", str(Path.home() / ".local" / "state" / "agent-consult")))
     commands = parser.add_subparsers(dest="command")
     start = commands.add_parser("start", help="Start the opposite agent; return a handle immediately")
-    start.add_argument("--from", dest="origin", choices=["claude", "codex"], required=True)
+    start.add_argument("--from", dest="origin", choices=PEERS, required=True)
+    start.add_argument("--to", dest="peer", choices=PEERS,
+                       help="Counterpart; defaults to codex from claude and claude from codex")
     start.add_argument("--project", type=Path, default=Path.cwd())
     start.add_argument("--message-file", required=True, help="UTF-8 file or - for stdin")
     start.add_argument("--model", help="Explicit counterpart model; otherwise the CLI default")
@@ -305,10 +381,16 @@ def main(argv=None):
             raise ConsultError("Project directory does not exist")
         if root == project or project in root.parents:
             raise ConsultError("State directory must be outside the consulted project")
-        peer = "codex" if args.origin == "claude" else "claude"
+        peer = args.peer or DEFAULT_PEER.get(args.origin)
+        if not peer:
+            raise ConsultError("--to is required when consulting from agy")
+        if peer == args.origin:
+            raise ConsultError("The counterpart must be a different agent")
         executable = shutil.which(peer)
         if not executable:
             raise ConsultError("Required counterpart CLI not found on PATH: " + peer)
+        if peer == "agy":
+            check_agy(executable)
         text = message(args.message_file)
         directory = root / str(uuid.uuid4())
         directory.mkdir(parents=True, mode=0o700)

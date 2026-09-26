@@ -11,6 +11,7 @@ import sys
 import tempfile
 import time
 import unittest
+import unittest.mock
 
 
 SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "consult.py"
@@ -291,3 +292,135 @@ class ConsultationTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+FAKE_AGY = r'''
+import json, os, pathlib, sys, uuid
+args = sys.argv[1:]
+if args[:2] in (["mcp", "list"], ["plugin", "list"]):
+    listing = os.environ.get("FAKE_AGY_" + args[0].upper())
+    print(listing or ("No MCP servers configured." if args[0] == "mcp" else "No imported plugins."))
+    sys.exit(0)
+event = json.loads(sys.stdin.readline())
+prompt = event["message"]["content"]
+root = pathlib.Path(os.environ["FAKE_STATE"])
+session = args[args.index("--conversation") + 1] if "--conversation" in args else str(uuid.uuid4())
+history_path = root / session
+history = json.loads(history_path.read_text()) if history_path.exists() else []
+history.append({"prompt": prompt, "args": args, "cwd": os.getcwd()})
+history_path.write_text(json.dumps(history))
+try:
+    pathlib.Path("written-by-peer.txt").write_text("should fail")
+    wrote = "yes"
+except OSError:
+    wrote = "no"
+answer = "Retained: " + history[0]["prompt"][-12:] + " Turn: " + str(len(history)) + " wrote=" + wrote
+print(json.dumps({"event": "init", "conversation_id": session}))
+print(json.dumps({"event": "result", "result": {"conversation_id": session,
+                                                "status": "SUCCESS", "response": answer}}))
+'''
+
+
+def bwrap_works():
+    bwrap = consult.shutil.which("bwrap")
+    if consult.platform.system() != "Linux" or not bwrap:
+        return False
+    probe = subprocess.run([bwrap, "--ro-bind", "/", "/", "--dev", "/dev", "true"],
+                           capture_output=True)
+    return probe.returncode == 0
+
+
+class AgyAdapterTests(unittest.TestCase):
+    def state(self, **extra):
+        return {**dict(executable="/bin/agy", peer="agy", project="/work", session_id=None), **extra}
+
+    @unittest.skipUnless(consult.platform.system() == "Linux", "bwrap wrapper is Linux-only")
+    def test_agy_runs_inside_a_read_only_bubblewrap(self):
+        with unittest.mock.patch.object(consult.shutil, "which", return_value="/usr/bin/bwrap"):
+            command = consult.adapter(self.state(), Path("/scratch"))
+        self.assertEqual(command[:5], ["/usr/bin/bwrap", "--ro-bind", "/", "/", "--dev"])
+        binds = [command[i + 1] for i, arg in enumerate(command) if arg == "--bind"]
+        self.assertEqual(binds, [str(consult.AGY_STATE), "/scratch"])
+        agy = command[command.index("/bin/agy"):]
+        self.assertNotIn("--dangerously-skip-permissions", agy)
+        self.assertNotIn("--mode", agy)
+        self.assertIn("--disable-slash-commands", agy)
+        self.assertEqual(agy[agy.index("--effort") + 1], "max")
+        self.assertEqual(agy[-1], "-p=")
+
+    @unittest.skipUnless(consult.platform.system() == "Linux", "bwrap wrapper is Linux-only")
+    def test_agy_without_bwrap_fails_visibly(self):
+        with unittest.mock.patch.object(consult.shutil, "which", return_value=None):
+            with self.assertRaises(consult.ConsultError):
+                consult.adapter(self.state(), Path("/scratch"))
+
+    def test_agy_resume_and_coding_effort(self):
+        with unittest.mock.patch.object(consult, "sandbox", return_value=[]):
+            command = consult.adapter(self.state(session_id="c-1", task="coding"), Path("/s"))
+        self.assertEqual(command[command.index("--conversation") + 1], "c-1")
+        self.assertEqual(command[command.index("--effort") + 1], "medium")
+
+    def test_agy_parser(self):
+        ok = json.dumps({"event": "result", "result": {"conversation_id": "c-1",
+                                                       "status": "SUCCESS", "response": "Answer"}})
+        self.assertEqual(consult.parse_response("agy", ok), ("c-1", "Answer"))
+        for result in ({"conversation_id": "c-1", "status": "ERROR", "response": "x"},
+                       {"conversation_id": "c-1", "status": "SUCCESS", "response": "",
+                        "denied_actions": [{"action": "write_file"}]}):
+            with self.assertRaises(consult.ConsultError):
+                consult.parse_response("agy", json.dumps({"event": "result", "result": result}))
+        with self.assertRaises(consult.ConsultError):
+            consult.parse_response("agy", json.dumps({"event": "init", "conversation_id": "c-1"}))
+
+
+class AgyConsultationTests(ConsultationTests):
+    """Reuses the fixture; runs only the agy-specific cases below."""
+
+    def setUp(self):
+        super().setUp()
+        agy = self.bin / "agy"
+        agy.write_text("#!" + sys.executable + "\n" + FAKE_AGY)
+        agy.chmod(0o700)
+        self.home = self.root / "home"
+        agy_state = self.home / ".gemini" / "antigravity-cli"
+        agy_state.mkdir(parents=True)
+        self.env["HOME"] = str(self.home)
+        # The sandbox leaves only agy's state directory writable; the fake keeps its history there.
+        self.fake_state = agy_state
+        self.env["FAKE_STATE"] = str(agy_state)
+
+    def test_to_must_differ_and_is_required_from_agy(self):
+        for extra in (("--from", "codex", "--to", "codex"), ("--from", "agy")):
+            result = subprocess.run(self.command("start", *extra, "--project", str(self.project),
+                                                 "--message-file", "-"),
+                                    input="Brief", text=True, capture_output=True, env=self.env)
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+
+    def test_configured_mcp_server_is_refused(self):
+        self.env["FAKE_AGY_MCP"] = "github  enabled"
+        result = subprocess.run(self.command("start", "--from", "claude", "--to", "agy",
+                                             "--project", str(self.project), "--message-file", "-"),
+                                input="Brief", text=True, capture_output=True, env=self.env)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("mcp", result.stdout + result.stderr)
+        self.assertFalse(self.state.exists() and any(self.state.iterdir()))
+
+    @unittest.skipUnless(bwrap_works(), "needs a working bubblewrap")
+    def test_agy_consultation_is_read_only_and_resumes(self):
+        identity = self.start("claude", "Brief token maple", "--to", "agy")
+        first = self.wait(identity)
+        self.assertEqual(first["status"], "ready", first)
+        self.run_cli("reply", identity, "--message-file", "-", text="Follow-up")
+        second = self.wait(identity)
+        self.assertEqual(second["status"], "ready", second)
+        self.assertEqual(first["session_id"], second["session_id"])
+        answer = self.run_cli("read", identity)["messages"][-1]["answer"]
+        self.assertIn("token maple", answer)
+        self.assertIn("Turn: 2", answer)
+        self.assertIn("wrote=no", answer)
+        self.assertFalse((self.project / "written-by-peer.txt").exists())
+
+    # The inherited Claude/Codex cases already ran in ConsultationTests.
+    for name in [n for n in dir(ConsultationTests) if n.startswith("test_")]:
+        locals()[name] = None
+    del name
