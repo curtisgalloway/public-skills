@@ -60,6 +60,12 @@ skills. Installing both loads every skill twice.
 
   Triggers on "plan this project", "turn this design into an implementation plan", or "break
   this work into milestones".
+- **`orchestrate-milestones`** — run a plan's remaining milestones end to end: recover state
+  (also after a crash), then one fresh subagent per milestone following `project-plan`,
+  with the orchestrator verifying each report and landing it as a pull request (push, CI,
+  merge, branch cleanup) before launching the next. Pushes, merges, user questions and
+  launches that need the user's approval stay in the orchestrator. Triggers on "act as
+  orchestrator" or "a fresh subagent per milestone, PR and merge each".
 - **`lab-notebook`** — during: an append-only, timestamped notebook with one chapter per unit
   of work (attempts, dead ends, decisions, surprises). Its index carries timestamps that show
   when it has fallen behind. A per-project process log records where the agent's process cost

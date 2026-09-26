@@ -284,7 +284,9 @@ hash is not yet available; do not amend repeatedly to embed a commit's own hash.
 
 - **Completed:** identify the next eligible milestone and the documents/files needed to
   begin it. Stop for the user to inspect the result. Do not start another milestone in
-  this session unless the user explicitly overrides the one-milestone boundary.
+  this session unless the user explicitly overrides the one-milestone boundary. When the
+  user asks to run the remaining milestones with a fresh subagent each, follow the
+  sibling `orchestrate-milestones` skill: the boundary becomes one milestone per subagent.
 - **Incomplete:** leave status `in_progress` or `blocked`, explain why work stopped, and
   identify remaining implementation, tests, and review. The next session resumes this
   milestone, not its successor. Split remaining work when appropriate without relabeling
