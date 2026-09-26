@@ -121,6 +121,11 @@ codex exec -C <worktree> -s workspace-write \
 - **Permission.** A harness's auto-approval mode may refuse the launch as creating an unsafe
   agent. The fix is an allow rule the **user** adds (in Claude Code, `Bash(codex exec:*)`). An
   agent editing its own permission settings is refused, and must not try.
+- **Content refusals.** Codex's provider may refuse a brief as a possible cybersecurity risk
+  (observed for a fuzzing milestone). The run then exits nonzero, having done nothing, and with no
+  last-message file. Check the log's last lines. Do not reword the brief to get past the filter;
+  route the unit to the next pool instead. Plan for this with security-adjacent units such as
+  fuzzing, exploit reproduction or protocol hardening.
 - **Stopping a run.** Stop it through the harness's background-task control, or by its PID. A
   `pkill -f '<pattern>'` whose pattern appears in the calling shell's own command line kills that
   shell too.
