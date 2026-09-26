@@ -29,8 +29,11 @@ if "resume" in args:
     session = args[args.index("--skip-git-repo-check") + 1]
 elif "--resume" in args:
     session = args[args.index("--resume") + 1]
+elif "--session-id" in args and not os.environ.get("FAKE_IGNORE_SESSION_ID"):
+    session = args[args.index("--session-id") + 1]
 else:
-    session = str(uuid.uuid4())
+    # Like real claude inside Claude Code: without --session-id, the parent's session is inherited.
+    session = os.environ.get("CLAUDE_CODE_SESSION_ID") or str(uuid.uuid4())
 history_path = root / session
 history = json.loads(history_path.read_text()) if history_path.exists() else []
 if ("resume" in args or "--resume" in args) and not history:
@@ -186,6 +189,26 @@ class ConsultationTests(unittest.TestCase):
                         self.assertEqual(args[args.index("--tools") + 1], "Read,Glob,Grep")
                     else:
                         self.assertEqual(args[args.index("-s") + 1], "read-only")
+
+    def test_claude_peer_never_joins_the_parent_session(self):
+        parent = "parent-session-id"
+        self.env["CLAUDE_CODE_SESSION_ID"] = parent
+        identity = self.start("claude", "Brief", "--to", "claude", "--model", "fable")
+        first = self.wait(identity)
+        self.assertEqual(first["status"], "ready", first)
+        self.assertNotEqual(first["session_id"], parent)
+        self.assertFalse((self.fake_state / parent).exists())
+        args = json.loads((self.fake_state / first["session_id"]).read_text())[0]["args"]
+        self.assertEqual(args[args.index("--session-id") + 1], first["session_id"])
+
+    def test_claude_peer_that_ignores_the_new_session_id_fails(self):
+        self.env["CLAUDE_CODE_SESSION_ID"] = "parent-session-id"
+        self.env["FAKE_IGNORE_SESSION_ID"] = "1"
+        identity = self.start("codex", "Brief")
+        failed = self.wait(identity)
+        self.assertEqual(failed["status"], "failed", failed)
+        self.assertIn("requested new session ID", failed["error"])
+        self.assertIsNone(failed["session_id"])
 
     def test_state_without_task_defaults_to_max_effort(self):
         state = dict(executable="codex", peer="codex", session_id=None)

@@ -135,6 +135,11 @@ def adapter(state, scratch=None):
                    "--no-chrome", "--effort", effort]
         if session:
             command += ["--resume", session]
+        elif state.get("new_session_id"):
+            # Name the new session: a claude started from inside Claude Code
+            # otherwise inherits the parent's session and appends to its
+            # transcript (Claude Code 2.1.42, 2026-09-26).
+            command += ["--session-id", state["new_session_id"]]
     else:
         command = [executable, "-a", "never", "-s", "read-only",
                    "-c", "mcp_servers={}", "-c", "plugins={}",
@@ -292,6 +297,9 @@ def worker(directory, lease_fd):
         session, answer = parse_response(state["peer"], (job_dir / "stdout.jsonl").read_text())
         if state.get("session_id") and session != state["session_id"]:
             raise ConsultError("Peer changed session ID during resume")
+        if not state.get("session_id") and state.get("new_session_id") not in (None, session):
+            raise ConsultError("Peer did not use the requested new session ID; it may have "
+                               "attached to another session. Inspect stdout.jsonl")
         (job_dir / "answer.md").write_text(answer + "\n")
         status = "ready"
     except Exception as exc:
@@ -401,6 +409,8 @@ def main(argv=None):
         state = dict(id=directory.name, origin=args.origin, peer=peer, executable=executable,
                      project=str(project), model=args.model, task=args.task, timeout=args.timeout,
                      max_rounds=args.rounds, rounds=0, confirmed=False, jobs=[], session_id=None)
+        if peer == "claude":
+            state["new_session_id"] = str(uuid.uuid4())
         with locked(directory):
             state = launch(directory, state, text, "brief")
     else:

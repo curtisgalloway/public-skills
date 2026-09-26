@@ -186,6 +186,13 @@ running, which would be an echo, not a second opinion. It cannot see which model
 the original agent is running, so choose one that differs from your own. The
 counterpart gets the same restrictions as any other peer from that CLI.
 
+A `claude` started from inside Claude Code inherits the parent's session and
+appends its turns to the parent's transcript unless told otherwise (Claude Code
+2.1.42, 2026-09-26). The helper therefore starts every Claude peer with its own
+`--session-id` and fails the turn if the peer reports any other session. Checked
+live the same day: Claude on Opus consulting `--model sonnet`, two turns,
+context kept, a write attempt denied, and the parent transcript unchanged.
+
 Two models in one CLI share its system prompt, tools and habits, and often
 training lineage, so their agreement is weaker evidence than agreement across
 vendors. Prefer a different CLI when one is available and the question is
