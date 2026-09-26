@@ -104,6 +104,10 @@ codex exec -C <worktree> -s workspace-write \
   outside `-C`. Without `--add-dir <main-checkout>/.git`, Codex cannot commit. Build tools that
   lock or fill a shared cache (cargo's home, a package or download cache) need their directories
   too. `/tmp` is writable by default.
+- **No KVM.** On Linux, `/dev/kvm` does not exist inside the `workspace-write` sandbox (observed
+  with codex-cli 0.157.0), so units that boot a VM or an emulator with KVM cannot run there. Route
+  them to a Claude model. If in doubt, make the brief's first step a feasibility probe that
+  stops and reports on failure; that costs one short run.
 - **Network.** Network access is off by default in `workspace-write`. Loopback-only tests and
   fetches need `network_access=true`.
 - **Effort.** Pass `model_reasoning_effort` explicitly. With nothing configured, the effective
