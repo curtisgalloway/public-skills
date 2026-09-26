@@ -4,9 +4,10 @@ description: >-
   Collaborate with another coding agent on a question or proposed approach:
   any of Claude Code, Codex and Antigravity (agy) consults another, or a
   different model in its own CLI (Opus consulting Fable), through a persistent
-  peer session. Use when the user asks to consult the counterpart (or Codex,
-  Claude, agy, Gemini, or a model such as Fable or Sonnet by name), compare
-  agents' or models' perspectives, or work toward consensus. The original agent leads the
+  peer session. Use when the user says "consult with <name>", where the name is
+  an agent (Codex, Claude, agy), a vendor or model family (Gemini, GPT), or a
+  model (Fable, Opus, Sonnet); also "consult your counterpart", "compare
+  perspectives", or "work toward consensus". The original agent leads the
   exchange and reports the agreed recommendation or unresolved disagreement.
 ---
 
@@ -72,6 +73,30 @@ restrictions to make a command work. Ground truth: `claude --help`, `codex exec
 --help`, and `codex exec resume --help`. See the official
 [Claude programmatic guide](https://code.claude.com/docs/en/headless) and
 [Codex noninteractive guide](https://developers.openai.com/codex/noninteractive).
+
+## Choose the counterpart from the user's words
+
+Users name the counterpart the way they think of it: "consult with Codex",
+"consult with Fable", "consult with Gemini". Turn the name into `--to` and
+`--model` before starting:
+
+| The user names | `--to` | `--model` |
+| --- | --- | --- |
+| An agent or its CLI: Claude, Codex, agy or Antigravity | that CLI | none: its default |
+| A model family another CLI serves: Gemini (agy), GPT (Codex) | that CLI | the model, if a specific one is named |
+| A model your own CLI serves, such as Fable, Opus or Sonnet from Claude Code | your own CLI | that name |
+| A name you don't recognize | the CLI that lists it | that name |
+
+For a name you don't recognize, check which CLI offers it: `agy models` for
+agy, the model names Claude Code's `--model` accepts, and Codex's model list.
+If exactly one CLI offers it, use that one. If none or several do, ask the user
+in one line, and say what you checked. Don't guess a model name: a wrong one
+fails the first turn, after the brief has already been sent. If the name is the
+model you are running now, say so and ask for another: consulting yourself only
+gets you an echo.
+
+Tell the user which CLI and model you picked in the same message that starts
+the consultation.
 
 ## Conduct the discussion
 

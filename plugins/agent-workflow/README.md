@@ -51,7 +51,8 @@ skills. Installing both loads every skill twice.
   mode), resumable context, bounded rounds, per-task reasoning effort, cancellation, and
   local transcripts. Needs Python 3.9+, macOS or Linux, and an authenticated counterpart
   CLI; `agy` also needs bubblewrap on Linux.
-  Triggers on "consult your counterpart" or "work toward consensus".
+  Triggers on "consult with Codex", "consult with Fable", "consult with Gemini", or "work
+  toward consensus".
 - **`project-plan`** — turn a project outcome into a detailed design, then an implementation
   plan of cohesive milestones, each sized for about 75% of a fresh session's context.
   - A new or materially revised design needs approval unless waived; an unchanged
