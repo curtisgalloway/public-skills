@@ -2,10 +2,11 @@
 name: consult
 description: >-
   Collaborate with another coding agent on a question or proposed approach:
-  any of Claude Code, Codex and Antigravity (agy) consults another through a
-  persistent peer session. Use when the user asks to consult the counterpart (or
-  Codex, Claude, agy, or Gemini by name), compare agents' perspectives, or work
-  toward consensus. The original agent leads the
+  any of Claude Code, Codex and Antigravity (agy) consults another, or a
+  different model in its own CLI (Opus consulting Fable), through a persistent
+  peer session. Use when the user asks to consult the counterpart (or Codex,
+  Claude, agy, Gemini, or a model such as Fable or Sonnet by name), compare
+  agents' or models' perspectives, or work toward consensus. The original agent leads the
   exchange and reports the agreed recommendation or unresolved disagreement.
 ---
 
@@ -26,7 +27,9 @@ an existing interactive counterpart session.
 - Python 3.9+ on macOS or Linux; standard library only (uses Unix process groups
   and `flock`). Windows is not supported.
 - The counterpart's CLI on `PATH`, already authenticated: `claude`, `codex` or
-  `agy`. Normal CLI usage charges/limits apply.
+  `agy`. Normal CLI usage charges/limits apply. The counterpart can be the same
+  CLI as the original agent when `--model` names a different model (see
+  "Another model in the same CLI" below).
 - For an `agy` counterpart: bubblewrap (`bwrap`) on Linux, or `sandbox-exec` on
   macOS, and no MCP servers or plugins configured in agy (see below).
 - Permission to launch the counterpart and reach its provider. If the host's
@@ -123,6 +126,10 @@ python3 <skill-dir>/scripts/consult.py start --from codex \
 python3 <skill-dir>/scripts/consult.py start --from claude --to agy \
   --project <project> --message-file <brief-file>
 
+# A different model in the same CLI: --model is required when --to matches --from.
+python3 <skill-dir>/scripts/consult.py start --from claude --to claude \
+  --model fable --project <project> --message-file <brief-file>
+
 python3 <skill-dir>/scripts/consult.py status <id>
 python3 <skill-dir>/scripts/consult.py read <id>
 
@@ -149,7 +156,7 @@ exit code. Peer stdout/stderr and worker errors are retained for diagnosis; do n
 paste raw logs into a public report without reviewing them.
 
 `start` accepts `--to claude|codex|agy` (the counterpart; defaults to Codex from
-Claude and to Claude from Codex), `--task thinking|coding`, `--rounds N`, `--timeout SECONDS` (per
+Claude and to Claude from Codex; it may match `--from` when `--model` is given), `--task thinking|coding`, `--rounds N`, `--timeout SECONDS` (per
 turn; default 600), and `--model NAME` (the **counterpart's** model).
 
 `--task` sets the counterpart's reasoning effort on every turn, resume included.
@@ -167,6 +174,23 @@ xhigh, max`). A Gemini model under agy follows the same rule; name it with
 default applies with the restricted configuration; it need not match the model
 in another interactive session. Specify an override only when requested or needed
 for the user's stated constraints. There is no cross-provider dollar-budget cap.
+
+### Another model in the same CLI
+
+Pass `--to` equal to `--from` and name the counterpart's model with `--model`,
+for example Claude Code on Opus consulting `--model fable`. The model name is
+whatever the counterpart CLI's `--model` flag accepts: an alias such as `fable`,
+`sonnet` or `opus`, or a full model ID. The helper refuses a same-CLI start
+without `--model`, because the CLI's default is most likely the model already
+running, which would be an echo, not a second opinion. It cannot see which model
+the original agent is running, so choose one that differs from your own. The
+counterpart gets the same restrictions as any other peer from that CLI.
+
+Two models in one CLI share its system prompt, tools and habits, and often
+training lineage, so their agreement is weaker evidence than agreement across
+vendors. Prefer a different CLI when one is available and the question is
+contested; use a different model in the same CLI when only one CLI is signed in,
+or when the user asks for that model by name. Say which it was when reporting.
 
 To stop: `close <id> --outcome cancelled`. It returns `closing` while the worker
 terminates the peer process group; check `status` until `closed`. For completed

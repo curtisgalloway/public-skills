@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 # SPDX-FileCopyrightText: 2026 contributors
 # SPDX-License-Identifier: Apache-2.0
-"""Persistent, bounded consultations among Claude Code, Codex and Antigravity (Python 3.9+, Unix)."""
+"""Persistent, bounded consultations among Claude Code, Codex and Antigravity, or between two
+models in one of them (Python 3.9+, Unix)."""
 
 import argparse
 import contextlib
@@ -344,7 +345,8 @@ def main(argv=None):
     start = commands.add_parser("start", help="Start the opposite agent; return a handle immediately")
     start.add_argument("--from", dest="origin", choices=PEERS, required=True)
     start.add_argument("--to", dest="peer", choices=PEERS,
-                       help="Counterpart; defaults to codex from claude and claude from codex")
+                       help="Counterpart; defaults to codex from claude and claude from codex. "
+                            "May match --from when --model names a different model")
     start.add_argument("--project", type=Path, default=Path.cwd())
     start.add_argument("--message-file", required=True, help="UTF-8 file or - for stdin")
     start.add_argument("--model", help="Explicit counterpart model; otherwise the CLI default")
@@ -384,8 +386,10 @@ def main(argv=None):
         peer = args.peer or DEFAULT_PEER.get(args.origin)
         if not peer:
             raise ConsultError("--to is required when consulting from agy")
-        if peer == args.origin:
-            raise ConsultError("The counterpart must be a different agent")
+        if peer == args.origin and not args.model:
+            # The same CLI on its default model is most likely the same model:
+            # an echo, not a second opinion.
+            raise ConsultError("Consulting the same CLI needs --model naming a different model")
         executable = shutil.which(peer)
         if not executable:
             raise ConsultError("Required counterpart CLI not found on PATH: " + peer)

@@ -164,6 +164,29 @@ class ConsultationTests(unittest.TestCase):
                         self.assertIn("model_reasoning_effort=medium", args)
                         self.assertNotIn("model_reasoning_effort=max", args)
 
+    def test_same_cli_with_another_model_keeps_model_and_restrictions(self):
+        for harness, model in (("claude", "fable"), ("codex", "gpt-other")):
+            with self.subTest(harness=harness):
+                identity = self.start(harness, "Brief token maple", "--to", harness, "--model", model)
+                first = self.wait(identity)
+                self.assertEqual(first["status"], "ready", first)
+                self.assertEqual((first["origin"], first["peer"], first["model"]),
+                                 (harness, harness, model))
+                self.run_cli("reply", identity, "--message-file", "-", text="Follow-up")
+                second = self.wait(identity)
+                self.assertEqual(first["session_id"], second["session_id"])
+                self.assertIn("Turn: 2", self.run_cli("read", identity)["messages"][-1]["answer"])
+                history = json.loads((self.fake_state / first["session_id"]).read_text())
+                self.assertEqual(len(history), 2)
+                for turn in history:
+                    args = turn["args"]
+                    self.assertEqual(turn["peer_guard"], "1")
+                    self.assertEqual(args[args.index("--model") + 1], model)
+                    if harness == "claude":
+                        self.assertEqual(args[args.index("--tools") + 1], "Read,Glob,Grep")
+                    else:
+                        self.assertEqual(args[args.index("-s") + 1], "read-only")
+
     def test_state_without_task_defaults_to_max_effort(self):
         state = dict(executable="codex", peer="codex", session_id=None)
         self.assertIn("model_reasoning_effort=max", consult.adapter(state))
@@ -389,8 +412,9 @@ class AgyConsultationTests(ConsultationTests):
         self.fake_state = agy_state
         self.env["FAKE_STATE"] = str(agy_state)
 
-    def test_to_must_differ_and_is_required_from_agy(self):
-        for extra in (("--from", "codex", "--to", "codex"), ("--from", "agy")):
+    def test_same_cli_needs_model_and_to_is_required_from_agy(self):
+        for extra in (("--from", "codex", "--to", "codex"), ("--from", "claude", "--to", "claude"),
+                      ("--from", "agy")):
             result = subprocess.run(self.command("start", *extra, "--project", str(self.project),
                                                  "--message-file", "-"),
                                     input="Brief", text=True, capture_output=True, env=self.env)
