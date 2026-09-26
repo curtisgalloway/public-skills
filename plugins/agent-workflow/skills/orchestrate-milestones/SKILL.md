@@ -102,14 +102,34 @@ brief must stand alone:
 - **Gated step:** run it here, where the user can approve it. Record it where the project
   records such runs, then resume *the same* subagent with the outcome, so it keeps its
   context for the audit and the rest of the milestone.
-- **Question:** put it to the user with the subagent's recommendation, then resume the
-  subagent with the answer.
+- **Question:** decide it yourself when the plan, the design, and the project's recorded
+  decisions give you enough to judge. Record the decision (see below), then resume the
+  subagent. Put it to the user, with the subagent's recommendation, only when you cannot
+  judge it or the sources conflict irreconcilably.
+- **Review findings:** decide which to fix yourself; do not stop to ask the user. Running
+  this loop is the standing authorization that a review skill (such as `review-swarm`) asks
+  for before fixing without a question. For each finding that survived review, decide:
+  fix, fix differently, defer (to which milestone, issue, or backlog entry), or reject (and
+  why). Send the fixes back to the subagent. Two limits still apply. Findings a review
+  dropped stay dropped. A fix that would reverse a decision the project already recorded
+  (a calibrated constant, a documented contract, an accepted tradeoff) goes to the user as
+  a question.
 - **Finished:** verify before landing. Check that the branch holds the claimed commits and
   the tree is clean, that the evidence file exists and links a review artifact, that the
   plan's status changed, and run the project's cheap checks yourself. A mismatch goes back
   to the subagent; it is not fixed silently by the orchestrator.
 
 Do not relay any part of a subagent's result to the user before its report has arrived.
+
+**Record every decision you make in the user's place.** Put it in the milestone's evidence
+file (for review findings, its Review section) with the finding or question, your decision,
+and a one-line reason. List these decisions again at the end of the milestone's progress
+line, and all of them in the final report, so the user can review them and reopen any they
+disagree with.
+
+Stop and ask only when you cannot judge, or when two authorities the project defers to
+conflict and nothing ranks them. "Unsure which is better" is a judgment to make and record;
+it is not a reason to stop the loop.
 
 ## 5. Land
 
@@ -138,7 +158,9 @@ the user when:
   landing incomplete work, and do not start its successor;
 - CI fails and the cause is not a quick, clear send-back;
 - the queue is empty. Report each milestone's pull request, what now works, and what is
-  still open.
+  still open. End with a section headed **Decisions for your review**: every decision
+  you made in the user's place (review findings fixed, deferred or rejected; questions you
+  answered), each with its milestone, a one-line reason, and where it is recorded.
 
 Each checkpoint commit is also crash insurance: a subagent that commits at its planned
 checkpoints loses at most one step to a crash, and step 1 recovers from there.
