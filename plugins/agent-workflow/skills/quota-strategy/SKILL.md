@@ -113,7 +113,11 @@ codex exec -C <worktree> -s workspace-write \
   plan, the process skill's `SKILL.md`), every rule it must follow (commit author, trailer, no
   push), and "stop before review". Then review its branch with a separate, read-only Codex session
   (for example through the `consult` skill), so a Codex unit spends no Claude quota on review.
-  Resume the implementer with `codex exec resume <session-id>` for the fixes.
+  Resume the implementer with `codex exec resume <session-id>` for the fixes. `resume` takes
+  no `-s` or `--add-dir` flags, so pass the sandbox as config keys:
+  `-c sandbox_mode='"workspace-write"'`, `-c 'sandbox_workspace_write.writable_roots=[...]'`,
+  the same `network_access` and effort keys, and run it from the worktree. Then check the log
+  header again.
 - **Permission.** A harness's auto-approval mode may refuse the launch as creating an unsafe
   agent. The fix is an allow rule the **user** adds (in Claude Code, `Bash(codex exec:*)`). An
   agent editing its own permission settings is refused, and must not try.
