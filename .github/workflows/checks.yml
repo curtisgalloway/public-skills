@@ -30,6 +30,9 @@ jobs:
       - name: consult tests
         run: python3 -m unittest discover -s plugins/agent-workflow/skills/consult/tests -v
 
+      - name: quota-strategy tests
+        run: python3 -m unittest discover -s plugins/agent-workflow/skills/quota-strategy/tests -v
+
       - name: dep-quality tests
         run: python3 -m unittest discover -s plugins/dev-tools/skills/dep-quality/tests -v
 

@@ -66,6 +66,13 @@ skills. Installing both loads every skill twice.
   merge, branch cleanup) before launching the next. Pushes, merges, user questions and
   launches that need the user's approval stay in the orchestrator. Triggers on "act as
   orchestrator" or "a fresh subagent per milestone, PR and merge each".
+- **`quota-strategy`** — during a long unattended run: read every usage pool (the 5-hour
+  window, the general weekly limit, any per-model weekly limit, and Codex's limit) at each
+  milestone boundary and route the next unit to a cheaper model, Codex, or the main model by
+  threshold, stopping before the week runs out. Ships `scripts/claude_usage.py` (reads the
+  endpoint behind Claude Code's `/usage`, falling back to its cache) and
+  `scripts/codex_usage.py` (reads Codex's own session logs), both stdlib-only, plus notes on
+  launching Codex as an implementer. Triggers on "stretch my quota" or "run this overnight".
 - **`lab-notebook`** — during: an append-only, timestamped notebook with one chapter per unit
   of work (attempts, dead ends, decisions, surprises). Its index carries timestamps that show
   when it has fallen behind. A per-project process log records where the agent's process cost
@@ -122,4 +129,5 @@ collapsing, noise stripping).
 ```bash
 python3 -m unittest discover -s plugins/agent-workflow/skills/agent-agnostic-skills/tests -v
 python3 -m unittest discover -s plugins/agent-workflow/skills/consult/tests -v
+python3 -m unittest discover -s plugins/agent-workflow/skills/quota-strategy/tests -v
 ```
