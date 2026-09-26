@@ -138,10 +138,37 @@ class ConsultationTests(unittest.TestCase):
                     if peer == "claude":
                         self.assertEqual(args[args.index("--tools") + 1], "Read,Glob,Grep")
                         self.assertIn("--strict-mcp-config", args)
+                        self.assertEqual(args[args.index("--effort") + 1], "max")
                     else:
                         self.assertEqual(args[args.index("-s") + 1], "read-only")
                         self.assertEqual(args[args.index("-a") + 1], "never")
                         self.assertIn("--ignore-user-config", args)
+                        self.assertIn("model_reasoning_effort=max", args)
+
+    def test_coding_task_uses_medium_effort_on_every_turn(self):
+        for origin, peer in (("claude", "codex"), ("codex", "claude")):
+            with self.subTest(origin=origin):
+                identity = self.start(origin, "Coding brief", "--task", "coding")
+                first = self.wait(identity)
+                self.assertEqual(first["status"], "ready", first)
+                self.run_cli("reply", identity, "--message-file", "-", text="Follow-up")
+                self.wait(identity)
+                history = json.loads((self.fake_state / first["session_id"]).read_text())
+                self.assertEqual(len(history), 2)
+                for turn in history:
+                    args = turn["args"]
+                    if peer == "claude":
+                        self.assertEqual(args[args.index("--effort") + 1], "medium")
+                    else:
+                        self.assertIn("model_reasoning_effort=medium", args)
+                        self.assertNotIn("model_reasoning_effort=max", args)
+
+    def test_state_without_task_defaults_to_max_effort(self):
+        state = dict(executable="codex", peer="codex", session_id=None)
+        self.assertIn("model_reasoning_effort=max", consult.adapter(state))
+        state = dict(executable="claude", peer="claude", session_id=None)
+        command = consult.adapter(state)
+        self.assertEqual(command[command.index("--effort") + 1], "max")
 
     def test_requires_confirmation_and_bounds_rounds(self):
         identity = self.start("codex", "brief", "--rounds", "1")

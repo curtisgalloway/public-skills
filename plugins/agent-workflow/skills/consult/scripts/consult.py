@@ -74,22 +74,29 @@ def location(root, identity):
     return directory
 
 
+# Reasoning effort by kind of consultation. Design, review and other judgment
+# calls get the counterpart's deepest thinking; code-writing gets medium.
+EFFORT = {"thinking": "max", "coding": "medium"}
+
+
 def adapter(state):
     """Reapply permission controls on *every* turn, including resume."""
     executable = state["executable"]
     session = state.get("session_id")
+    effort = EFFORT[state.get("task", "thinking")]
     if state["peer"] == "claude":
         command = [executable, "-p", "--output-format", "json",
                    "--tools", "Read,Glob,Grep", "--allowedTools", "Read,Glob,Grep",
                    "--permission-mode", "dontAsk", "--disable-slash-commands",
                    "--strict-mcp-config", "--mcp-config", '{"mcpServers":{}}',
                    "--setting-sources", "", "--settings", '{"disableAllHooks":true}',
-                   "--no-chrome"]
+                   "--no-chrome", "--effort", effort]
         if session:
             command += ["--resume", session]
     else:
         command = [executable, "-a", "never", "-s", "read-only",
                    "-c", "mcp_servers={}", "-c", "plugins={}",
+                   "-c", "model_reasoning_effort=" + effort,
                    "--disable", "hooks", "--disable", "multi_agent",
                    "--disable", "enable_mcp_apps", "exec"]
         if session:
@@ -265,6 +272,8 @@ def main(argv=None):
     start.add_argument("--project", type=Path, default=Path.cwd())
     start.add_argument("--message-file", required=True, help="UTF-8 file or - for stdin")
     start.add_argument("--model", help="Explicit counterpart model; otherwise the CLI default")
+    start.add_argument("--task", choices=sorted(EFFORT), default="thinking",
+                       help="thinking (design, review, analysis): max effort; coding: medium")
     start.add_argument("--rounds", type=positive, default=3)
     start.add_argument("--timeout", type=positive, default=600, help="Seconds per peer turn")
     reply = commands.add_parser("reply", help="Continue the saved counterpart session")
@@ -304,7 +313,7 @@ def main(argv=None):
         directory = root / str(uuid.uuid4())
         directory.mkdir(parents=True, mode=0o700)
         state = dict(id=directory.name, origin=args.origin, peer=peer, executable=executable,
-                     project=str(project), model=args.model, timeout=args.timeout,
+                     project=str(project), model=args.model, task=args.task, timeout=args.timeout,
                      max_rounds=args.rounds, rounds=0, confirmed=False, jobs=[], session_id=None)
         with locked(directory):
             state = launch(directory, state, text, "brief")
