@@ -2,10 +2,12 @@
 name: consult
 description: >-
   Collaborate with another coding agent on a question or proposed approach:
-  any of Claude Code, Codex and Antigravity (agy) consults another through a
-  persistent peer session. Use when the user asks to consult the counterpart (or
-  Codex, Claude, agy, or Gemini by name), compare agents' perspectives, or work
-  toward consensus. The original agent leads the
+  any of Claude Code, Codex and Antigravity (agy) consults another, or a
+  different model in its own CLI (Opus consulting Fable), through a persistent
+  peer session. Use when the user says "consult with <name>", where the name is
+  an agent (Codex, Claude, agy), a vendor or model family (Gemini, GPT), or a
+  model (Fable, Opus, Sonnet); also "consult your counterpart", "compare
+  perspectives", or "work toward consensus". The original agent leads the
   exchange and reports the agreed recommendation or unresolved disagreement.
 ---
 
@@ -26,7 +28,9 @@ an existing interactive counterpart session.
 - Python 3.9+ on macOS or Linux; standard library only (uses Unix process groups
   and `flock`). Windows is not supported.
 - The counterpart's CLI on `PATH`, already authenticated: `claude`, `codex` or
-  `agy`. Normal CLI usage charges/limits apply.
+  `agy`. Normal CLI usage charges/limits apply. The counterpart can be the same
+  CLI as the original agent when `--model` names a different model (see
+  "Another model in the same CLI" below).
 - For an `agy` counterpart: bubblewrap (`bwrap`) on Linux, or `sandbox-exec` on
   macOS, and no MCP servers or plugins configured in agy (see below).
 - Permission to launch the counterpart and reach its provider. If the host's
@@ -69,6 +73,30 @@ restrictions to make a command work. Ground truth: `claude --help`, `codex exec
 --help`, and `codex exec resume --help`. See the official
 [Claude programmatic guide](https://code.claude.com/docs/en/headless) and
 [Codex noninteractive guide](https://developers.openai.com/codex/noninteractive).
+
+## Choose the counterpart from the user's words
+
+Users name the counterpart the way they think of it: "consult with Codex",
+"consult with Fable", "consult with Gemini". Turn the name into `--to` and
+`--model` before starting:
+
+| The user names | `--to` | `--model` |
+| --- | --- | --- |
+| An agent or its CLI: Claude, Codex, agy or Antigravity | that CLI | none: its default |
+| A model family another CLI serves: Gemini (agy), GPT (Codex) | that CLI | the model, if a specific one is named |
+| A model your own CLI serves, such as Fable, Opus or Sonnet from Claude Code | your own CLI | that name |
+| A name you don't recognize | the CLI that lists it | that name |
+
+For a name you don't recognize, check which CLI offers it: `agy models` for
+agy, the model names Claude Code's `--model` accepts, and Codex's model list.
+If exactly one CLI offers it, use that one. If none or several do, ask the user
+in one line, and say what you checked. Don't guess a model name: a wrong one
+fails the first turn, after the brief has already been sent. If the name is the
+model you are running now, say so and ask for another: consulting yourself only
+gets you an echo.
+
+Tell the user which CLI and model you picked in the same message that starts
+the consultation.
 
 ## Conduct the discussion
 
@@ -123,6 +151,10 @@ python3 <skill-dir>/scripts/consult.py start --from codex \
 python3 <skill-dir>/scripts/consult.py start --from claude --to agy \
   --project <project> --message-file <brief-file>
 
+# A different model in the same CLI: --model is required when --to matches --from.
+python3 <skill-dir>/scripts/consult.py start --from claude --to claude \
+  --model fable --project <project> --message-file <brief-file>
+
 python3 <skill-dir>/scripts/consult.py status <id>
 python3 <skill-dir>/scripts/consult.py read <id>
 
@@ -149,7 +181,7 @@ exit code. Peer stdout/stderr and worker errors are retained for diagnosis; do n
 paste raw logs into a public report without reviewing them.
 
 `start` accepts `--to claude|codex|agy` (the counterpart; defaults to Codex from
-Claude and to Claude from Codex), `--task thinking|coding`, `--rounds N`, `--timeout SECONDS` (per
+Claude and to Claude from Codex; it may match `--from` when `--model` is given), `--task thinking|coding`, `--rounds N`, `--timeout SECONDS` (per
 turn; default 600), and `--model NAME` (the **counterpart's** model).
 
 `--task` sets the counterpart's reasoning effort on every turn, resume included.
@@ -167,6 +199,30 @@ xhigh, max`). A Gemini model under agy follows the same rule; name it with
 default applies with the restricted configuration; it need not match the model
 in another interactive session. Specify an override only when requested or needed
 for the user's stated constraints. There is no cross-provider dollar-budget cap.
+
+### Another model in the same CLI
+
+Pass `--to` equal to `--from` and name the counterpart's model with `--model`,
+for example Claude Code on Opus consulting `--model fable`. The model name is
+whatever the counterpart CLI's `--model` flag accepts: an alias such as `fable`,
+`sonnet` or `opus`, or a full model ID. The helper refuses a same-CLI start
+without `--model`, because the CLI's default is most likely the model already
+running, which would be an echo, not a second opinion. It cannot see which model
+the original agent is running, so choose one that differs from your own. The
+counterpart gets the same restrictions as any other peer from that CLI.
+
+A `claude` started from inside Claude Code inherits the parent's session and
+appends its turns to the parent's transcript unless told otherwise (Claude Code
+2.1.42, 2026-09-26). The helper therefore starts every Claude peer with its own
+`--session-id` and fails the turn if the peer reports any other session. Checked
+live the same day: Claude on Opus consulting `--model sonnet`, two turns,
+context kept, a write attempt denied, and the parent transcript unchanged.
+
+Two models in one CLI share its system prompt, tools and habits, and often
+training lineage, so their agreement is weaker evidence than agreement across
+vendors. Prefer a different CLI when one is available and the question is
+contested; use a different model in the same CLI when only one CLI is signed in,
+or when the user asks for that model by name. Say which it was when reporting.
 
 To stop: `close <id> --outcome cancelled`. It returns `closing` while the worker
 terminates the peer process group; check `status` until `closed`. For completed

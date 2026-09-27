@@ -45,12 +45,14 @@ skills. Installing both loads every skill twice.
   me through the trade-offs"; drops when the user says to build.
 - **`consult`** — ask another coding agent to assess a question independently, then trade
   follow-ups until both confirm a recommendation. Any of Claude Code, Codex and Antigravity
-  (`agy`) can consult another; the original conversation stays in charge. Ships a Python
+  (`agy`) can consult another, or a different model in its own CLI (Opus consulting Fable);
+  the original conversation stays in charge. Ships a Python
   helper for restricted peer sessions (an OS sandbox for `agy`, which has no read-only
   mode), resumable context, bounded rounds, per-task reasoning effort, cancellation, and
   local transcripts. Needs Python 3.9+, macOS or Linux, and an authenticated counterpart
   CLI; `agy` also needs bubblewrap on Linux.
-  Triggers on "consult your counterpart" or "work toward consensus".
+  Triggers on "consult with Codex", "consult with Fable", "consult with Gemini", or "work
+  toward consensus".
 - **`project-plan`** — turn a project outcome into a detailed design, then an implementation
   plan of cohesive milestones, each sized for about 75% of a fresh session's context.
   - A new or materially revised design needs approval unless waived; an unchanged
