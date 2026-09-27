@@ -1,7 +1,7 @@
 {
   "name": "agent-workflow",
   "version": "1.0.0",
-  "description": "Working with a coding agent over time: session learning and teaching summaries, wrap-ups and handoffs, transcript access, loop safety (intern-mode), design partnership, harness-agnostic skill authoring, and Google Docs review rounds.",
+  "description": "Working with a coding agent over time: session learning and teaching summaries, handoffs, transcript access, loop safety (intern-mode), design partnership, harness-agnostic skill authoring, and Google Docs review rounds.",
   "author": {
     "name": "curtisgalloway",
     "url": "https://github.com/curtisgalloway"
