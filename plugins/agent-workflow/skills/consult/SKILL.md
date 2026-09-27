@@ -85,15 +85,27 @@ Users name the counterpart the way they think of it: "consult with Codex",
 | An agent or its CLI: Claude, Codex, agy or Antigravity | that CLI | none: its default |
 | A model family another CLI serves: Gemini (agy), GPT (Codex) | that CLI | the model, if a specific one is named |
 | A model your own CLI serves, such as Fable, Opus or Sonnet from Claude Code | your own CLI | that name |
-| A name you don't recognize | the CLI that lists it | that name |
+| A name you don't recognize, such as Astra | the CLI that lists it | its exact ID from that list |
 
-For a name you don't recognize, check which CLI offers it: `agy models` for
-agy, the model names Claude Code's `--model` accepts, and Codex's model list.
-If exactly one CLI offers it, use that one. If none or several do, ask the user
-in one line, and say what you checked. Don't guess a model name: a wrong one
-fails the first turn, after the brief has already been sent. If the name is the
-model you are running now, say so and ask for another: consulting yourself only
-gets you an echo.
+For a name you don't recognize, look it up in every CLI's catalog:
+
+| CLI | Command | What to match |
+| --- | --- | --- |
+| Codex | `codex debug models` (JSON) | each model's `slug` and `display_name`; skip `"visibility": "hide"` |
+| agy | `agy models` | the ID in the first column and the name after it |
+| Claude Code | `claude --help`, under `--model` | the aliases (`fable`, `opus`, `sonnet`) or a full ID |
+
+Users say the short name, not the ID, so match it case-insensitively as a whole
+word inside the ID or name, not as the entire string. "Astra" matches Codex's
+`gpt-6-astra` (display name "GPT-6-Astra"); an exact-string search misses it.
+Pass the matched ID, never the user's word, to `--model`.
+
+If exactly one model in one CLI matches, use it. If none match, or several do
+(for example two model generations sharing a name), ask the user in one line,
+listing the candidates and what you checked. Don't guess a model name: a wrong
+one fails the first turn, after the brief has already been sent. If the name is
+the model you are running now, say so and ask for another: consulting yourself
+only gets you an echo.
 
 Tell the user which CLI and model you picked in the same message that starts
 the consultation.
