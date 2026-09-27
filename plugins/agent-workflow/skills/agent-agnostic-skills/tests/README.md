@@ -42,6 +42,13 @@ once welded to one harness, once bound to stable layers — so the suite compare
 authoring style rather than subject matter. Between them the locked fixture
 triggers all five checks.
 
+Each fixture's skill file is named `FIXTURE.md`, not `SKILL.md`. Plugin
+installers (the Claude Web marketplace among them) register every `SKILL.md`
+they find under a plugin's `skills/` directory, however deep, so a fixture with
+that name is installed as a real skill and its description joins the skill
+list every session loads. The scanner selects files by extension, so the name
+does not matter to it.
+
 The locked fixture uses a fictional account, `/home/rjmiller/`, deliberately <!-- portability-ok -->
 distinct from any real contributor: it exercises the privacy/portability check
 without committing a real username to a public repo, which is the very thing
