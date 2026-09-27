@@ -36,6 +36,24 @@ python3 utilities/check-skill-registration.py
 CI runs this on every push and pull request, along with the skill test suites,
 so a miss fails the build rather than going unnoticed.
 
+## Plugin versions
+
+Claude Code reinstalls a plugin only when the `version` in its `plugin.json`
+changes, so a pull request that changes a plugin's files and leaves its version
+alone never reaches anyone who installed it. Every such pull request bumps the
+version, in the pull request itself:
+
+```bash
+python3 utilities/plugin-version.py bump
+```
+
+That bumps every plugin whose files changed since `origin/main`, including the
+`everything` bundle when a themed plugin's skills changed. Versions are calendar
+dates, `YYYY.MDD.N`: `2026.927.0` for the first release on September 27, then
+`2026.927.1`. October 1 is `1001`, so versions still sort correctly across months.
+Keep the version only in `plugin.json`, never in a `marketplace.json` entry.
+CI runs `plugin-version.py check` and fails a pull request that skips the bump.
+
 ## Behavioral evals
 
 Unit tests cover a skill's scripts. Whether the *skill text* makes an agent

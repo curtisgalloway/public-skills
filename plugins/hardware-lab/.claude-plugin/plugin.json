@@ -1,6 +1,6 @@
 {
   "name": "hardware-lab",
-  "version": "1.0.0",
+  "version": "2026.927.0",
   "description": "Bench and USB-analysis skills: Cynthion setup, capture, pcap decode and protocol reverse-engineering, USB device profiles, the MCCI 3411 test device, Bus Pirate, and Siglent oscilloscope control.",
   "author": {
     "name": "curtisgalloway",

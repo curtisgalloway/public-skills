@@ -17,6 +17,19 @@ jobs:
     steps:
       # actions/checkout v7.0.1, pinned by SHA.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          # Full history, so the version check can find the merge base.
+          fetch-depth: 0
+
+      # A pull request is checked against its target branch; a push to main
+      # against the commit before it, so an unbumped direct push fails too.
+      - name: Plugin versions bumped
+        env:
+          BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || 'HEAD^' }}
+        run: python3 utilities/plugin-version.py check --base "$BASE"
+
+      - name: plugin-version tests
+        run: python3 -m unittest discover -s utilities/tests -v
 
       - name: Skill registration
         run: python3 utilities/check-skill-registration.py
