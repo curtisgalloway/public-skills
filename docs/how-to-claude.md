@@ -17,7 +17,7 @@ A "session" is one conversation, either in Chat, Cowork or Code. A "turn" is one
 typing, Claude answering.
 
 When you start a new session, Claude reads its default prompt ("You are a helpful agent…") and,
-(mostly) any memory it knows about you, as well as any per-project context (like the `CLAUDE.md`
+(mostly) any memory it knows about you, as well as any per-project context (like the `AGENTS.md`
 file in a code project), before you type your first message.
 
 Then, every time you type a new message, it essentially does that all over again and reads the
@@ -146,7 +146,7 @@ agent there read it to pick up the results.
 
 ## Teach Claude how to learn from its mistakes
 
-Because Claude doesn't remember things between sessions, it can make the same mistakes repeatedly unless you help it learn from its mistakes.  When you correct it in a chat, tell Claude to add a rule to remember the correction in CLAUDE.md; you can use the [`/learn`](../plugins/agent-workflow/README.md#a-session-start-to-finish) skill to turn an entire session's lessons into a set of proposed instruction changes automatically.
+Because Claude doesn't remember things between sessions, it can make the same mistakes repeatedly unless you help it learn from its mistakes.  When you correct it in a chat, tell Claude to add a rule to remember the correction in the project's AGENTS.md; you can use the [`/learn`](../plugins/agent-workflow/README.md#a-session-start-to-finish) skill to turn an entire session's lessons into a set of proposed instruction changes automatically.
 
 ## Trust, but verify
 
