@@ -58,8 +58,25 @@ Gemini CLI, for reference: `~/.gemini/settings.json`, `<project>/.gemini/setting
 | workspace rules | `.agent/rules/*.md` (both `.agent/` and `.agents/` have shipped — confirm) |
 | precedence | system rules > `GEMINI.md` > `AGENTS.md` > workspace rules |
 
-Claude Code reads `CLAUDE.md`, and `AGENTS.md` where configured. Keep one real copy; a duplicated
-override drifts from the file you actually edit.
+| | Claude Code (v2.1.281+; verified 2026-10-03) |
+|---|---|
+| cross-tool | every `AGENTS.md` and `.claude/AGENTS.md` in the working directory and its parents at start; a subdirectory's `AGENTS.md` when a file there is read |
+| harness-specific | `CLAUDE.md`, `.claude/CLAUDE.md`, `CLAUDE.local.md` — **replace** `AGENTS.md`: one anywhere in the working directory or above it, and no `AGENTS.md` is read at all |
+| does not count | `~/.claude/CLAUDE.md` (user level), managed `CLAUDE.md`, `.claude/rules/` — these load alongside `AGENTS.md` |
+| user level | `~/.claude/CLAUDE.md` only; there is no user-level `AGENTS.md` |
+| not read | `AGENTS.local.md`, `AGENTS.override.md`, anything under `.agents/` |
+| override | `/config` → **Project instructions** = `claude-md-and-agents-md` loads both; user settings only |
+| check | `/memory` lists the instruction files that loaded |
+
+Source: <https://code.claude.com/docs/en/memory#agents-md>. v2.1.277 added native `AGENTS.md`;
+before v2.1.281 some sessions (Amazon Bedrock, telemetry disabled) still read `CLAUDE.md` only.
+
+Codex reads `AGENTS.md`, but stops walking up at the git repository root, so an `AGENTS.md` above
+the repository (a source-tree-wide one) does not load there (measured with `codex-cli` 0.155.1,
+2026-09-20).
+
+Keep one real copy. A full duplicate in a harness-specific file drifts from the file you actually
+edit, and in Claude Code the duplicate is the one that wins.
 
 ## Skills
 

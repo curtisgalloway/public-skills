@@ -217,9 +217,17 @@ in the driver-lab repository is the worked example.
 
 ## Write the documentation portably too
 
-- **`AGENTS.md` is the cross-tool context file.** Harness-specific ones (`CLAUDE.md`, `GEMINI.md`)
-  *override* it. Keep exactly one real copy: if you duplicate the content into the override, the two
-  drift, and the file that loses is the one you edited.
+- **`AGENTS.md` is the cross-tool context file, and every current harness reads it on its own.**
+  Ship that file and nothing else: no `CLAUDE.md` stub, no `CLAUDE.md -> AGENTS.md` symlink. The
+  harness-specific files are not harmless extras. A `CLAUDE.md` (or `CLAUDE.local.md`) in the
+  working directory *or any directory above it* makes Claude Code skip every `AGENTS.md`, and
+  `GEMINI.md` outranks `AGENTS.md` in Antigravity. One stray file high in a source tree silently
+  hides the instructions of every repository below it. If wording truly must differ for one
+  harness, put it in that harness's file as an *import* of `AGENTS.md` plus the delta (Claude Code:
+  `@AGENTS.md` on the first line), never as a second full copy that drifts. The per-harness rules
+  are in [references/harness-matrix.md](references/harness-matrix.md#context-and-rules-files).
+- **Skills that read instruction files look for `AGENTS.md` first** and fall back to `CLAUDE.md`
+  or `GEMINI.md`, because repositories you do not own still ship those.
 - **Use placeholders for install paths** — `<skill-name>/scripts/tool.py`, not
   `~/.claude/skills/<skill-name>/scripts/tool.py`. If the reader must substitute something, say so
   once at the top rather than encoding one vendor's layout into every command.

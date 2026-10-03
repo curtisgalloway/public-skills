@@ -9,9 +9,9 @@ Install this skill wherever your agent discovers skills — `~/.gemini/antigravi
 `<workspace>/.agents/skills/` for Antigravity, `~/.claude/skills/` for Claude Code — and confirm
 with `/skills` that it loaded. Below, `<portable-skill>` stands for wherever it landed.
 
-Add the standing rules to `AGENTS.md` at the workspace root. Use a harness-specific context file
-(`GEMINI.md`, `CLAUDE.md`) only for wording that must differ: it overrides `AGENTS.md`, so a second
-full copy drifts from the one you edit.
+Add the standing rules to `AGENTS.md` at the workspace root, which every harness reads. Do not
+add a `GEMINI.md` or `CLAUDE.md` beside it: either one outranks `AGENTS.md`, so a second full copy
+drifts from the one you edit.
 
 Run the helper:
 

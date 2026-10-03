@@ -56,9 +56,11 @@ which lessons have been handled.
   `$HOME/.claude/CLAUDE.md` (check what exists; some setups symlink it into a dotfiles repo, and
   other harnesses load their own user-level files, so confirm what yours actually reads). Use for
   OS, toolchain, CLI ergonomics, shell quoting, generic tool gotchas.
-- **Workspace instruction file:** `<repo-root>/AGENTS.md` (the cross-agent convention), or
-  `CLAUDE.md` where that's what the repo uses. Use for project conventions, paths, infra
-  specifics. If neither exists and the lesson is project-scoped, ask before creating one.
+- **Workspace instruction file:** `<repo-root>/AGENTS.md` (the cross-agent convention, which
+  Claude Code, Codex and Antigravity all read), or `CLAUDE.md` where that's what the repo already
+  uses. Use for project conventions, paths, infra specifics. If neither exists and the lesson is
+  project-scoped, ask before creating one, and create `AGENTS.md`: never add a `CLAUDE.md` next to
+  an existing `AGENTS.md`, because Claude Code then stops reading the `AGENTS.md`.
 - **Session memory (if present):** the harness names the directory in its system prompt (Claude
   Code: `$HOME/.claude/projects/<project-key>/memory/`, with `MEMORY.md` as the index).
 - **Process log (if present):** `<repo-root>/docs/process-log.md`, or wherever the project's
