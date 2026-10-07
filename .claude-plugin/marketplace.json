@@ -5,7 +5,7 @@
     "url": "https://github.com/curtisgalloway"
   },
   "metadata": {
-    "description": "General-purpose agent skills, packaged by theme: hardware-lab (USB analysis and bench instruments), driver-porting (clean-room and source-anchored driver specs, board experts; from the driver-lab repository), agent-workflow (session learning, handoffs, loop safety, design partnership), dev-tools (Jujutsu, dependency scoring, CLI conventions). The everything plugin bundles the three themes kept in this repository."
+    "description": "General-purpose agent skills, packaged by theme: hardware-lab (USB analysis and bench instruments), driver-porting (source-anchored peripheral specs, reference reviews, a hardware investigator and board specs; from the driver-lab repository; the clean-room skills are in the separate cleanroom-skills repository), agent-workflow (session learning, handoffs, loop safety, design partnership), dev-tools (Jujutsu, dependency scoring, CLI conventions). The everything plugin bundles the three themes kept in this repository."
   },
   "plugins": [
     {
@@ -19,7 +19,7 @@
         "source": "url",
         "url": "https://github.com/curtisgalloway/driver-lab.git"
       },
-      "description": "Driver porting and review: the clean-room pipeline (os-investigator, cleanroom-spec, cleanroom-implementer), source-anchored specs and reference reviews for code you own, the Raspberry Pi 5, Raspberry Pi 4, Rockchip RK3588 and Google Pixel 10 board experts, and a scaffold for writing new board experts. Lives in curtisgalloway/driver-lab; this entry points there."
+      "description": "Driver porting and review: peripheral specs whose every fact cites the line it came from, reference reviews of a driver against another implementation, a hardware investigator that answers a question as anchored facts from sources a spec repository's license accepts, board specs with the board-expert reader and a scaffold for new ones, a spec verifier, and campaign review. The clean-room skills are a separate plugin in curtisgalloway/cleanroom-skills. Lives in curtisgalloway/driver-lab; this entry points there."
     },
     {
       "name": "agent-workflow",
