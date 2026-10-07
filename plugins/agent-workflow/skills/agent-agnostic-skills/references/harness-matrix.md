@@ -152,8 +152,8 @@ Code sends `tool_name` and `tool_input` flat at the top level.
 | other | `"ask"` requests confirmation | `"ask"` via `permissionDecision` |
 
 The fields are additive across harnesses, so one response can satisfy all of them. See
-[`cleanroom-implementer/scripts/cleanroom_hook.py`](https://github.com/curtisgalloway/driver-lab/blob/main/skills/cleanroom-implementer/scripts/cleanroom_hook.py)
-in the driver-lab repository for the combined emitter.
+[`cleanroom-implementer/scripts/cleanroom_hook.py`](https://github.com/curtisgalloway/cleanroom-skills/blob/main/skills/cleanroom-implementer/scripts/cleanroom_hook.py)
+in the cleanroom-skills repository for the combined emitter.
 
 ### Caveats
 
