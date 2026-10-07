@@ -131,6 +131,13 @@ the consultation.
    not confirm the original text. Silence, a timeout, or partial agreement is not
    consensus. Read and assess the response yourself: the helper checks that a
    confirmation turn succeeded, not whether its prose actually agrees.
+   Only one confirm turn is allowed per cycle; a second `reply --phase confirm`
+   fails with "Confirmation already requested; close this cycle before reopening".
+   So apply every wording change the counterpart has asked for before sending the
+   confirm. If the confirm reply agrees except for exact replacement wording the
+   counterpart itself supplies and you apply it verbatim, you may close as
+   consensus, but say so in the summary. For anything more, close and
+   `reply --reopen` for a new cycle.
 5. **Close and report.** Record `consensus` only when both agents agree on the same
    recommendation. Otherwise record `unresolved` and explain the remaining
    disagreement, missing evidence, or user decision. Give the user the conclusion,
@@ -185,6 +192,15 @@ python3 <skill-dir>/scripts/consult.py read <id> --all
 with an ID, status, and state directory. Poll `status` at reasonable intervals
 (e.g. 10 seconds), keep the user informed during longer work, and call `read` when
 status is `ready`. A successful launch is not a completed consultation.
+
+Poll the top-level `status` field by parsing the JSON, never by grepping the output
+for "ready": `status` and `read` also list every job with its own status, so after
+the first turn a grep matches an earlier job and reports a still-running reply as
+done.
+
+```bash
+until python3 <skill-dir>/scripts/consult.py read <id> | python3 -c "import json,sys; sys.exit(json.load(sys.stdin)['status']=='running')"; do sleep 10; done
+```
 
 All public commands print JSON, except `--skill`, which prints these instructions.
 Exit codes: 0 = command succeeded (possibly still running), 1 = operational failure
