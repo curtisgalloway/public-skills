@@ -134,10 +134,10 @@ the consultation.
    Only one confirm turn is allowed per cycle; a second `reply --phase confirm`
    fails with "Confirmation already requested; close this cycle before reopening".
    So apply every wording change the counterpart has asked for before sending the
-   confirm. If the confirm reply agrees except for exact replacement wording the
-   counterpart itself supplies and you apply it verbatim, you may close as
-   consensus, but say so in the summary. For anything more, close and
-   `reply --reopen` for a new cycle.
+   confirm. If the confirm reply asks for any change, even exact replacement
+   wording, close the cycle and `reply --reopen` with the revised text for one
+   confirm turn. `close --outcome consensus` only checks that the last turn was a
+   successful confirm, not what it agreed to, so this is on you.
 5. **Close and report.** Record `consensus` only when both agents agree on the same
    recommendation. Otherwise record `unresolved` and explain the remaining
    disagreement, missing evidence, or user decision. Give the user the conclusion,
@@ -199,8 +199,15 @@ the first turn a grep matches an earlier job and reports a still-running reply a
 done.
 
 ```bash
-until python3 <skill-dir>/scripts/consult.py read <id> | python3 -c "import json,sys; sys.exit(json.load(sys.stdin)['status']=='running')"; do sleep 10; done
+until python3 <skill-dir>/scripts/consult.py status <id> | python3 -c "import json,sys
+try: s = json.load(sys.stdin).get('status')
+except Exception: sys.exit(0)
+sys.exit(s in ('running', 'closing'))"; do sleep 10; done
 ```
+
+The loop waits through both active states (`running`, `closing`) and ends on
+anything else, including output that is not JSON, so a wrong id or a helper
+error shows up on the next command instead of looping forever.
 
 All public commands print JSON, except `--skill`, which prints these instructions.
 Exit codes: 0 = command succeeded (possibly still running), 1 = operational failure
