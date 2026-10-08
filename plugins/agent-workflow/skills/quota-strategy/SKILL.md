@@ -1,6 +1,6 @@
 ---
 name: quota-strategy
-description: Stretch a Claude subscription's usage limits across long unattended runs (milestone loops, overnight orchestration) by reading live usage for each pool — the 5-hour window, the general weekly limit, any separate per-model weekly limit, and Codex's limit — and routing work to a cheaper model, Codex, or the main model by threshold. Use when the user mentions quota, usage limits, "stretch my quota", running overnight, or choosing which model or agent should implement a unit of work.
+description: Stretch a Claude subscription's usage limits across long unattended runs (milestone loops, overnight orchestration) by reading live usage for each pool — the 5-hour window, the general weekly limit, any per-model weekly cap (which also counts toward the general limit), and Codex's limit — and routing work to a cheaper model, Codex, or the main model by threshold. Use when the user mentions quota, usage limits, "stretch my quota", running overnight, or choosing which model or agent should implement a unit of work.
 ---
 
 <!--
@@ -18,9 +18,10 @@ next unit.
 - *Orchestrator*: the session that plans, verifies and lands work.
 - *Implementer*: the subagent or other agent CLI that does one unit of work.
 - *Pool*: one usage limit that runs out on its own schedule.
-- *Scoped limit*: a weekly limit Anthropic applies to one model separately from the general
-  weekly limit. Which models have one depends on the plan and changes over time; the script
-  reports whatever the account has.
+- *Scoped limit*: an extra weekly cap Anthropic applies to one model. It is a cap, not extra
+  capacity: that model's usage counts toward its scoped limit **and** toward the general weekly
+  limit and the 5-hour window. Which models have one depends on the plan and changes over time;
+  the script reports whatever the account has.
 
 **Needs:** Python 3.9+, a logged-in Claude Code on the same machine, and, for the Codex pool, the
 Codex CLI.
@@ -30,8 +31,8 @@ Codex CLI.
 | Pool | What draws on it | How to read it |
 |---|---|---|
 | 5-hour | every Claude model | `python3 <skill-dir>/scripts/claude_usage.py [--json]` |
-| General weekly | every Claude model without its own scoped limit | same command |
-| Scoped weekly (one per model, when the plan has them) | that model only | same command; `--model <name>` exits 1 if that model has no separate limit |
+| General weekly | every Claude model, including those with a scoped limit | same command |
+| Scoped weekly (one per model, when the plan has them) | that model, in addition to the general weekly limit | same command; `--model <name>` exits 1 if that model has no scoped limit |
 | Codex weekly (and a 5-hour window, when the plan reports one) | Codex only | `python3 <skill-dir>/scripts/codex_usage.py [--json]` |
 
 `claude_usage.py` makes one call to the endpoint Claude Code's `/usage` command uses
@@ -53,8 +54,10 @@ Codex unit of a run refresh it. Exit 1 means no record was found (Codex has not 
 ## Routing
 
 Read every pool at every boundary and put the numbers in the progress line. The table below uses
-a cheaper Claude model with its own scoped limit as the default implementer; if the plan has no
-scoped limit, read "cheap model" as whichever model the user prefers for implementation.
+a cheaper Claude model as the default implementer: "cheap model" means whichever model the user
+prefers for implementation. Moving work to a model with its own scoped limit does not move it off
+the general weekly limit; it still draws on that limit. The only routes that spare the general
+weekly limit are a model that uses less of it per unit of work, and Codex.
 
 | Condition | Implementer |
 |---|---|
@@ -74,8 +77,9 @@ These are starting defaults. Why each one sits where it does, so they can be ret
   run is the only thing that week; lower it on a busy week.
 - **85% stop** keeps a reserve for the orchestrator to finish verifying and landing work, and for
   the user. A run that hits 100% overnight leaves nothing for the morning.
-- **90% on a scoped or 5-hour limit** is late on purpose: those pools are either separate from the
-  general one or refill within hours, so running them close to empty costs little.
+- **90% on a scoped or 5-hour limit** is late on purpose. The 5-hour window refills within hours.
+  A scoped limit only caps one model; the general weekly rows above already protect the shared
+  limit underneath it, so running the scoped cap close to empty costs little.
 
 A project or the user may override any threshold. Record the override where the run's other
 decisions live.
