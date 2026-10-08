@@ -21,7 +21,10 @@ next unit.
 - *Scoped limit*: an extra weekly cap Anthropic applies to one model. It is a cap, not extra
   capacity: that model's usage counts toward its scoped limit **and** toward the general weekly
   limit and the 5-hour window. Which models have one depends on the plan and changes over time;
-  the script reports whatever the account has.
+  the script reports whatever the account has. Example: on Max, Fable models may use up to 50% of
+  the weekly limit, and they use it up faster than other models.
+- *Usage credits*: pay-as-you-go spending at API rates that both Claude and Codex plans can turn
+  on. With credits on, reaching a limit does not stop work; it starts billing.
 
 **Needs:** Python 3.9+, a logged-in Claude Code on the same machine, and, for the Codex pool, the
 Codex CLI.
@@ -33,7 +36,13 @@ Codex CLI.
 | 5-hour | every Claude model | `python3 <skill-dir>/scripts/claude_usage.py [--json]` |
 | General weekly | every Claude model, including those with a scoped limit | same command |
 | Scoped weekly (one per model, when the plan has them) | that model, in addition to the general weekly limit | same command; `--model <name>` exits 1 if that model has no scoped limit |
-| Codex weekly (and a 5-hour window, when the plan reports one) | Codex only | `python3 <skill-dir>/scripts/codex_usage.py [--json]` |
+| Codex weekly (and a 5-hour window, when the plan has one) | Codex local and cloud tasks, plus ChatGPT Work and other OpenAI agentic features on the same plan | `python3 <skill-dir>/scripts/codex_usage.py [--json]` |
+
+Some models are not covered by a plan's limits at all. On Pro and on Team standard seats, Fable
+bills usage credits from its first token, and no pool for it appears in the script's output.
+Before routing work to a model, confirm it is in the plan's limits; if it is not, route the work
+elsewhere unless the user has approved spending. OpenAI's Pro plans currently have no 5-hour
+window, only a weekly one.
 
 `claude_usage.py` makes one call to the endpoint Claude Code's `/usage` command uses
 (`api.anthropic.com/api/oauth/usage`, undocumented), authenticating with Claude Code's own OAuth
@@ -144,3 +153,26 @@ No one checks usage overnight, so the rules above are the only brake. If an impl
 a usage limit, treat it like a crash: the last checkpoint stands, and the remaining units go to
 the next pool in the table. If a reading fails or comes only from the cache, say so in the
 progress line and keep following the last good reading.
+
+A limit does not always stop work. With usage credits on, a Claude model past its weekly limit
+or its scoped cap keeps running at API rates. Codex finishes the turn that crosses its limit, and
+it can run on purchased credits. Either way the run spends money instead of failing, and nothing
+in the log shows a failure. Before an unattended run, ask the user whether credits are on and
+whether the run may spend them. If the answer is no, the stop thresholds above are the only
+thing preventing billing, so do not raise them.
+
+## Sources
+
+Checked against the providers' documentation on 2026-10-08. Plans change; re-check these before
+retuning anything:
+
+- Anthropic, [What is the Max plan?](https://support.claude.com/en/articles/11049741-what-is-the-max-plan):
+  the 5-hour session limit, and a weekly limit "that applies across all models."
+- Anthropic, [Claude Fable models on your plan](https://support.claude.com/en/articles/15424964-claude-fable-models-on-your-plan):
+  Fable "draw[s] from your plan's regular weekly usage limits", is capped at 50% on Max and
+  premium seats, and on Pro and standard seats bills only usage credits.
+- OpenAI, [Codex pricing](https://learn.chatgpt.com/docs/pricing): the allowance is shared with
+  ChatGPT Work, Pro has no 5-hour limit, a turn that crosses the limit may finish, and Plus and Pro can
+  buy credits to continue.
+  OpenAI's help article on GPT-6 Astra usage returned HTTP 403 to automated fetches and was not
+  read.
