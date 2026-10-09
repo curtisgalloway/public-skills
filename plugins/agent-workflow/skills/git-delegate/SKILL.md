@@ -48,13 +48,10 @@ reading the code is your job.
 
 ## Launching the runner
 
-- **Claude Code:** the `Agent` tool with `model: "haiku"` and the brief as the prompt. A
-  general-purpose subagent is enough.
-- **Other harnesses:** whatever spawns a subagent on a cheaper model. If the harness cannot
-  choose the model, delegating saves nothing. Run the commands yourself.
-
-Do not describe the result until the runner's report is in hand. If the runner fails or
-returns nothing, say so and either re-brief it or run the step yourself.
+Launch the runner, and choose between a fresh and a reused one, as described under
+"Launching a runner" in `run-delegate`. That skill holds the mechanics both skills share.
+The brief is what differs: a git runner may write to the repository, so it uses the brief
+below, with its staging and approval rules, not `run-delegate`'s read-only brief.
 
 ## The brief
 
