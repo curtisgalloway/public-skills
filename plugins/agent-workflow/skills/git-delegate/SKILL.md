@@ -158,6 +158,9 @@ it has not seen at `git push`. Two things about such hooks matter here:
   or with a lowercase `-c` before `-C` can slip past a matcher such as
   `git -C * commit *`, and the commit goes unreviewed until the push. The brief's
   command-shape rule exists for this.
+- **They may skip Markdown.** The `security-guidance` commit review counts only source
+  files. On commits that changed a `SKILL.md`, its log reads "no reviewable source files in
+  commit", so a skills repository gets little from it.
 - **Their results arrive later, and possibly as a summary only.** A push-time finding
   comes after the code is public, and a clean result may send no message at all, so you
   cannot tell "clean" from "did not run".
