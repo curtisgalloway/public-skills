@@ -79,10 +79,10 @@ skills. Installing both loads every skill twice.
   both stdlib-only, plus explicit model selection for implementers. Triggers on "stretch my
   quota" or "run this overnight".
 - **`git-delegate`** — during: hand bulky git work (history and diff questions, commit
-  sequences, rebases, branch pruning, and pushes and PRs the user has approved) to a subagent
-  on a cheap model. The main agent sends a fixed brief and gets back a report of ten lines or
-  fewer. Commit messages and every approval stay with the main agent, which checks each write
-  itself. Triggers on "delegate git" or "save tokens on git". Shares its runner mechanics
+  sequences, rebases, branch pruning) to a subagent on a cheap model. The main agent sends a
+  fixed brief and gets back a report of ten lines or fewer. Commit messages, pushes and pull
+  requests stay with the main agent, which runs a security review before asking the user to
+  push and checks each write itself. Triggers on "delegate git" or "save tokens on git". Shares its runner mechanics
   with `run-delegate`.
 - **`run-delegate`** — during: keep test, build, lint, CI and log output out of the main
   model. Inner-loop reruns use quiet flags and a capped tail. Clean builds, full suites and CI
