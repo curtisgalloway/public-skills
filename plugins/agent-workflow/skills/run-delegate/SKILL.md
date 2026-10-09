@@ -3,7 +3,7 @@ name: run-delegate
 description: >-
   Save main-model tokens on commands whose output is long but whose answer is short — test
   suites, builds, lints, CI logs, server logs — by either trimming the output with quiet flags
-  or handing the run to a read-only subagent on a cheap model (Claude Code: Haiku) that
+  or handing the run to a subagent on a cheaper model in Claude Code or Codex that
   returns a capped report. Holds the shared runner mechanics (launch, brief, report modes,
   checking afterward) that git-delegate builds on. Use in edit-test-fix loops, before a clean
   build or full suite, when triaging a CI failure, or when the user asks to save tokens on
@@ -31,6 +31,8 @@ skill picks the cheapest way to get those three lines.
 - *Inner loop*: running the same command again after a small change, where you already know
   what its output looks like.
 
+See the repository [glossary](../../../../GLOSSARY.md) for shared terms.
+
 ## Pick a route
 
 | Situation | Route |
@@ -40,10 +42,10 @@ skill picks the cheapest way to get those three lines.
 | Clean build, full suite, a project you haven't run before, CI logs, server logs | Delegate to a runner. |
 | Deciding how to fix a failure | Main agent. The runner finds the failure; you read the code. |
 
-Launching a runner has a fixed cost: the subagent's own system prompt and tool definitions,
-tens of thousands of tokens on the cheap model, plus tens of seconds. It pays for itself
-when the output it saves you is larger than your brief plus its report, and when no quiet
-flag could have cut the output down as well.
+Launching a runner adds its own prompt, tool definitions, commands, output, and report.
+Compare that total cost (including caching and reasoning) with running quietly yourself;
+brief and report length alone do not establish savings. Delegation can keep the main
+context small even on the same model, but that is not proof of lower cost.
 
 ## Quiet flags
 
@@ -67,9 +69,41 @@ set -o pipefail; cargo test -q 2>&1 | tail -n 60
 
 ## Launching a runner
 
-- **Claude Code:** the `Agent` tool with `model: "haiku"` and the brief as the prompt.
-- **Other harnesses:** whatever spawns a subagent on a cheaper model. If the harness cannot
-  choose the model, delegating saves nothing. Use quiet flags instead.
+Inspect the current delegation tool's schema and available models first. Honor the user's
+model choice; otherwise choose an available, cheaper model capable of the brief. Name the
+model in the progress update. These examples were checked on 2026-10-09:
+
+- **Claude Code:** call `Agent` with `model: "haiku"`, the brief as `prompt`, and an
+  available shell-capable `subagent_type`. Do not use a file-reading-only agent for a
+  command runner. Check the actual model in task metadata (`/tasks` in the CLI): account
+  policy or model overrides can substitute a different model.
+- **Codex:** select the model and reasoning effort explicitly. In a client exposing
+  `spawn_agent` with `fork_turns`, use the shape below. `fork_turns: "all"` inherits the
+  parent's model and effort and does not accept overrides; a new thread alone does not
+  mean a fresh context. With `"none"`, the brief must carry all required context.
+
+  ```text
+  spawn_agent(
+    task_name="command_runner",
+    fork_turns="none",
+    model="gpt-6-luna",
+    reasoning_effort="low",
+    message=<complete runner brief>
+  )
+  ```
+
+  `gpt-6-luna` with `low` effort is an example for narrow command execution, not a model
+  requirement for implementation or review. Other Codex clients may expose different
+  argument names or configured agent roles. Use their actual schema and a role with an
+  explicit model and supported effort; do not paste unsupported parameters or silently
+  accept inherited settings. Check effective settings in client-provided task metadata
+  when available. A runner's own claim about its model is not verification.
+- **No model selection or no capable cheaper model:** use quiet flags locally. If the
+  effective model cannot be verified, report it as unverified rather than claiming savings.
+
+Do not rewrite the user's agent configuration to make the examples work. Official
+references: [Claude subagents](https://code.claude.com/docs/en/sub-agents) and
+[Codex subagents](https://learn.chatgpt.com/docs/agent-configuration/subagents).
 
 Do not describe the result until the report is in hand. If the runner fails or returns
 nothing, say so and either re-brief it or run the command yourself.
@@ -91,9 +125,12 @@ per iteration instead of adding another 70,000, so that figure appears to be the
 context size rather than a running total of billed tokens, and it cannot show which arm
 costs less. What the test did show: a reused runner works, and its context grows slowly. A
 fresh one carries no earlier reports that could be mistaken for the current run, and every
-harness can launch one. Reuse a runner only when the harness can message a finished subagent
-(Claude Code: `SendMessage`) and you have a reason to, such as a runner that had to discover
-how to run the project.
+harness with delegation can launch one. Reuse a runner only when the harness can resume a
+finished subagent and you have a reason to, such as a runner that had to discover how to run
+the project. Claude Code uses `SendMessage`; in Codex clients exposing `followup_task`,
+that tool wakes an idle agent, while `send_message` alone does
+not. Use the current schema, preserve the selected model and effort, and identify each new
+run so an earlier report cannot be mistaken for its result.
 
 ## The brief
 

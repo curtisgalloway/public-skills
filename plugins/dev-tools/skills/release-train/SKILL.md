@@ -189,6 +189,11 @@ smoke steps; it may not drop one. Each arm records the exact command and the fir
 output for every failing step, and always runs its `cleanup` bullet, even on failure.
 
 Use a cheaper model for the arms if the harness offers one; they execute a written recipe.
+Use the installed `run-delegate` skill's "Launching a runner" guidance for explicit model
+selection, fresh context, and verification in Claude Code or Codex (repository reference:
+[run-delegate](../../../agent-workflow/skills/run-delegate/SKILL.md#launching-a-runner)).
+Use this arm's brief and permissions, not its command-runner brief. If that skill or model
+selection is unavailable, retain the current model and make no cheaper-model claim.
 Keep the verdict on the main model.
 
 ### Step 3: regression archaeologist (one subagent, parallel with Step 2)

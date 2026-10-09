@@ -70,13 +70,14 @@ skills. Installing both loads every skill twice.
   merge, branch cleanup) before launching the next. Pushes, merges, user questions and
   launches that need the user's approval stay in the orchestrator. Triggers on "act as
   orchestrator" or "a fresh subagent per milestone, PR and merge each".
-- **`quota-strategy`** — during a long unattended run: read every usage pool (the 5-hour
-  window, the general weekly limit, any per-model weekly limit, and Codex's limit) at each
-  milestone boundary and route the next unit to a cheaper model, Codex, or the main model by
-  threshold, stopping before the week runs out. Ships `scripts/claude_usage.py` (reads the
+- **`quota-strategy`** — during a long unattended run led by Claude or Codex: read available
+  usage pools at each milestone boundary, reserve capacity for the orchestrator, and route
+  implementation to a cheaper model or the other provider. Supports either provider alone;
+  stale or missing usage is unknown capacity. Ships `scripts/claude_usage.py` (reads the
   endpoint behind Claude Code's `/usage`, falling back to its cache) and
-  `scripts/codex_usage.py` (reads Codex's own session logs), both stdlib-only, plus notes on
-  launching Codex as an implementer. Triggers on "stretch my quota" or "run this overnight".
+  `scripts/codex_usage.py` (compares usage-event timestamps in the active Codex home's logs),
+  both stdlib-only, plus explicit model selection for implementers. Triggers on "stretch my
+  quota" or "run this overnight".
 - **`git-delegate`** — during: hand bulky git work (history and diff questions, commit
   sequences, rebases, branch pruning, and pushes and PRs the user has approved) to a subagent
   on a cheap model. The main agent sends a fixed brief and gets back a report of ten lines or
@@ -86,9 +87,9 @@ skills. Installing both loads every skill twice.
 - **`run-delegate`** — during: keep test, build, lint, CI and log output out of the main
   model. Inner-loop reruns use quiet flags and a capped tail. Clean builds, full suites and CI
   logs go to a read-only cheap runner that reports pass/fail, or each failure's error lines
-  quoted exactly. The main agent re-runs the check itself before any commit. Includes a
-  measured comparison of fresh and reused runners. Triggers on edit-test-fix loops, CI
-  triage, or "save tokens on test output".
+  quoted exactly. The main agent re-runs the check itself before any commit. Includes
+  Claude and Codex launch instructions and a measured comparison of fresh and reused runners.
+  Triggers on edit-test-fix loops, CI triage, or "save tokens on test output".
 - **`lab-notebook`** — during: an append-only, timestamped notebook with one chapter per unit
   of work (attempts, dead ends, decisions, surprises). Its index carries timestamps that show
   when it has fallen behind. A per-project process log records where the agent's process cost

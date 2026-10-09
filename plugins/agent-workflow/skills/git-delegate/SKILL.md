@@ -1,8 +1,8 @@
 ---
 name: git-delegate
 description: >-
-  Save main-model tokens by handing git work to a subagent on a cheap model (Claude Code:
-  Haiku) through a fixed brief, and taking back a report of ten lines or fewer instead of
+  Save main-model tokens by handing git work to a subagent on a cheaper model in Claude Code
+  or Codex through a fixed brief, and taking back a report of ten lines or fewer instead of
   raw logs and diffs. Covers inspection (log, diff, blame, cherry), local writes (stage,
   commit, branch, rebase, prune) and, once the user has approved them, push and pull
   request creation. Use when a git step would print a lot or take several commands, or when
@@ -28,6 +28,8 @@ main agent writes a precise brief and reads a short report.
   model.
 - *Brief*: the message the main agent sends the runner, in the shape below.
 
+See the repository [glossary](../../../../GLOSSARY.md) for shared terms.
+
 ## When to delegate
 
 Delegate when the step would print a lot or takes several commands:
@@ -48,8 +50,10 @@ reading the code is your job.
 
 ## Launching the runner
 
-Launch the runner, and choose between a fresh and a reused one, as described under
-"Launching a runner" in `run-delegate`. That skill holds the mechanics both skills share.
+Read [run-delegate's "Launching a runner"](../run-delegate/SKILL.md#launching-a-runner)
+for model selection, fresh context, verification, and reuse in Claude Code and Codex.
+That skill holds the mechanics both skills share. If it is unavailable, run the git steps
+yourself; do not invent a cheaper-model launch.
 The brief is what differs: a git runner may write to the repository, so it uses the brief
 below, with its staging and approval rules, not `run-delegate`'s read-only brief.
 
