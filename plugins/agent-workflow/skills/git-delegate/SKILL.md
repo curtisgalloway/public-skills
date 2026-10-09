@@ -152,7 +152,7 @@ Check two things before using a ready-made security review instead:
 
 A harness may also have hooks that review commits and pushes on their own. Claude Code's
 `security-guidance` plugin, for example, reviews each `git commit` and sweeps any commits
-it has not seen at `git push`. Two things about such hooks matter here:
+it has not seen at `git push`. Three things about such hooks matter here:
 
 - **They match the command's text.** A commit written as `cd <repo> && git -c ... commit`
   or with a lowercase `-c` before `-C` can slip past a matcher such as
@@ -165,12 +165,18 @@ it has not seen at `git push`. Two things about such hooks matter here:
   comes after the code is public, and a clean result may send no message at all, so you
   cannot tell "clean" from "did not run".
 
-Keep one review per commit, not two. In a repository where you follow this skill, turn the
-hook's commit and push reviews off and rely on the review above. For Claude Code's
-`security-guidance` plugin, `ENABLE_COMMIT_REVIEW=0` turns off both, and it can be scoped to
-one repository through the `env` block of that repository's `.claude/settings.local.json`;
-the change applies from the next session. The plugin's end-of-turn review of uncommitted
-edits (`ENABLE_STOP_REVIEW`) is separate and runs earlier, before any commit.
+With such a hook on, a commit gets two reviews: the hook's and yours. Leave the hook on.
+Turning it off is the user's decision, never yours, and it is wider than it looks: the hook
+then stops reviewing pushes that never go through this skill, and nothing guarantees your
+review runs on those.
+
+If the user wants a single review, tell them what the switch does before they choose. For
+Claude Code's `security-guidance` plugin, `ENABLE_COMMIT_REVIEW=0` turns off both the commit
+review and the push sweep. Set in the `env` block of a checkout's
+`.claude/settings.local.json`, it applies to every session started in that checkout, from
+the next session on, and to every repository those sessions commit to or push, including
+ad hoc pushes and other repositories reached with `git -C`. The plugin's end-of-turn review
+of uncommitted edits (`ENABLE_STOP_REVIEW`) is separate and stays on.
 
 ## After the report
 
