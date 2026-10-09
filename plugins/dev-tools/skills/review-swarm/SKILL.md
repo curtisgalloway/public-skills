@@ -118,6 +118,11 @@ write:
 A diff of more than roughly 3000 changed lines is too big for one run. Say so and split it by
 directory or by commit rather than reviewing a sample and calling it a review.
 
+**Every arm on every part.** Run all seven arms on every part of a split diff, including parts
+that look low-risk, such as the test half of a code-versus-tests split. Never narrow the arm set
+on one part to save time. *Why:* in a measured run a controller split a large diff and ran only
+two arms on the test half, so a whole class of findings went unchecked there.
+
 ### 2. Launch the seven arms, in parallel
 
 Fill `templates/reviewer-prompt.md` once per arm. Substitute every angle-bracket placeholder;
@@ -160,6 +165,12 @@ done
 
 When the loop exits on the deadline, stop every arm still running (the harness's task-stop
 tool) and continue. Do not extend the deadline once; an arm that needed 20 minutes will need 40.
+
+**Never end the session while reviewers run.** The orchestrating agent waits for every arm and
+the referee to finish, or to hit the deadline and be marked failed under the liveness rule,
+before it ends its turn. *Why:* in a headless one-shot session the reviewers are killed with the
+session, and in a measured run an agent started a seven-arm review in the background, ended its
+turn, and the review died with it, so the next session had to redo it.
 
 ### 4. Mechanical check
 
