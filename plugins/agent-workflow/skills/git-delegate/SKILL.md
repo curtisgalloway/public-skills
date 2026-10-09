@@ -134,9 +134,20 @@ happens before the brief is written:
 
 Review the outgoing commits for security problems in the main agent, before you ask the
 user to push, so the full findings reach you and the user while there is still time to fix
-them. In Claude Code, run the built-in `security-review` skill on the branch. In other
-harnesses, use whatever security review they offer, or a reviewer subagent with a security
-brief. Fix what it finds, or tell the user why not, before asking for approval.
+them. Launch a reviewer subagent with a security brief: give it the repository path and
+the exact diff command (`git -C <repo> --no-pager diff origin/main...HEAD`), and ask for
+high-confidence findings only, each with file, line, exploit scenario and fix. Fix what it
+finds, or tell the user why not, before asking for approval.
+
+Check two things before using a ready-made security review instead:
+
+- **Which repository it reads.** Claude Code's built-in `security-review` collects its diff
+  from the session's working directory. Run from a main checkout while the commits are in a
+  worktree, it reviews an empty diff and reports nothing.
+- **Whether it reads Markdown.** The same review is told not to report findings in
+  documentation files such as Markdown. For a repository of skills or agent instructions,
+  the Markdown is the code, so tell the reviewer that instructions which let untrusted text
+  trigger privileged actions, or which weaken an approval gate, are in scope.
 
 A harness may also have hooks that review commits and pushes on their own. Claude Code's
 `security-guidance` plugin, for example, reviews each `git commit` and sweeps any commits
