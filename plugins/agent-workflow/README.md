@@ -81,7 +81,14 @@ skills. Installing both loads every skill twice.
   sequences, rebases, branch pruning, and pushes and PRs the user has approved) to a subagent
   on a cheap model. The main agent sends a fixed brief and gets back a report of ten lines or
   fewer. Commit messages and every approval stay with the main agent, which checks each write
-  itself. Triggers on "delegate git" or "save tokens on git".
+  itself. Triggers on "delegate git" or "save tokens on git". Shares its runner mechanics
+  with `run-delegate`.
+- **`run-delegate`** — during: keep test, build, lint, CI and log output out of the main
+  model. Inner-loop reruns use quiet flags and a capped tail. Clean builds, full suites and CI
+  logs go to a read-only cheap runner that reports pass/fail, or each failure's error lines
+  quoted exactly. The main agent re-runs the check itself before any commit. Includes a
+  measured comparison of fresh and reused runners. Triggers on edit-test-fix loops, CI
+  triage, or "save tokens on test output".
 - **`lab-notebook`** — during: an append-only, timestamped notebook with one chapter per unit
   of work (attempts, dead ends, decisions, surprises). Its index carries timestamps that show
   when it has fallen behind. A per-project process log records where the agent's process cost
