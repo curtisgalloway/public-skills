@@ -12,11 +12,12 @@ Sources, in order:
 Pools come from the response's limits[] list:
   kind "session"        -> the 5-hour window
   kind "weekly_all"     -> the general weekly limit
-  kind "weekly_scoped"  -> a separate weekly limit for one model (scope.model)
+  kind "weekly_scoped"  -> an extra weekly cap on one model (scope.model); that
+                           model's usage also counts toward weekly_all
 When limits[] is absent, the older five_hour / seven_day fields are used.
 
 Usage:  python3 claude_usage.py [--cache-only] [--json] [--model NAME]
-Exit code: 0 ok, 1 --model given but that model has no separate limit,
+Exit code: 0 ok, 1 --model given but that model has no scoped limit,
            2 no auth and no cache.
 """
 import json
@@ -134,7 +135,7 @@ def main(argv):
                   f"  [{source}]")
     if want_model is not None:
         if not any(want_model in (p["model"] or "").lower() for p in found):
-            print(f"no separate weekly limit for {want_model}", file=sys.stderr)
+            print(f"no scoped weekly limit for {want_model}", file=sys.stderr)
             return 1
     return 0
 
