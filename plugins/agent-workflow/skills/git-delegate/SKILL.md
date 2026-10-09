@@ -159,10 +159,15 @@ it has not seen at `git push`. Two things about such hooks matter here:
   `git -C * commit *`, and the commit goes unreviewed until the push. The brief's
   command-shape rule exists for this.
 - **Their results arrive later, and possibly as a summary only.** A push-time finding
-  comes after the code is public. Treat these hooks as a backstop and keep your own review
-  before the push. With the hooks working, a commit is reviewed twice, once by the hook at
-  commit time and once by your review; the hook's push sweep skips commits it already
-  reviewed.
+  comes after the code is public, and a clean result may send no message at all, so you
+  cannot tell "clean" from "did not run".
+
+Keep one review per commit, not two. In a repository where you follow this skill, turn the
+hook's commit and push reviews off and rely on the review above. For Claude Code's
+`security-guidance` plugin, `ENABLE_COMMIT_REVIEW=0` turns off both, and it can be scoped to
+one repository through the `env` block of that repository's `.claude/settings.local.json`;
+the change applies from the next session. The plugin's end-of-turn review of uncommitted
+edits (`ENABLE_STOP_REVIEW`) is separate and runs earlier, before any commit.
 
 ## After the report
 
