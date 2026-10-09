@@ -78,6 +78,9 @@ APPROVED: <"push <branch> to <remote>" / "gh pr create --base <b> --head <h>" / 
 
 Rules:
 - Use `git -C <repo>`, never `cd`. Use `git --no-pager` for anything that prints.
+- Run each commit and push as its own command, in exactly this shape, with `-C` first and
+  nothing chained before it: `git -C <repo> [-c key=value] commit ...` and
+  `git -C <repo> push ...`. Review hooks recognize git commands by their shape.
 - Never `git commit -a`, `git add -A`, or `git add .`. Stage only the files listed.
 - Never push, force-push, delete a remote branch, or create a PR unless the APPROVED line
   names exactly that action. Never force-push unless APPROVED says `--force-with-lease`.
@@ -113,9 +116,11 @@ happens before the brief is written:
   `gh` in place. The `APPROVED:` line is a second check that keeps a runner from doing more
   than was asked; it does not replace them.
 
-- **Push and PR creation.** Get the user's explicit go-ahead first, following the project's
-  push policy. Then put that exact action on the `APPROVED:` line. "Push" approves the named
-  branch to the named remote, nothing wider.
+- **Push and PR creation.** Run a security review of the outgoing commits yourself first
+  ([below](#security-review-before-the-push)) and show the user what it found. Then get the
+  user's explicit go-ahead, following the project's push policy, and put that exact action
+  on the `APPROVED:` line. "Push" approves the named branch to the named remote, nothing
+  wider.
 - **Force push and remote branch deletion.** Each needs its own approval and its own
   `APPROVED:` line. Prefer `--force-with-lease`.
 - **Commit messages and PR bodies.** The main agent writes them, because it knows why the
@@ -124,6 +129,28 @@ happens before the brief is written:
   them in the steps only after checking the target yourself, or after the runner reports what
   is there in an earlier, read-only brief. For branch pruning, the read-only brief runs
   `git cherry`, and the delete brief names only the branches with no `+` lines.
+
+## Security review before the push
+
+Review the outgoing commits for security problems in the main agent, before you ask the
+user to push, so the full findings reach you and the user while there is still time to fix
+them. In Claude Code, run the built-in `security-review` skill on the branch. In other
+harnesses, use whatever security review they offer, or a reviewer subagent with a security
+brief. Fix what it finds, or tell the user why not, before asking for approval.
+
+A harness may also have hooks that review commits and pushes on their own. Claude Code's
+`security-guidance` plugin, for example, reviews each `git commit` and sweeps any commits
+it has not seen at `git push`. Two things about such hooks matter here:
+
+- **They match the command's text.** A commit written as `cd <repo> && git -c ... commit`
+  or with a lowercase `-c` before `-C` can slip past a matcher such as
+  `git -C * commit *`, and the commit goes unreviewed until the push. The brief's
+  command-shape rule exists for this.
+- **Their results arrive later, and possibly as a summary only.** A push-time finding
+  comes after the code is public. Treat these hooks as a backstop and keep your own review
+  before the push. With the hooks working, a commit is reviewed twice, once by the hook at
+  commit time and once by your review; the hook's push sweep skips commits it already
+  reviewed.
 
 ## After the report
 
