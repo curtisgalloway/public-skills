@@ -77,6 +77,11 @@ skills. Installing both loads every skill twice.
   endpoint behind Claude Code's `/usage`, falling back to its cache) and
   `scripts/codex_usage.py` (reads Codex's own session logs), both stdlib-only, plus notes on
   launching Codex as an implementer. Triggers on "stretch my quota" or "run this overnight".
+- **`git-delegate`** — during: hand bulky git work (history and diff questions, commit
+  sequences, rebases, branch pruning, and pushes and PRs the user has approved) to a subagent
+  on a cheap model. The main agent sends a fixed brief and gets back a report of ten lines or
+  fewer. Commit messages and every approval stay with the main agent, which checks each write
+  itself. Triggers on "delegate git" or "save tokens on git".
 - **`lab-notebook`** — during: an append-only, timestamped notebook with one chapter per unit
   of work (attempts, dead ends, decisions, surprises). Its index carries timestamps that show
   when it has fallen behind. A per-project process log records where the agent's process cost
