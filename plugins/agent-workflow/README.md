@@ -78,6 +78,12 @@ skills. Installing both loads every skill twice.
   `scripts/codex_usage.py` (compares usage-event timestamps in the active Codex home's logs),
   both stdlib-only, plus explicit model selection for implementers. Triggers on "stretch my
   quota" or "run this overnight".
+- **`claude-model-selection`** — pick Opus 5.5 or Fable 5.1 for a session, subagent, or
+  scheduled run: identify the billing mode (capped subscription, a plan where Fable bills
+  usage credits, or API), route by task type, and escalate after a set number of failed Opus
+  attempts. Pool checks go through `quota-strategy`'s `claude_usage.py`. Carries a
+  last-reviewed date and flags itself as stale when newer models ship. Triggers on "Opus or
+  Fable?" or "which Claude model should I use".
 - **`git-delegate`** — during: hand bulky git work (history and diff questions, commit
   sequences, rebases, branch pruning) to a subagent on a cheap model. The main agent sends a
   fixed brief and gets back a report of ten lines or fewer. Commit messages, pushes and pull

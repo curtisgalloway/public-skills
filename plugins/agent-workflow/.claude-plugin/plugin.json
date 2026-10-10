@@ -1,6 +1,6 @@
 {
   "name": "agent-workflow",
-  "version": "2026.1009.4",
+  "version": "2026.1009.5",
   "description": "Working with a coding agent over time: session learning and teaching summaries, handoffs, transcript access, loop safety (intern-mode), design partnership, harness-agnostic skill authoring, and Google Docs review rounds.",
   "author": {
     "name": "curtisgalloway",
