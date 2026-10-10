@@ -84,6 +84,11 @@ skills. Installing both loads every skill twice.
   attempts. Pool checks go through `quota-strategy`'s `claude_usage.py`. Carries a
   last-reviewed date and flags itself as stale when newer models ship. Triggers on "Opus or
   Fable?" or "which Claude model should I use".
+- **`codex-model-selection`** — pick GPT-6.1 Sol, GPT-6 Astra, or GPT-6 Luna for a
+  session, subagent, or scheduled run. Separates included allowances, paid credits, and API
+  billing; selects reasoning effort and speed; and escalates on failed verification. Reuses
+  `quota-strategy` for pool checks and flags stale guidance. Triggers on "which Codex model",
+  "Sol or Astra", or "can Luna handle this".
 - **`git-delegate`** — during: hand bulky git work (history and diff questions, commit
   sequences, rebases, branch pruning) to a subagent on a cheap model. The main agent sends a
   fixed brief and gets back a report of ten lines or fewer. Commit messages, pushes and pull

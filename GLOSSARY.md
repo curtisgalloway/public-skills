@@ -18,7 +18,9 @@ evaluation; add other terms as the documents that use them are updated.
 | Orchestrator / implementer | The agent that plans, verifies, and lands work / the agent that performs one assigned unit. Either role can run in Claude Code or Codex. |
 | Reasoning effort | A model setting controlling how much reasoning it spends on a task; supported levels depend on the model. |
 | Usage pool / scoped limit | An allowance that resets on its own schedule / an additional cap for a particular model. Multiple pools can apply to the same work. |
-| Usage credits | Paid capacity used outside a subscription's included allowance. |
+| Usage credits | Paid capacity used outside a subscription's included allowance or on a credit-based plan; rates depend on the provider and agreement. |
+| Speed mode | A processing-speed choice such as Standard, Fast, or Ultrafast, separate from model capability and reasoning effort. |
+| Token / cached input | A unit of model input or output / input reused from a provider cache, potentially billed at a different rate. |
 | Specification (spec) | A document describing hardware behavior precisely enough to implement a driver. |
 | Driver | Software through which an operating system controls a device. |
 | OS / kernel | Operating system / its core that manages hardware and supplies driver interfaces. |
