@@ -6,3 +6,8 @@ __pycache__/
 *~
 .env
 .env.*
+
+# Personal Claude Code settings and agent worktrees. .claude/settings.json
+# is the shared project file and may be committed.
+.claude/settings.local.json
+.claude/worktrees/
