@@ -6,3 +6,6 @@ __pycache__/
 *~
 .env
 .env.*
+
+# Per-checkout Claude Code settings and agent worktrees; personal, never published.
+.claude/
