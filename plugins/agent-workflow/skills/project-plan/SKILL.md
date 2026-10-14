@@ -200,8 +200,9 @@ Before declaring **any milestone complete**:
    named reviewer is incomplete verification, exactly like a skipped test, and the
    milestone is not complete. Never imply an independent review occurred when it did not.
 3. Fix blocking findings and failures. Repeat affected tests and review changed areas;
-   broaden verification when the findings indicate a wider risk. Obtain another review
-   for substantial fixes. If review or debugging stops producing progress, save an
+   broaden verification when the findings indicate a wider risk. Confirm fixes with the
+   review method's cheap recheck where it has one (`review-swarm` does), and obtain a
+   fresh review only when the fixes grew into a substantial change of their own. If review or debugging stops producing progress, save an
    incomplete handoff; a limit on review rounds never waives a blocker.
 4. Write full evidence (commands/checks, outcomes, output excerpts, review findings and
    resolutions) to a linked evidence file, `docs/evidence/<milestone-id>.md` unless the
@@ -221,10 +222,12 @@ Decide the review method when deriving the plan, not when executing, and write i
 conventions block. **A plan naming a review method is the authorization to use it**, so an
 executing session does not re-litigate whether delegation is permitted. In order:
 
-- The `review-swarm` skill, when available: several reviewers with narrow mandates, a
-  mechanical check that drops any finding not quotable from the code, and a referee. Its
-  run directory is the artifact step 2 requires. Prefer it for milestones whose review
-  focus spans more than one concern.
+- The `review-swarm` skill, when available: reviewers with narrow mandates, a mechanical
+  check that drops any finding not quotable from the code, and a referee for high-severity
+  findings. It sizes itself: its planner reads the diff and runs one reviewer for a
+  prose-or-evidence-only or small change and up to seven for risky code, so naming it costs
+  little on a milestone that turns out to be small. Its run directory is the artifact step 2
+  requires. Prefer it for milestones whose review focus spans more than one concern.
 - A reviewer subagent with fresh context, when delegation is available. Its returned
   findings are the artifact.
 - Explicit self-review, when neither is available. The artifact is the per-criterion
@@ -232,6 +235,17 @@ executing session does not re-litigate whether delegation is permitted. In order
 
 Record the chosen method per milestone when they differ, and record the fallback actually
 used when the preferred one was unavailable.
+
+**Review at the milestone close, once.** The method names the gate that step 2 runs before the
+checkpoint commit, over the milestone's whole change; for `review-swarm` that is one run with
+`--close`. Do not schedule a separate swarm for each sub-checkpoint, partial commit, or
+evidence update inside a milestone, and do not override the skill's tier choice in the plan
+("all seven mandates", "every arm") unless the milestone has a reason the planner cannot see
+from the diff; write that reason down. A cheaper check may run at an intermediate checkpoint
+when it guards something specific, but it is not the milestone's review. *Why:* a measured
+plan that named `review-swarm` for each milestone was executed as a full seven-reviewer swarm
+at every sub-checkpoint, including evidence-only ones: five full swarms for one milestone,
+while every high-severity finding across the project came from risky code changes.
 
 ### Review before the checkpoint, always
 

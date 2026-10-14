@@ -1,22 +1,13 @@
 ---
 name: review-swarm
 description: >-
-  Adversarial code review of a diff or pull request by seven independent reviewer subagents with
-  distinct mandates (security and secrets handling; correctness and concurrency; data loss,
-  migration and backward compatibility; documentation-vs-reality truthfulness; regressions
-  against the project's git and pull-request history; the project's own written rules in
-  AGENTS.md/CLAUDE.md and directive comments; performance), each forbidden from reporting
-  anything it cannot quote verbatim from the code, followed by a mechanical evidence check that
-  also marks findings outside the diff's hunks, and a referee subagent that re-reads every
-  citation, drops what the code does not support or the change did not cause, and deduplicates. Liveness is enforced: a reviewer that produces no output within
-  its budget is marked EXPLICITLY FAILED in the result, never silently omitted. Ends with one
-  ranked table of surviving findings and a question about which to fix — or, where a project or
-  the user has authorized fixing without the question, with the fixes and a written record of
-  every finding, what was fixed, and what was not and why. On request, posts the result to the
-  pull request as a comment with permalinks. Use when asked to
-  "review this PR", "adversarial review", "review swarm", "red-team this diff", or before
-  merging anything that touches secrets, concurrency, persisted data, or user-facing docs.
-  Ships scripts/swarm.py (stdlib-only evidence checker and table renderer).
+  Adversarial code review of a diff or pull request, sized to the change: a script reads the
+  diff and picks a light (one reviewer), standard (four or five) or full (seven narrow-mandate
+  reviewers) tier, every finding must quote the code verbatim and is checked mechanically, a
+  referee re-reads high-severity findings, and failed reviewers are reported, never omitted.
+  Ends with a ranked table and a question about which findings to fix, plus a cheap recheck
+  after fixes. Use when asked to "review this PR", "adversarial review", "review swarm",
+  "red-team this diff", or at a pull-request or milestone close.
 ---
 
 <!--
@@ -24,36 +15,56 @@ SPDX-FileCopyrightText: 2026 contributors
 SPDX-License-Identifier: Apache-2.0
 -->
 
-# review-swarm: seven adversaries, one referee, one table
+# review-swarm: the most verified findings for the fewest tokens
 
-A single reviewer reading a diff tends to find what it went looking for and then stop. Several
-reviewers with narrow, non-overlapping mandates find more, and they find different things. But
-seven reviewers also produce seven times the plausible-sounding claims about code nobody read. So
-the skill pairs the fan-out with two walls: a **quote rule** (a finding that cannot be quoted
-from the code does not exist) and a **referee** that re-reads every citation before anything
-reaches the user.
+The goal is the best review outcome per token: every real, material defect found and
+verified, at the lowest cost that finds it. A single reviewer tends to find what it went looking
+for and stop; several reviewers with narrow mandates find more. But every reviewer costs a full
+agent session (a seven-reviewer run on a 500-line diff measured about 2.7M tokens, mostly cached
+input, in Codex), and measured use showed where that buys little. Across 118 recorded runs:
 
-The third wall is **liveness**. A subagent that hangs, runs out of budget, or returns prose
-instead of JSON must not disappear from the result. An arm that goes quiet is reported as
-`ARM FAILED`, in capitals, at the top of the table, because a review that silently ran six
-arms instead of seven is worse than one that ran six and said so.
+- Diffs of prose, plan, evidence or config only (67 runs) produced no high or critical finding.
+- The `history`, `conventions` and `perf` reviewers produced 165 findings between them and no
+  high or critical one.
+- The referee dropped 3% of what reached it; nearly all of the value is in its handling of the
+  few high-severity findings and of duplicates.
+- Every high or critical finding came from a diff that touched secrets or auth, concurrency, or
+  a persisted format, which the planner below sends to the full tier.
+- Breadth did not buy depth: one bug every reviewer missed cost a failed hardware attempt. The
+  correctness reviewer gets the strong model.
+
+So the skill keeps its three walls and spends the reviewers where they pay:
+
+1. **The quote rule.** A finding that cannot be quoted from the code does not exist, and a
+   script checks every quote. This costs nothing and applies at every tier.
+2. **The referee**, a subagent that re-reads cited code, runs when a high or critical finding
+   or a group of possible duplicates survives the quote check, and not otherwise.
+3. **Liveness.** A reviewer that hangs, runs out of budget, or returns prose instead of JSON is
+   reported as `ARM FAILED`, in capitals, at the top of the table, never silently omitted.
 
 ## Terms
 
-- **Arm** — one reviewer subagent with one mandate. There are seven; their names are `security`,
-  `correctness`, `compat`, `docs`, `history`, `conventions`, `perf`.
-- **Mandate** — the one thing an arm is allowed to look for. `references/mandates.md` is the
-  full text; each arm gets only its own.
+- **Arm** — one reviewer subagent with one mandate. The full tier's seven are `security`,
+  `correctness`, `compat`, `docs`, `history`, `conventions`, `perf`. The standard tier merges
+  the last three into one `context` arm; the light tier runs one generalist `light` arm.
+- **Mandate** — what an arm is allowed to look for. `references/mandates.md` is the full text.
+- **Tier** — how many arms a review runs: `light`, `standard`, or `full`. Chosen by
+  `swarm.py plan` from the diff, not by the agent.
+- **Strong / cheap model** — the harness's most capable model available to subagents, and a
+  cheaper capable one. In Claude Code, strong is the session's own model (usually Opus) and
+  cheap is `sonnet`; in Codex, strong is the frontier model and cheap is its smaller sibling.
+  Honor a model the user names.
 - **Run directory** — a scratch directory holding everything one review produced: the scope,
-  the diff, one JSON file per arm, the checker's output, the referee's output.
-- **Referee** — one more subagent that judges the arms' findings and writes nothing else.
+  the diff, the plan, one JSON file per arm, the checker's output, the referee's output.
+- **Referee** — a subagent that judges the arms' findings and writes nothing else.
 - **Head checkout** — the working tree at the commit under review. Line numbers and quotes are
   taken from it, never from the diff hunks.
 - **Hunk** — one contiguous changed region of the diff, with its few lines of unchanged context.
   A finding whose lines touch no hunk is **outside the diff**.
 - **Instruction file** — a file the project wrote to tell coding agents and contributors its
-  rules: `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `CONTRIBUTING.md`. The `conventions` arm reads
-  them.
+  rules: `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `CONTRIBUTING.md`.
+- **Recheck** — after fixes, one cheap subagent confirms the fixed findings are gone and the
+  fix broke nothing, instead of a second review.
 
 ## What a finding is
 
@@ -92,7 +103,7 @@ allows it. An arm that wants to say something without a quote says nothing.
 ## Procedure
 
 Every step writes into the run directory, so a review that dies halfway leaves evidence of how
-far it got.
+far it got, and a later session can resume it (step 3).
 
 ### 1. Fix the scope
 
@@ -112,49 +123,78 @@ write:
 - `scope.txt` — repository path, base and head commits, how the scope was chosen.
 - `files.txt` — `git diff --name-only <base>...<head>`, one path per line. Deleted files are
   listed with a `D ` prefix so an arm knows there is nothing to quote there.
-- `diff.patch` — `git diff <base>...<head>`. The checker reads its hunks in step 4; without it,
-  nothing can be marked outside the diff, and the checker says so.
+- `diff.patch` — `git diff <base>...<head>`. The planner reads it in step 2 and the checker
+  reads its hunks in step 5.
 
-A diff of more than roughly 3000 changed lines is too big for one run. Say so and split it by
-directory or by commit rather than reviewing a sample and calling it a review.
+**Review at boundaries, not at every checkpoint.** When a plan or orchestrator calls for this
+skill, run it once per pull request or milestone close, over the whole change, not once per
+intermediate commit or sub-checkpoint inside it. Measured: a plan that ran a full review on each
+of four sub-checkpoints of one milestone paid for four reviews of code the closing review read
+again anyway.
 
-**Every arm on every part.** Run all seven arms on every part of a split diff, including parts
-that look low-risk, such as the test half of a code-versus-tests split. Never narrow the arm set
-on one part to save time. *Why:* in a measured run a controller split a large diff and ran only
-two arms on the test half, so a whole class of findings went unchecked there.
+### 2. Plan the tier
 
-### 2. Launch the seven arms, in parallel
+```sh
+python3 <skill-dir>/scripts/swarm.py plan --run <run> [--close] [--tier light|standard|full]
+```
 
-Fill `templates/reviewer-prompt.md` once per arm. Substitute every angle-bracket placeholder;
-the mandate text comes from `references/mandates.md`, and only that arm's section. Launch all
-seven in one message so they run concurrently, in the background, each writing its own
-`<run>/<arm>.json`.
+The script, not the agent, picks the tier and writes `<run>/plan.json` with the arms to launch,
+the model class (strong or cheap) and the budget for each, and the reasons:
 
-Run all seven unless the user narrows the review ("just security", "skip perf"). A narrowed
-review passes the same arm list to the checker with `--arms` and names the arms it left out in
-the message: an arm that was never launched is not a failure, but a reader must still be able to
-tell a seven-arm review from a two-arm one. Do not drop an arm on your own because it looks
-unlikely to find anything; the `history` arm on a repository with no history, or the
-`conventions` arm on one with no instruction files, writes an empty findings list quickly, and
-that empty list is itself the evidence that it looked.
+| Tier | When | Arms |
+|---|---|---|
+| `light` | No code file changed (prose, plan, evidence, data, config), or at most 50 changed lines of code with no risk trigger | `light` (strong model when code changed, cheap otherwise) |
+| `standard` | More than 50 changed lines of code, no risk trigger | `correctness` (strong), `docs`, `compat`, `context`; plus `security` when the changed code touches a security surface (process spawning, `eval`, sockets, SQL, deserialization, temp files) |
+| `full` | Changed code touches secrets or auth, concurrency, or a persisted format (by words in the changed lines or by path, such as `migrations/` or `*.sql`); or `--close` on a diff that changes code; or the user asks | all seven; `correctness` strong, and `security` or `compat` strong when theirs is the trigger that fired |
 
-Give each arm the same **budget**: a count of tool calls (default 40) and a wall-clock limit
-(default 15 minutes). The budget is in the prompt because the delegation tool on most harnesses
-has no turn limit of its own; the wall clock is enforced by you, in step 3.
+Pass `--close` when this review is the gate before merging a pull request or closing a
+milestone. Pass `--tier` only when the user asked for one ("full review", "just a quick look").
+A user who narrows the arms ("just security", "skip perf") gets exactly those arms: pass them to
+the checker with `--arms`, and name the arms left out in the message.
+
+Do not add or drop arms on your own judgment because they look likely or unlikely to find
+something; that is the plan's decision, and its reasons are written down where the reader can
+check them. *Why:* in a measured run a controller split a large diff and, on its own, ran only
+two arms on the half that looked low-risk, so a whole class of findings went unchecked there.
+
+**Splitting.** When the plan prints `SPLIT REQUIRED` (more than about 3000 changed lines),
+split by directory or by commit rather than reviewing a sample and calling it a review. The tier
+and arm list are decided once, on the whole diff, and every part runs that same list: copy
+`plan.json` into each part's run directory. Never re-plan a part on its own; a part that looks
+low-risk in isolation is how the arm narrowing above happened.
+
+### 3. Launch the arms, in parallel
+
+Fill `templates/reviewer-prompt.md` once per arm in the plan. Substitute every angle-bracket
+placeholder; the mandate text comes from `references/mandates.md`: only that arm's section,
+except that `context` also gets the `history`, `conventions` and `perf` sections, and `light`
+also gets `correctness`, `docs` and `conventions`. Launch every arm in one message so they run
+concurrently, in the background, each on the model class its plan entry names, each writing its
+own `<run>/<arm>.json`. If the harness caps concurrent subagents, launch in waves, strongest
+model first.
+
+Each arm's budget, a count of tool calls and a wall-clock limit, is in the plan and goes into
+its prompt, because the delegation tool on most harnesses has no turn limit of its own; the wall
+clock is enforced by you, in step 4.
 
 Arms do not talk to each other and do not see each other's output. That independence is what
-makes agreement between two arms informative in step 6.
+makes agreement between two arms informative in the ranking.
 
-### 3. Wait, with a deadline
+**Resuming.** If a session stalls or dies mid-review (a usage limit, a capacity error, a
+closed terminal), the arms it launched die with it. On resume, do not wait for them and do not
+start over: list the run directory, relaunch only the arms in `plan.json` whose `<arm>.json` is
+missing, and continue from step 4.
 
-Wait for every arm's file or the wall-clock limit, whichever comes first. A bounded loop, not
-an unbounded watch:
+### 4. Wait, with a deadline
+
+Wait for every planned arm's file or the wall-clock limit, whichever comes first. A bounded
+loop, not an unbounded watch; take the arm names from `plan.json`:
 
 ```sh
 n=0
 while :; do
   missing=0
-  for arm in security correctness compat docs history conventions perf; do
+  for arm in <arms from plan.json>; do
     [ -f "<run>/$arm.json" ] || missing=1
   done
   [ "$missing" -eq 0 ] && break
@@ -172,13 +212,13 @@ before it ends its turn. *Why:* in a headless one-shot session the reviewers are
 session, and in a measured run an agent started a seven-arm review in the background, ended its
 turn, and the review died with it, so the next session had to redo it.
 
-### 4. Mechanical check
+### 5. Mechanical check
 
 ```sh
 python3 <skill-dir>/scripts/swarm.py verify --repo <head checkout> --run <run>
 ```
 
-This is the first wall. For every arm it reports one of:
+This checks the arms named in `plan.json` (or `--arms`). For every arm it reports one of:
 
 - `OK` — file present, valid JSON, every finding checked.
 - `PARTIAL` — the arm said it ran out of budget. Its findings are checked and kept, and the
@@ -195,32 +235,37 @@ they do not reach the user, except as a count.
 
 When `diff.patch` is in the run directory, every surviving finding whose lines touch no hunk of
 the diff is marked `outside_diff`. It is kept, not dropped: a change can break code it did not
-touch. The referee decides whether the claim says how. The checker's summary line gives the
-count, or says the diff was not checked.
+touch. The checker's summary line gives the count, or says the diff was not checked.
 
 It also merges findings that are plainly the same (same file, overlapping lines, claims sharing
 most of their words) and flags overlapping findings that are not plainly the same as
-**duplicate candidates** for the referee.
+**duplicate candidates**.
 
-Exit status 1 means at least one arm is `FAILED` or `PARTIAL`. Read the report either way.
+Its last line says whether the referee is `NEEDED`: a high or critical finding survived, or
+there is a duplicate-candidate group. Exit status 1 means at least one arm is `FAILED` or
+`PARTIAL`. Read the report either way.
 
-### 5. Referee
+### 6. Referee (only when needed)
 
-Fill `templates/referee-prompt.md` and launch one subagent. It gets `verified.json`, the head
-checkout, and the same budget as an arm. For each surviving finding it opens the cited lines and
-decides whether the code **supports the claim**, which is a stronger test than the quote being
-present: a correct quote attached to a wrong conclusion is dropped here. It resolves each
-duplicate-candidate group into one finding or several. It may lower a severity with a reason. It drops an `outside_diff` finding whose claim does not
-explain how the change caused or exposed it, so a problem the change left as it was does not
-reach the table.
-It may not add findings, may not edit code, and may not rewrite a claim beyond tightening it.
-It writes `<run>/final.json`.
+When the checker says `referee: not needed`, skip this step: the table is rendered from
+`verified.json` and marked "not refereed" with the reason. Before presenting it, read each
+`outside_diff` finding's claim yourself and leave out of your summary any that does not say how
+the change caused or exposed it; say how many you set aside.
 
-Wait for the referee with the same bounded loop. If it produces nothing, the table is rendered
-from `verified.json` and headed `UNREFEREED`; say so in the message. Do not skip the table
-because the referee failed, and do not present unrefereed findings as refereed.
+When it says `NEEDED`, fill `templates/referee-prompt.md` and launch one subagent on the strong
+model. It gets `verified.json`, the head checkout, and an arm's budget. For each surviving
+finding it opens the cited lines and decides whether the code **supports the claim**, which is a
+stronger test than the quote being present: a correct quote attached to a wrong conclusion is
+dropped here. It resolves each duplicate-candidate group into one finding or several. It may
+lower a severity with a reason. It drops an `outside_diff` finding whose claim does not explain
+how the change caused or exposed it. It may not add findings, may not edit code, and may not
+rewrite a claim beyond tightening it. It writes `<run>/final.json`.
 
-### 6. The table, then the question — or the record
+Wait for the referee with the same bounded loop. If a needed referee produces nothing, the table
+is rendered from `verified.json` and headed `UNREFEREED`; say so in the message. Do not skip the
+table because the referee failed, and do not present unrefereed findings as refereed.
+
+### 7. The table, then the question — or the record
 
 ```sh
 python3 <skill-dir>/scripts/swarm.py table --run <run>
@@ -250,20 +295,39 @@ reply.
 
 The record names, at minimum:
 
-- every finding that survived the referee, with its severity and location — the whole table,
-  not the part that got fixed;
+- every finding that survived the checker and, where one ran, the referee, with its severity
+  and location — the whole table, not the part that got fixed;
 - for each one, what was changed, and the check that now covers it;
 - for each one *not* fixed, why, what the tradeoff is, and which milestone, issue, or owner has
   it now. A finding quietly dropped because fixing it was awkward is exactly what this rule
   exists to prevent.
 
 Two things the authorization does not extend to. It is not permission to fix **unverified**
-findings: the mechanical check and the referee still run first, and a finding they dropped stays
-dropped. And it does not cover a fix that changes a decision the project has already recorded —
-a calibrated constant, a documented contract, an accepted design tradeoff. Fixing those is a
+findings: the mechanical check, and the referee when one is needed, still run first, and a
+finding they dropped stays dropped. And it does not cover a fix that changes a decision the
+project has already recorded — a calibrated constant, a documented contract, an accepted design tradeoff. Fixing those is a
 decision, not a repair; report the finding, propose the change, and leave it to the user.
 
-### 7. Post to the pull request (only when asked)
+### 8. Recheck after fixes
+
+Do not run a second review to confirm fixes. Make a new run directory for the fix, write its
+`diff.patch` (`git diff <pre-fix commit>..<fix commit>`), fill `templates/recheck-prompt.md` with
+the ids that were fixed and the original run directory, and launch one subagent on the cheap
+model. It writes `<recheck-run>/recheck.json`: each fixed finding as `resolved` (with the line
+that now handles it, quoted) or `unresolved`, plus any defect the fix itself introduced. Then:
+
+```sh
+python3 <skill-dir>/scripts/swarm.py verify --repo <head checkout> --run <recheck-run> \
+  --arms recheck
+```
+
+The checker confirms every `resolved` quote exists where it says (a resolution it cannot find
+prints `!!! RESOLUTION NOT CONFIRMED` and exits 1) and checks new findings like any other.
+Report resolved, unresolved and new counts. A new high or critical finding from the fix goes
+through the referee as in step 6. Run a fresh review only when the fix grew into a change of its
+own, large enough that `swarm.py plan` on its diff would not say `light`.
+
+### 9. Post to the pull request (only when asked)
 
 Posting is outward-facing, and a comment on a public repository cannot be fully taken back. Post
 only when the user asks, and only after they have seen the table in the terminal.
@@ -293,18 +357,22 @@ only when the user asks, and only after they have seen the table in the terminal
   run directory if the user asks.
 - **Never present the diff's intent as evidence.** A commit message saying the change is safe is
   not a quote from the code.
-- **Say what was reviewed.** The message names the base and head commits, the number of files
-  in scope, and, if the user narrowed the arms, the arms that did not run. A reader must be able to tell a review of the branch from a review of the working
-  tree.
+- **Say what was reviewed, and how hard.** The message names the base and head commits, the
+  number of files in scope, the tier and the plan's reason for it, and, if the user narrowed
+  the arms, the arms that did not run. A reader must be able to tell a review of the branch from
+  a review of the working tree, and a one-reviewer review from a seven-reviewer one.
 
 ## Adjusting the arms
 
-The seven mandates are the default because they rarely overlap and together cover most of what
-a merge can break. The first four read the code as it is now; `history` reads how it got there,
-`conventions` reads what the project said it must be, and `perf` reads what it costs. To add or replace one, write its section in `references/mandates.md` in the
-same shape (scope, what counts, what does not count, what to quote) and pass the arm list to
-the checker with `--arms`. Do not give two arms overlapping mandates to "be safe": overlap
-manufactures duplicates that the referee then has to spend budget resolving, and the agreement
+The seven full-tier mandates rarely overlap and together cover most of what a merge can break.
+The first four read the code as it is now; `history` reads how it got there, `conventions` reads
+what the project said it must be, and `perf` reads what it costs. The `context` and `light` arms
+combine mandates for the cheaper tiers. To change the tiers, edit `make_plan` in
+`scripts/swarm.py` and its tests, and replay the planner over recorded run directories to see
+which past findings a change would have cost. To add or replace a mandate, write its section in
+`references/mandates.md` in the same shape (scope, what counts, what does not count, what to
+quote) and pass the arm list to the checker with `--arms`. Do not give two arms overlapping
+mandates to "be safe": overlap manufactures duplicates that the referee then has to spend budget resolving, and the agreement
 signal in the ranking becomes noise.
 
 ## What this skill does not do

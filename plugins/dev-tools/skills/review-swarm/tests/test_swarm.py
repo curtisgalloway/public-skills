@@ -387,5 +387,175 @@ class DiffTests(SwarmCase):
         self.assertNotIn("outside_diff", data["findings"][0])
 
 
+def patch_for(path, added, removed=()):
+    """A one-hunk unified diff adding `added` lines (and removing `removed`) in `path`."""
+    body = [f"-{l}" for l in removed] + [f"+{l}" for l in added]
+    return (
+        f"diff --git a/{path} b/{path}\n--- a/{path}\n+++ b/{path}\n"
+        f"@@ -1,{len(removed)} +1,{len(added)} @@\n" + "\n".join(body) + "\n"
+    )
+
+
+class PlanTests(SwarmCase):
+    def plan(self, patch, *extra):
+        (self.run / "diff.patch").write_text(patch)
+        proc = subprocess.run(
+            [sys.executable, str(SWARM), "plan", "--run", str(self.run), *extra],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        return proc, json.loads((self.run / "plan.json").read_text())
+
+    def names(self, plan):
+        return [a["name"] for a in plan["arms"]]
+
+    def test_prose_only_diff_is_light_at_any_size(self):
+        _, plan = self.plan(patch_for("docs/guide.md", [f"line {i}" for i in range(800)]))
+        self.assertEqual(plan["tier"], "light")
+        self.assertEqual(self.names(plan), ["light"])
+        self.assertEqual(plan["arms"][0]["model"], "cheap")
+        self.assertEqual(plan["arms"][0]["tool_budget"], 40)
+
+    def test_small_code_diff_is_light_on_the_strong_model(self):
+        _, plan = self.plan(patch_for("src/calc.py", ["def add(a, b):", "    return a + b"]))
+        self.assertEqual(plan["tier"], "light")
+        self.assertEqual(plan["arms"][0]["model"], "strong")
+        self.assertEqual(plan["arms"][0]["tool_budget"], 25)
+
+    def test_larger_code_diff_is_standard_with_context_arm(self):
+        lines = [f"    total += item_{i}" for i in range(80)]
+        _, plan = self.plan(patch_for("src/calc.py", lines))
+        self.assertEqual(plan["tier"], "standard")
+        self.assertEqual(self.names(plan), ["correctness", "docs", "compat", "context"])
+        models = {a["name"]: a["model"] for a in plan["arms"]}
+        self.assertEqual(models["correctness"], "strong")
+        self.assertEqual(models["docs"], "cheap")
+
+    def test_security_surface_adds_security_arm_to_standard(self):
+        lines = [f"    x_{i} = {i}" for i in range(60)] + ["    subprocess.run(cmd)"]
+        _, plan = self.plan(patch_for("src/run.py", lines))
+        self.assertEqual(plan["tier"], "standard")
+        self.assertEqual(self.names(plan)[0], "security")
+
+    def test_risk_trigger_makes_even_a_small_diff_full(self):
+        proc, plan = self.plan(patch_for("src/state.rs", ["let guard = STATE.lock();"]))
+        self.assertEqual(plan["tier"], "full")
+        self.assertEqual(self.names(plan), list(ARMS))
+        self.assertIn("concurrency", plan["triggers"])
+        self.assertIn("risk trigger", proc.stdout)
+
+    def test_trigger_owner_arm_gets_the_strong_model(self):
+        _, plan = self.plan(patch_for("src/cfg.py", ['API_KEY = "x"']))
+        models = {a["name"]: a["model"] for a in plan["arms"]}
+        self.assertEqual(models["security"], "strong")
+        self.assertEqual(models["compat"], "cheap")
+
+    def test_trigger_words_in_prose_do_not_escalate(self):
+        _, plan = self.plan(patch_for("README.md", ["Set the API_KEY and the password."]))
+        self.assertEqual(plan["tier"], "light")
+
+    def test_migration_path_is_a_trigger(self):
+        _, plan = self.plan(patch_for("db/migrations/0002_add.sql", ["ADD COLUMN x int;"]))
+        self.assertEqual(plan["tier"], "full")
+
+    def test_close_escalates_code_but_not_prose(self):
+        lines = [f"    total += item_{i}" for i in range(80)]
+        _, plan = self.plan(patch_for("src/calc.py", lines), "--close")
+        self.assertEqual(plan["tier"], "full")
+        _, plan = self.plan(patch_for("docs/notes.md", ["a", "b"]), "--close")
+        self.assertEqual(plan["tier"], "light")
+
+    def test_requested_tier_overrides(self):
+        _, plan = self.plan(patch_for("docs/notes.md", ["a"]), "--tier", "full")
+        self.assertEqual(plan["tier"], "full")
+        self.assertEqual(len(plan["arms"]), 7)
+
+    def test_huge_diff_requires_split(self):
+        proc, plan = self.plan(patch_for("src/big.py", [f"x{i} = {i}" for i in range(3100)]))
+        self.assertTrue(plan["split_required"])
+        self.assertIn("SPLIT REQUIRED", proc.stdout)
+
+    def test_plan_without_patch_is_a_precondition_error(self):
+        proc = subprocess.run(
+            [sys.executable, str(SWARM), "plan", "--run", str(self.run)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(proc.returncode, 3)
+
+    def test_verify_takes_arms_from_the_plan(self):
+        self.plan(patch_for("src/main.rs", ["    let port = open_port();"]))
+        self.write_arm("light", [finding(severity="low")])
+        proc, data = self.verify()
+        self.assertEqual(proc.returncode, 0, proc.stdout)
+        self.assertEqual(list(data["arms"]), ["light"])
+
+
+class RefereeRuleTests(SwarmCase):
+    def test_low_findings_need_no_referee_and_table_says_so(self):
+        self.write_all({"docs": [finding(severity="medium")]})
+        proc, data = self.verify()
+        self.assertFalse(data["referee_needed"])
+        self.assertIn("referee: not needed", proc.stdout)
+        out = self.table()
+        self.assertEqual(out.returncode, 0)
+        self.assertNotIn("UNREFEREED", out.stdout)
+        self.assertIn("not refereed: no high/critical", out.stdout)
+
+    def test_high_finding_needs_referee_and_is_unrefereed_without_one(self):
+        self.write_all({"correctness": [finding(severity="high")]})
+        proc, data = self.verify()
+        self.assertTrue(data["referee_needed"])
+        self.assertIn("referee: NEEDED", proc.stdout)
+        out = self.table()
+        self.assertEqual(out.returncode, 1)
+        self.assertIn("UNREFEREED", out.stdout)
+
+    def test_duplicate_group_needs_referee(self):
+        other = finding(severity="low", claim="Completely different words about allocation.")
+        self.write_all({"correctness": [finding(severity="low")], "perf": [other]})
+        _, data = self.verify()
+        self.assertTrue(data["dup_candidates"])
+        self.assertTrue(data["referee_needed"])
+
+
+class RecheckTests(SwarmCase):
+    def write_recheck(self, resolved, findings=()):
+        (self.run / "recheck.json").write_text(
+            json.dumps(
+                {"arm": "recheck", "status": "complete", "resolved": resolved,
+                 "unresolved": [], "findings": list(findings)}
+            )
+        )
+
+    def test_confirmed_resolution_passes(self):
+        self.write_recheck(
+            [{"id": "F1", "file": "src/main.rs", "line_range": [5, 5],
+              "evidence_quote": "if ack(&port) { break; }"}]
+        )
+        proc, data = self.verify("--arms", "recheck")
+        self.assertEqual(proc.returncode, 0, proc.stdout)
+        self.assertTrue(data["resolved"][0]["confirmed"])
+
+    def test_resolution_quote_not_in_code_is_loud(self):
+        self.write_recheck(
+            [{"id": "F1", "file": "src/main.rs", "line_range": [5, 5],
+              "evidence_quote": "resume_from(last_ack);"}]
+        )
+        proc, data = self.verify("--arms", "recheck")
+        self.assertEqual(proc.returncode, 1)
+        self.assertFalse(data["resolved"][0]["confirmed"])
+        self.assertIn("!!! RESOLUTION NOT CONFIRMED F1", proc.stdout)
+
+    def test_new_findings_from_the_fix_are_checked_like_any_other(self):
+        self.write_recheck([], [finding(severity="low"), finding(evidence_quote="not in the file")])
+        _, data = self.verify("--arms", "recheck")
+        self.assertEqual(len(data["findings"]), 1)
+        self.assertEqual(len(data["dropped"]), 1)
+
+
 if __name__ == "__main__":
     unittest.main()
