@@ -58,7 +58,9 @@ Checkpoint commit prefix: <prefix>
 Design gate: <approved revision/date, unchanged authoritative design, or explicit waiver>
 User overrides: <scope and duration of any waiver or execution override; otherwise none>
 Review method: <review-swarm / reviewer subagent / self-review; note any milestone that
-differs. Naming it here authorizes it; executing sessions do not re-decide.>
+differs. Naming it here authorizes it; executing sessions do not re-decide. It runs once
+per milestone, at the close (review-swarm: `--close`, tier chosen by its planner), and
+fixes are confirmed by its recheck, not a second review.>
 Review order: review and fixes precede the checkpoint commit, which is the last step.
 
 ## Status

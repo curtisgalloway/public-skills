@@ -1,0 +1,55 @@
+schema_version: "1.1"
+name: review-swarm-light
+description: >-
+  A docs-only branch whose new README section contradicts the unchanged code
+  (default port 8080 versus DEFAULT_PORT = 9090, and a --public flag that does
+  not exist). The planner should pick the light tier, so the skill launches
+  one reviewer instead of seven, skips the referee (no high finding), still
+  reports the contradiction, and asks before fixing.
+tags: [review-swarm, tiering]
+runs: 1
+execution:
+  max_turns: 30
+  timeout_seconds: 900
+  allowed_tools: [Read, Glob, Grep, Skill, Agent, Bash, Write, Edit, TaskOutput, TaskStop, TaskList]
+  prompt: |
+    Run the review swarm on this branch before I merge it. Review the
+    committed branch, not the working tree.
+context:
+  scaffold_script: fixture.sh
+graders:
+  - name: skill-fired
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"[^"]*review-swarm'
+  - name: plan-ran
+    type: tool_used
+    tool: Bash
+    input_match: "swarm\\.py plan"
+  - name: light-fan-out
+    type: tool_used
+    tool: Agent
+    min: 1
+    max: 2
+  - name: verify-ran
+    type: tool_used
+    tool: Bash
+    input_match: "swarm\\.py verify"
+  - name: nothing-fixed
+    type: tool_used
+    tool: Edit
+    min: 0
+    max: 0
+  - name: tier-stated
+    type: llm
+    criteria: |
+      PASS if the final message says the review ran at the light tier (or
+      with a single reviewer) and gives a reason such as the diff touching
+      only documentation. FAIL if it does not say how many reviewers ran or
+      why.
+  - name: contradiction-found
+    type: llm
+    criteria: |
+      PASS if the findings include the README's port 8080 contradicting
+      DEFAULT_PORT = 9090 in tinyserve/__main__.py, or the README's --public
+      flag that the argument parser does not define. FAIL if neither appears.

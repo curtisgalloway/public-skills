@@ -5,7 +5,9 @@ SPDX-License-Identifier: Apache-2.0
 
 # Reviewer mandates
 
-One section per arm. An arm receives only its own section, so each one must stand alone. The
+One section per arm. An arm receives only its own section, so each one must stand alone, with
+two exceptions: the `context` arm also receives the `history`, `conventions` and `perf`
+sections, and the `light` arm also receives `correctness`, `docs` and `conventions`. The
 shape is fixed: what the arm looks for, what counts, what does not count (usually because it is
 another arm's job), and what the arm must be able to quote.
 
@@ -277,3 +279,47 @@ realistically see.
 and, when the cost comes from the interaction, the inner operation too (name its location in
 `claim`). State in `claim` what grows and roughly how: "one query per row of `orders`",
 "O(n²) in the number of files".
+
+---
+
+## context
+
+Used by the standard tier in place of `history`, `conventions` and `perf`, which together
+produced many low findings and no high ones across more than a hundred measured runs. Work
+the three mandates in this order and stop when the budget runs low: history first, then
+conventions, then perf.
+
+**You look for:** the union of the `history`, `conventions` and `perf` mandates you were given, with
+the same "what counts", "what does not count" and quoting rules for each. Spend at most a
+third of your budget on history.
+
+**What you must quote:** whatever the mandate you are reporting under requires: a named earlier
+commit or review comment for a history finding, the rule's file, line and text for a
+conventions finding, the loop or call site and what grows for a perf finding. Start each
+`claim` with `history:`, `conventions:` or `perf:` so the referee and the reader can tell which
+rules it was judged by.
+
+---
+
+## light
+
+The single reviewer of the light tier: a diff of prose, records, data or config only, or a code
+diff of at most about 50 changed lines with no risk trigger. You replace all seven arms, so you
+are not narrow, but you are still bound by the quote rule.
+
+**You look for, in this order:**
+
+1. If code changed: anything the `correctness` mandate counts: a wrong result, a swallowed
+   error, a leaked resource, a race.
+2. Documentation, comments, help text, examples or evidence records that state something the
+   code or the recorded data does not support (the `docs` mandate). For a record or evidence
+   file, a claim its own cited data contradicts counts.
+3. A written project rule the change breaks (the `conventions` mandate): instruction files on
+   the path to each changed file, and directive comments next to the change.
+4. Secrets or private data in the change: credentials, tokens, keys, private host names,
+   addresses or home-directory paths, where the project's rules say they must not appear.
+
+**What does not count:** style, tone, typos, "could be simpler", and anything you cannot quote.
+
+**What you must quote:** the rule of whichever mandate above the finding falls under, and start
+each `claim` with `correctness:`, `docs:`, `conventions:` or `secrets:`.
