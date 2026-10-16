@@ -265,16 +265,18 @@ turn; default 600), and `--model NAME` (the **counterpart's** model).
 
 `--task` sets the counterpart's reasoning effort on every turn, resume included.
 The default is `thinking`: design, architecture, review, debugging analysis,
-and any other judgment call run at **max** effort, whichever direction the
+and any other judgment call run at **high** effort, whichever direction the
 consultation goes (Codex, or Claude such as Opus 5.5). Pass `--task coding`
 only when the counterpart's job is to draft or check code mechanically; it runs
 at **medium**. When a consultation mixes the two, use `thinking`. The adapters
 pass `--effort <level>` to `claude` and `agy`, `--reasoning-effort <level>` to
-`muse`, and `-c model_reasoning_effort=<level>` to `codex`. All three accept `max` and `medium` (checked 2026-09-26: `claude --help`
+`muse`, and `-c model_reasoning_effort=<level>` to `codex`. All of them accept `high` and `medium` (checked 2026-09-26: `claude --help`
 lists `low, medium, high, xhigh, max`; `agy --help` lists `low|medium|high|max`;
 `muse exec --help` lists `none|minimal|low|medium|high|xhigh|max|ultra`;
 the Codex API's list of valid values is `none, minimal, low, medium, high,
-xhigh, max`). A Gemini model under agy follows the same rule; name it with
+xhigh, max`). Not `max`: a model can lack it even when the CLI lists it, and
+agy 1.4.0 refused `gemini-4-argon --effort max` ("has no \"max\" effort
+(available: low, medium, high)", 2026-10-16). A Gemini model under agy follows the same rule; name it with
 `--model` when a specific one is wanted (`agy models` lists them). Without a model override, its CLI
 default applies with the restricted configuration; it need not match the model
 in another interactive session. Specify an override only when requested or needed

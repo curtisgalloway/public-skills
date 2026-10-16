@@ -142,12 +142,12 @@ class ConsultationTests(unittest.TestCase):
                     if peer == "claude":
                         self.assertEqual(args[args.index("--tools") + 1], "Read,Glob,Grep")
                         self.assertIn("--strict-mcp-config", args)
-                        self.assertEqual(args[args.index("--effort") + 1], "max")
+                        self.assertEqual(args[args.index("--effort") + 1], "high")
                     else:
                         self.assertEqual(args[args.index("-s") + 1], "read-only")
                         self.assertEqual(args[args.index("-a") + 1], "never")
                         self.assertIn("--ignore-user-config", args)
-                        self.assertIn("model_reasoning_effort=max", args)
+                        self.assertIn("model_reasoning_effort=high", args)
 
     def test_coding_task_uses_medium_effort_on_every_turn(self):
         for origin, peer in (("claude", "codex"), ("codex", "claude")):
@@ -165,7 +165,7 @@ class ConsultationTests(unittest.TestCase):
                         self.assertEqual(args[args.index("--effort") + 1], "medium")
                     else:
                         self.assertIn("model_reasoning_effort=medium", args)
-                        self.assertNotIn("model_reasoning_effort=max", args)
+                        self.assertNotIn("model_reasoning_effort=high", args)
 
     def test_same_cli_with_another_model_keeps_model_and_restrictions(self):
         for harness, model in (("claude", "fable"), ("codex", "gpt-other")):
@@ -210,12 +210,16 @@ class ConsultationTests(unittest.TestCase):
         self.assertIn("requested new session ID", failed["error"])
         self.assertIsNone(failed["session_id"])
 
-    def test_state_without_task_defaults_to_max_effort(self):
+    def test_state_without_task_defaults_to_high_effort(self):
         state = dict(executable="codex", peer="codex", session_id=None)
-        self.assertIn("model_reasoning_effort=max", consult.adapter(state))
+        self.assertIn("model_reasoning_effort=high", consult.adapter(state))
         state = dict(executable="claude", peer="claude", session_id=None)
         command = consult.adapter(state)
-        self.assertEqual(command[command.index("--effort") + 1], "max")
+        self.assertEqual(command[command.index("--effort") + 1], "high")
+
+    def test_no_task_uses_max_effort(self):
+        # Some models refuse max (agy: gemini-4-argon has only low/medium/high).
+        self.assertNotIn("max", consult.EFFORT.values())
 
     def test_requires_confirmation_and_bounds_rounds(self):
         identity = self.start("codex", "brief", "--rounds", "1")
@@ -391,7 +395,7 @@ class AgyAdapterTests(unittest.TestCase):
         self.assertNotIn("--dangerously-skip-permissions", agy)
         self.assertNotIn("--mode", agy)
         self.assertIn("--disable-slash-commands", agy)
-        self.assertEqual(agy[agy.index("--effort") + 1], "max")
+        self.assertEqual(agy[agy.index("--effort") + 1], "high")
         self.assertEqual(agy[-1], "-p=")
 
     @unittest.skipUnless(consult.platform.system() == "Linux", "bwrap wrapper is Linux-only")
@@ -518,7 +522,7 @@ class MuseAdapterTests(unittest.TestCase):
         self.assertNotIn("--yolo", muse)
         self.assertNotIn("--trust-workspace", muse)
         self.assertEqual(muse[muse.index("--session-id") + 1], "s-new")
-        self.assertEqual(muse[muse.index("--reasoning-effort") + 1], "max")
+        self.assertEqual(muse[muse.index("--reasoning-effort") + 1], "high")
         self.assertEqual(muse[-2:], ["--prompt-file", "/job/prompt.md"])
 
     def test_muse_resume_reuses_the_session(self):
