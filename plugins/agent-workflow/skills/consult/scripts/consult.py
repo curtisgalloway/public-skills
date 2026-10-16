@@ -86,8 +86,8 @@ def location(root, identity):
 
 
 # Reasoning effort by kind of consultation. Design, review and other judgment
-# calls get the counterpart's deepest thinking; code-writing gets medium.
-EFFORT = {"thinking": "max", "coding": "medium"}
+# calls get high effort (not max: Gemini 4 Argon has no max level); code-writing gets medium.
+EFFORT = {"thinking": "high", "coding": "medium"}
 
 
 def sandbox(peer, project, scratch):
@@ -361,11 +361,13 @@ def check_agy(executable):
     the filesystem sandbox cannot stop what they do over the network."""
     if not AGY_STATE.is_dir():
         raise ConsultError("agy has no state directory; sign in with agy first")
-    expected = {"mcp": "No MCP servers configured.", "plugin": "No imported plugins."}
+    # agy 1.2.x printed "No imported plugins."; 1.4.0 prints "No plugins installed."
+    expected = {"mcp": {"No MCP servers configured."},
+                "plugin": {"No imported plugins.", "No plugins installed."}}
     for command, empty in expected.items():
         result = subprocess.run([executable, command, "list"], capture_output=True,
                                 text=True, timeout=60, stdin=subprocess.DEVNULL)
-        if result.returncode != 0 or result.stdout.strip() != empty:
+        if result.returncode != 0 or result.stdout.strip() not in empty:
             raise ConsultError("agy has %s entries configured (or `agy %s list` failed); "
                                "consultations require none" % (command, command))
 
@@ -416,7 +418,7 @@ def main(argv=None):
     start.add_argument("--message-file", required=True, help="UTF-8 file or - for stdin")
     start.add_argument("--model", help="Explicit counterpart model; otherwise the CLI default")
     start.add_argument("--task", choices=sorted(EFFORT), default="thinking",
-                       help="thinking (design, review, analysis): max effort; coding: medium")
+                       help="thinking (design, review, analysis): high effort; coding: medium")
     start.add_argument("--rounds", type=positive, default=3)
     start.add_argument("--timeout", type=positive, default=600, help="Seconds per peer turn")
     reply = commands.add_parser("reply", help="Continue the saved counterpart session")
