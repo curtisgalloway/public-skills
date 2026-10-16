@@ -56,6 +56,24 @@ token (the Keychain on macOS, `~/.claude/.credentials.json` on Linux). If that f
 to Claude Code's cache in `~/.claude.json`, which may be stale; every line says which source it
 used. Exit 0 is a reading, 1 is a missing `--model` limit, 2 is no token and no cache.
 
+**From Codex, expect its approval reviewer to stop this.** Reading another product's login
+(the Keychain item, or the credentials file) and sending it over the network is what
+Codex's automatic reviewer rates as high-risk credential probing, and that is a fair reading
+of the action. Do not work around it: no copying the token elsewhere, no reading it with a
+different command, no retrying with a reworded justification. The fix belongs to the user,
+once per machine: a Codex rule allowing exactly this script, in `~/.codex/rules/*.rules`,
+with every path the skill is installed under (a symlinked install and its checkout are two
+different paths to Codex):
+
+```
+prefix_rule(pattern=["python3", ["<install-path>/scripts/claude_usage.py", "<checkout-path>/scripts/claude_usage.py"]], decision="allow")
+```
+
+Check it before relying on it: `codex execpolicy check --rules <file> python3
+<install-path>/scripts/claude_usage.py --json` must print `"decision":"allow"`, and a
+different script must match nothing. Until the rule exists, a Codex orchestrator treats
+Claude's capacity as unknown, as for any failed reading.
+
 The endpoint is undocumented, so a Claude Code update can break it. Report a cache-sourced or
 failed reading plainly rather than guessing. The token never leaves the machine except in that
 one request to Anthropic.
