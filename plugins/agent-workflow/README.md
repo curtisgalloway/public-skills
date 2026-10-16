@@ -44,15 +44,15 @@ skills. Installing both loads every skill twice.
   and pushes back, without touching code. Triggers on "let's brainstorm", "should I", "talk
   me through the trade-offs"; drops when the user says to build.
 - **`consult`** — ask another coding agent to assess a question independently, then trade
-  follow-ups until both confirm a recommendation. Any of Claude Code, Codex and Antigravity
-  (`agy`) can consult another, or a different model in its own CLI (Opus consulting Fable);
+  follow-ups until both confirm a recommendation. Any of Claude Code, Codex, Antigravity
+  (`agy`) and Muse can consult another, or a different model in its own CLI (Opus consulting Fable);
   the original conversation stays in charge. Ships a Python
   helper for restricted peer sessions (an OS sandbox for `agy`, which has no read-only
-  mode), resumable context, bounded rounds, per-task reasoning effort, cancellation, and
+  mode, and for `muse`), resumable context, bounded rounds, per-task reasoning effort, cancellation, and
   local transcripts. Needs Python 3.9+, macOS or Linux, and an authenticated counterpart
-  CLI; `agy` also needs bubblewrap on Linux.
-  Triggers on "consult with Codex", "consult with Fable", "consult with Gemini", or "work
-  toward consensus".
+  CLI; `agy` and `muse` also need bubblewrap on Linux. A counterpart billed per token runs
+  only when the user names it. Triggers on "consult with Codex", "consult with Fable",
+  "consult with Gemini", "consult with Muse", or "work toward consensus".
 - **`project-plan`** — turn a project outcome into a detailed design, then an implementation
   plan of cohesive milestones, each sized for about 75% of a fresh session's context.
   - A new or materially revised design needs approval unless waived; an unchanged
@@ -76,8 +76,10 @@ skills. Installing both loads every skill twice.
   stale or missing usage is unknown capacity. Ships `scripts/claude_usage.py` (reads the
   endpoint behind Claude Code's `/usage`, falling back to its cache) and
   `scripts/codex_usage.py` (compares usage-event timestamps in the active Codex home's logs),
-  both stdlib-only, plus explicit model selection for implementers. Triggers on "stretch my
-  quota" or "run this overnight".
+  both stdlib-only, plus explicit model selection for implementers. `scripts/agent_usage.py`
+  sums per-day, per-model token usage from Codex, `agy` and Muse session logs, and
+  optionally a Google Cloud project's Vertex AI token count. Triggers on "stretch my quota",
+  "how many tokens did that use", or "run this overnight".
 - **`claude-model-selection`** — pick Opus 5.5 or Fable 5.1 for a session, subagent, or
   scheduled run: identify the billing mode (capped subscription, a plan where Fable bills
   usage credits, or API), route by task type, and escalate after a set number of failed Opus

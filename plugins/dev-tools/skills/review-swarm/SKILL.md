@@ -50,6 +50,9 @@ So the skill keeps its three walls and spends the reviewers where they pay:
 - **Mandate** — what an arm is allowed to look for. `references/mandates.md` is the full text.
 - **Tier** — how many arms a review runs: `light`, `standard`, or `full`. Chosen by
   `swarm.py plan` from the diff, not by the agent.
+- **External arm** — an arm run in another agent CLI (another vendor's model) instead of as a
+  subagent. Its plan entry has `"model": "external:<cli>"`; it prints its JSON instead of
+  writing a file, and `swarm.py collect` turns that output into `<run>/<arm>.json`.
 - **Strong / cheap model** — the harness's most capable model available to subagents, and a
   cheaper capable one. In Claude Code, strong is the session's own model (usually Opus) and
   cheap is `sonnet`; in Codex, strong is the frontier model and cheap is its smaller sibling.
@@ -135,7 +138,8 @@ again anyway.
 ### 2. Plan the tier
 
 ```sh
-python3 <skill-dir>/scripts/swarm.py plan --run <run> [--close] [--tier light|standard|full]
+python3 <skill-dir>/scripts/swarm.py plan --run <run> [--close] [--tier light|standard|full] \
+  [--external <cli>]
 ```
 
 The script, not the agent, picks the tier and writes `<run>/plan.json` with the arms to launch,
@@ -151,6 +155,16 @@ Pass `--close` when this review is the gate before merging a pull request or clo
 milestone. Pass `--tier` only when the user asked for one ("full review", "just a quick look").
 A user who narrows the arms ("just security", "skip perf") gets exactly those arms: pass them to
 the checker with `--arms`, and name the arms left out in the message.
+
+Pass `--external <cli>` to add a **cross-vendor correctness arm**, `correctness-<cli>`, in the
+standard and full tiers (never the light tier, which stays one reviewer). It gets the
+`correctness` mandate and runs in that CLI, so the review is not every arm on one vendor's
+model: breadth on one model did not find the bug that model missed. Add it when the user asks,
+or when the user's instruction file names an agent CLI for this. The CLI must bill from a plan
+with its own usage limits; a CLI billed per token runs only when the user names it for this
+review. Which is which is the user's fact; read it from their instruction file, and treat an
+undescribed CLI as per-token. A duplicate of a `correctness` finding by its twin is the
+agreement the ranking rewards, not noise.
 
 Do not add or drop arms on your own judgment because they look likely or unlikely to find
 something; that is the plan's decision, and its reasons are written down where the reader can
@@ -179,6 +193,28 @@ clock is enforced by you, in step 4.
 
 Arms do not talk to each other and do not see each other's output. That independence is what
 makes agreement between two arms informative in the ranking.
+
+**External arms.** Fill the same template for `correctness-<cli>`, with the `correctness`
+mandate, and launch it in the background in that CLI, headless and read-only, with its output
+saved in the run directory. For Muse (checked with Muse Code 1.4.9 on 2026-10-16):
+
+```sh
+muse exec --json --no-foreign-personal-context --disable-write --disable-shell \
+  --disable-web-tools --disable-request-user-input \
+  -c hooks.enabled=false -c plugins.enabled=false --reasoning-effort high \
+  --workspace <head checkout> --prompt-file <run>/correctness-muse.prompt.md \
+  > <run>/correctness-muse.jsonl 2> <run>/correctness-muse.log
+python3 <skill-dir>/scripts/swarm.py collect --run <run> --arm correctness-muse \
+  --stream <run>/correctness-muse.jsonl
+```
+
+Run it from the head checkout, with no model flag unless the user names one (the CLI's plan
+picks its default). Without write access the arm prints its JSON as its final message, which
+the template allows; `collect` takes the first JSON object with a `findings` list and writes
+`<run>/correctness-muse.json`, or writes nothing and says `ARM FAILED`, which `verify` then
+reports like any missing arm. Without a shell it cannot run `git`; its mandate does not need
+it. Another CLI works the same way when it has a headless, read-only mode; `collect` reads
+Muse's event stream or plain text.
 
 **Resuming.** If a session stalls or dies mid-review (a usage limit, a capacity error, a
 closed terminal), the arms it launched die with it. On resume, do not wait for them and do not

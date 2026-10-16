@@ -36,7 +36,9 @@ file will be dropped by a mechanical check before anyone reads it, and a dropped
 against you, not for you. If you believe something is wrong but cannot point at the lines, it is
 not a finding. Zero findings is an acceptable result; an unquotable finding is not.
 
-OUTPUT. Write exactly one file, `<RUN>/<ARM>.json`, with this shape and nothing else:
+OUTPUT. Write exactly one file, `<RUN>/<ARM>.json`, with this shape and nothing else. If you
+have no tool that writes files, print the JSON instead, as your final message, with nothing
+after it:
 
 {
   "arm": "<ARM>",
@@ -71,4 +73,4 @@ file is reported as PARTIAL with its findings kept. Write the file.
 
 Do not edit any file in the checkout. Do not run the code, the tests, or the build. Do not
 write anything but the one JSON file. When you are done, reply with one line: the path you
-wrote, the status, and the number of findings.
+wrote, the status, and the number of findings (or, if you printed the JSON, end with it).

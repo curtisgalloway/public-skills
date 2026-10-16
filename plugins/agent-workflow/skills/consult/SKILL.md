@@ -2,11 +2,11 @@
 name: consult
 description: >-
   Collaborate with another coding agent on a question or proposed approach:
-  any of Claude Code, Codex and Antigravity (agy) consults another, or a
+  any of Claude Code, Codex, Antigravity (agy) and Muse consults another, or a
   different model in its own CLI (Opus consulting Fable), through a persistent
   peer session. Use when the user says "consult with <name>", where the name is
-  an agent (Codex, Claude, agy), a vendor or model family (Gemini, GPT), or a
-  model (Fable, Opus, Sonnet); also "consult your counterpart", "compare
+  an agent (Codex, Claude, agy, Muse), a vendor or model family (Gemini, GPT), or
+  a model (Fable, Opus, Sonnet, Argon); also "consult your counterpart", "compare
   perspectives", or "work toward consensus". The original agent leads the
   exchange and reports the agreed recommendation or unresolved disagreement.
 ---
@@ -27,12 +27,14 @@ an existing interactive counterpart session.
 
 - Python 3.9+ on macOS or Linux; standard library only (uses Unix process groups
   and `flock`). Windows is not supported.
-- The counterpart's CLI on `PATH`, already authenticated: `claude`, `codex` or
-  `agy`. Normal CLI usage charges/limits apply. The counterpart can be the same
+- The counterpart's CLI on `PATH`, already authenticated: `claude`, `codex`,
+  `agy` or `muse`. Normal CLI usage charges/limits apply; see "Metered
+  counterparts" below before choosing one billed per token. The counterpart can be the same
   CLI as the original agent when `--model` names a different model (see
   "Another model in the same CLI" below).
-- For an `agy` counterpart: bubblewrap (`bwrap`) on Linux, or `sandbox-exec` on
-  macOS, and no MCP servers or plugins configured in agy (see below).
+- For an `agy` or `muse` counterpart: bubblewrap (`bwrap`) on Linux, or
+  `sandbox-exec` on macOS, and no MCP servers or plugins configured in that CLI
+  (see below).
 - Permission to launch the counterpart and reach its provider. If the host's
   sandbox blocks this, use its normal approval mechanism; do not bypass it.
 - A trusted project directory and selected task context. Invocation authorizes
@@ -47,9 +49,18 @@ Both adapters enforce restrictions on every invocation, including resume:
 | Claude Code | Only `Read`, `Glob`, `Grep`; permission mode `dontAsk`; no MCP servers, hooks, Chrome, or skills; user/project settings excluded |
 | Codex | Read-only sandbox, approvals `never`; user config and exec rules excluded; MCP/plugin maps cleared; hooks, multi-agent delegation, and app integrations disabled |
 | agy | Runs inside an OS sandbox whose filesystem is read-only except agy's own state directory (`~/.gemini/antigravity-cli`) and a private temp directory; never `--dangerously-skip-permissions`; `--sandbox` (terminal restrictions); slash commands and skills disabled; refused if any MCP server or plugin is configured |
+| Muse | The same OS sandbox, writable only for Muse's state and sign-in (`~/.local/share/muse`, `~/.config/muse`) and a private temp directory; `--disable-write`, `--disable-shell`, web tools off, hooks and plugins off; the workspace is left untrusted and other agents' personal rules and skills are excluded; refused if any plugin or MCP server is configured |
 
-These controls are deliberately different. Claude cannot run shell commands;
-Codex can run commands within its read-only sandbox.
+These controls are deliberately different. Claude and Muse cannot run shell
+commands; Codex can run commands within its read-only sandbox.
+
+Muse's shell is off because its own shell sandbox is also bubblewrap, which
+cannot start inside the outer one ("No permissions to create a new namespace",
+Muse Code 1.4.9, 2026-10-16). Skills installed for Muse itself stay loaded: it
+has no per-run switch for them, and `--preset` and `-c` keys did not change the
+count. Muse also loads Claude Code's and Codex's personal rules and skills by
+default ("foreign personal context"); `--no-foreign-personal-context` keeps them
+out, because the brief, not the other agent's configuration, is the context.
 
 agy is enforced from outside because it has no read-only flag. In a live check
 (agy 1.2.11, 2026-09-26), `--mode plan` wrote a file into the project with
@@ -68,7 +79,10 @@ Adapter flags were checked against Claude Code 2.1.277 and Codex CLI 0.155.0 on
 2026-09-18, and against agy 1.2.11 on Linux on 2026-09-26: a three-turn live
 consultation, with the context kept and the write denied. **The macOS
 `sandbox-exec` profile for agy has not been run yet.** On first use on a Mac,
-run the live check under Validation before relying on it. Older releases may reject flags. Fail visibly rather than removing
+run the live check under Validation before relying on it. The Muse adapter was
+checked against Muse Code 1.4.9 on Linux on 2026-10-16: a two-turn live
+consultation through the helper, the session and its context kept, and a write
+refused with no file created. Older releases may reject flags. Fail visibly rather than removing
 restrictions to make a command work. Ground truth: `claude --help`, `codex exec
 --help`, and `codex exec resume --help`. See the official
 [Claude programmatic guide](https://code.claude.com/docs/en/headless) and
@@ -82,8 +96,8 @@ Users name the counterpart the way they think of it: "consult with Codex",
 
 | The user names | `--to` | `--model` |
 | --- | --- | --- |
-| An agent or its CLI: Claude, Codex, agy or Antigravity | that CLI | none: its default |
-| A model family another CLI serves: Gemini (agy), GPT (Codex) | that CLI | the model, if a specific one is named |
+| An agent or its CLI: Claude, Codex, agy or Antigravity, Muse | that CLI | none: its default |
+| A model family another CLI serves: Gemini (agy), GPT (Codex), Muse models (Muse) | that CLI | the model, if a specific one is named |
 | A model your own CLI serves, such as Fable, Opus or Sonnet from Claude Code | your own CLI | that name |
 | A name you don't recognize, such as Astra | the CLI that lists it | its exact ID from that list |
 
@@ -94,6 +108,16 @@ For a name you don't recognize, look it up in every CLI's catalog:
 | Codex | `codex debug models` (JSON) | each model's `slug` and `display_name`; skip `"visibility": "hide"` |
 | agy | `agy models` | the ID in the first column and the name after it |
 | Claude Code | `claude --help`, under `--model` | the aliases (`fable`, `opus`, `sonnet`) or a full ID |
+| Muse | no catalog command; `muse model-profile show <id>` resolves a guess, and each run logs the model it used as `model_id` in its `run.model.configured` event | the ID |
+
+agy lists each model once per effort level (`gemini-4-argon-high`,
+`gemini-4-argon-medium`, …). The helper passes effort separately, so pass the
+bare ID with the suffix dropped (`gemini-4-argon`): agy accepted bare
+`gemini-3.8-flash` alongside `--effort` on 2026-10-16. If a bare ID is ever
+refused, use the `-high` entry for `--task thinking`. A Muse plan name is not a model ID: Muse refused
+`muse-wonder` while the plan's default model was `muse-wonder-1.0`, so leave
+`--model` off for Muse unless the user names an ID that `muse model-profile
+show` resolves.
 
 Users say the short name, not the ID, so match it case-insensitively as a whole
 word inside the ID or name, not as the entire string. "Astra" matches Codex's
@@ -109,6 +133,26 @@ only gets you an echo.
 
 Tell the user which CLI and model you picked in the same message that starts
 the consultation.
+
+### Metered counterparts
+
+Some counterparts bill per token rather than from a plan's allowance: a Gemini
+model that agy reaches through a cloud project, an API key, usage credits past a
+plan's limit. Which ones are metered on this machine is the user's fact, not
+this skill's: read it from the user's instruction file (`AGENTS.md` /
+`CLAUDE.md`), and if it says nothing, assume a CLI the user has not described is
+metered.
+
+- **A metered model runs only when the user named it for this consultation**
+  ("consult with Gemini", "ask Argon"). Never pick one yourself, as a fallback
+  when another CLI is unavailable, or for a skill that consults on its own
+  initiative. A monthly spend cap limits the damage; it does not make the spend
+  approved.
+- **A plan-limited counterpart** (a subscription with its own usage limits) is
+  like any other: no extra question.
+- Say in the start message which model ran and that it is metered. To see what
+  a consultation consumed afterward, `quota-strategy`'s `agent_usage.py` sums
+  per-model token counts from Codex, agy and Muse logs.
 
 ## Conduct the discussion
 
@@ -215,7 +259,7 @@ or failed peer turn, 2 = invalid command-line usage. Inspect `status`, not just 
 exit code. Peer stdout/stderr and worker errors are retained for diagnosis; do not
 paste raw logs into a public report without reviewing them.
 
-`start` accepts `--to claude|codex|agy` (the counterpart; defaults to Codex from
+`start` accepts `--to claude|codex|agy|muse` (the counterpart; defaults to Codex from
 Claude and to Claude from Codex; it may match `--from` when `--model` is given), `--task thinking|coding`, `--rounds N`, `--timeout SECONDS` (per
 turn; default 600), and `--model NAME` (the **counterpart's** model).
 
@@ -225,9 +269,10 @@ and any other judgment call run at **max** effort, whichever direction the
 consultation goes (Codex, or Claude such as Opus 5.5). Pass `--task coding`
 only when the counterpart's job is to draft or check code mechanically; it runs
 at **medium**. When a consultation mixes the two, use `thinking`. The adapters
-pass `--effort <level>` to `claude` and `agy`, and `-c model_reasoning_effort=<level>`
-to `codex`. All three accept `max` and `medium` (checked 2026-09-26: `claude --help`
+pass `--effort <level>` to `claude` and `agy`, `--reasoning-effort <level>` to
+`muse`, and `-c model_reasoning_effort=<level>` to `codex`. All three accept `max` and `medium` (checked 2026-09-26: `claude --help`
 lists `low, medium, high, xhigh, max`; `agy --help` lists `low|medium|high|max`;
+`muse exec --help` lists `none|minimal|low|medium|high|xhigh|max|ultra`;
 the Codex API's list of valid values is `none, minimal, low, medium, high,
 xhigh, max`). A Gemini model under agy follows the same rule; name it with
 `--model` when a specific one is wanted (`agy models` lists them). Without a model override, its CLI
@@ -295,6 +340,6 @@ The tests use fake CLIs and make no model calls. After adapter changes, also run
 a small real consultation in each direction: initial assessment, a follow-up that
 depends on initial context, and explicit confirmation of the exact final proposal.
 Verify inspection succeeds, mutation is denied, and the session ID stays constant.
-For agy, also ask the counterpart to write a file in the project, and confirm
-that no file appears.
+For agy and Muse, also ask the counterpart to write a file in the project, and
+confirm that no file appears.
 Record failures honestly; fixture tests alone do not prove live compatibility.
