@@ -77,9 +77,12 @@ is not an isolation boundary for hostile projects or compromised CLIs.
 
 Adapter flags were checked against Claude Code 2.1.277 and Codex CLI 0.155.0 on
 2026-09-18, and against agy 1.2.11 on Linux on 2026-09-26: a three-turn live
-consultation, with the context kept and the write denied. **The macOS
-`sandbox-exec` profile for agy has not been run yet.** On first use on a Mac,
-run the live check under Validation before relying on it. The Muse adapter was
+consultation, with the context kept and the write denied. On macOS it was
+checked against agy 1.4.0 with `gemini-4-argon` on 2026-10-16: a three-turn
+consultation (brief, a context-dependent follow-up, a confirm) on one session,
+and a separate write attempt that agy refused with no file created; running
+the adapter's `sandbox-exec` profile directly made `touch` fail with
+`Operation not permitted`, so the OS layer holds on its own too. The Muse adapter was
 checked against Muse Code 1.4.9 on Linux on 2026-10-16: a two-turn live
 consultation through the helper, the session and its context kept, and a write
 refused with no file created. Older releases may reject flags. Fail visibly rather than removing
