@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # SPDX-FileCopyrightText: 2026 contributors
 # SPDX-License-Identifier: Apache-2.0
-"""Persistent, bounded consultations among Claude Code, Codex and Antigravity, or between two
-models in one of them (Python 3.9+, Unix)."""
+"""Persistent, bounded consultations among Claude Code, Codex, Antigravity and Muse, or
+between two models in one of them (Python 3.9+, Unix)."""
 
 import argparse
 import contextlib
@@ -30,11 +30,15 @@ with that exact proposal or enumerate remaining objections. Missing access or
 evidence must be disclosed. The initiating agent owns implementation.
 """
 ACTIVE = {"running", "closing"}
-PEERS = ("claude", "codex", "agy")
+PEERS = ("claude", "codex", "agy", "muse")
 DEFAULT_PEER = {"claude": "codex", "codex": "claude"}
 # agy keeps its sign-in, conversations and logs here; it is the only persistent
 # path its sandbox may write.
 AGY_STATE = Path.home() / ".gemini" / "antigravity-cli"
+# Muse keeps sessions and logs under the first and its sign-in under the second.
+MUSE_STATE = (Path.home() / ".local" / "share" / "muse", Path.home() / ".config" / "muse")
+# CLIs whose writes are blocked by an OS sandbox around them, not by their own flags.
+SANDBOXED = {"agy": (AGY_STATE,), "muse": MUSE_STATE}
 
 
 class ConsultError(Exception):
@@ -86,17 +90,18 @@ def location(root, identity):
 EFFORT = {"thinking": "max", "coding": "medium"}
 
 
-def sandbox(project, scratch):
-    """Wrap agy so the filesystem is read-only except its state and a private temp dir.
+def sandbox(peer, project, scratch):
+    """Wrap a CLI so the filesystem is read-only except its state and a private temp dir.
 
     agy has no read-only flag, and in plan mode it wrote files without approval
     (agy 1.2.11, 2026-09-26), so the restriction is enforced by the OS instead.
+    Muse gets the same wrapper on top of its own read-only flags.
     """
-    writable = [str(AGY_STATE), str(scratch)]
+    writable = [str(path) for path in SANDBOXED[peer]] + [str(scratch)]
     if platform.system() == "Linux":
         bwrap = shutil.which("bwrap")
         if not bwrap:
-            raise ConsultError("agy consultations need bubblewrap (bwrap) on Linux")
+            raise ConsultError("%s consultations need bubblewrap (bwrap) on Linux" % peer)
         command = [bwrap, "--ro-bind", "/", "/", "--dev", "/dev", "--proc", "/proc"]
         for path in writable:
             command += ["--bind", path, path]
@@ -107,10 +112,10 @@ def sandbox(project, scratch):
         profile = ("(version 1)(allow default)(deny file-write*)"
                    '(allow file-write* %s (literal "/dev/null") (literal "/dev/tty"))' % rules)
         return ["/usr/bin/sandbox-exec", "-p", profile, "/usr/bin/env", "TMPDIR=" + str(scratch)]
-    raise ConsultError("agy consultations are supported on Linux and macOS only")
+    raise ConsultError("%s consultations are supported on Linux and macOS only" % peer)
 
 
-def adapter(state, scratch=None):
+def adapter(state, scratch=None, prompt=None):
     """Reapply permission controls on *every* turn, including resume."""
     executable = state["executable"]
     session = state.get("session_id")
@@ -118,7 +123,7 @@ def adapter(state, scratch=None):
     if state["peer"] == "agy":
         # Never --dangerously-skip-permissions, and never --mode plan: plan mode
         # let agy write files without approval.
-        command = sandbox(state["project"], scratch) + [
+        command = sandbox("agy", state["project"], scratch) + [
             executable, "--input-format", "stream-json", "--output-format", "stream-json",
             "--sandbox", "--disable-slash-commands", "--effort", effort]
         if session:
@@ -126,6 +131,23 @@ def adapter(state, scratch=None):
         if state.get("model"):
             command += ["--model", state["model"]]
         return command + ["-p="]
+    if state["peer"] == "muse":
+        # No shell: Muse's shell sandbox is bubblewrap too, which cannot nest
+        # inside ours (Muse Code 1.4.9, 2026-10-16). Untrusted workspace, so the
+        # project's own Muse rules and skills stay out; foreign context keeps
+        # other agents' personal rules and skills out. Skills installed for Muse
+        # itself have no per-run switch and stay loaded.
+        command = sandbox("muse", state["project"], scratch) + [
+            executable, "exec", "--json", "--no-foreign-personal-context",
+            "--disable-write", "--disable-shell", "--disable-web-tools",
+            "--disable-request-user-input",
+            "-c", "hooks.enabled=false", "-c", "plugins.enabled=false",
+            "--reasoning-effort", effort,
+            "--session-id", session or state["new_session_id"]]
+        if state.get("model"):
+            command += ["--model", state["model"]]
+        # Muse reads a prompt from a named file only, not from stdin.
+        return command + ["--prompt-file", str(prompt)]
     if state["peer"] == "claude":
         command = [executable, "-p", "--output-format", "json",
                    "--tools", "Read,Glob,Grep", "--allowedTools", "Read,Glob,Grep",
@@ -169,6 +191,17 @@ def parse_response(peer, raw):
         if result.get("denied_actions") and not (result.get("response") or "").strip():
             raise ConsultError("agy stopped on a denied action; inspect stdout.jsonl")
         session, answer = result.get("conversation_id"), result.get("response")
+    elif peer == "muse":
+        session, answer = None, None
+        for event in (json.loads(line) for line in raw.splitlines() if line.strip()):
+            session = (event.get("stream") or {}).get("id") or session
+            kind, payload = event.get("payload_type"), event.get("payload") or {}
+            if kind == "run.terminal.failed":
+                raise ConsultError("Muse run failed: %s" % payload.get("reason"))
+            if kind == "run.terminal.completed":
+                answer = payload.get("text")
+        if answer is None:
+            raise ConsultError("Muse output lacks run.terminal.completed; inspect stdout.jsonl")
     elif peer == "claude":
         result = json.loads(raw)
         if result.get("is_error") or result.get("subtype") != "success":
@@ -269,17 +302,18 @@ def worker(directory, lease_fd):
         env.pop("CLAUDECODE", None)
         stdin = job_dir / "prompt.md"
         scratch = None
+        if state["peer"] in SANDBOXED:
+            scratch = directory / (state["peer"] + "-tmp")
+            scratch.mkdir(mode=0o700, exist_ok=True)
         if state["peer"] == "agy":
             # agy reads prompts from stdin only as stream-json messages.
-            scratch = directory / "agy-tmp"
-            scratch.mkdir(mode=0o700, exist_ok=True)
             stdin = job_dir / "prompt.ndjson"
             stdin.write_text(json.dumps({"event": "user", "message": {
                 "role": "user", "content": (job_dir / "prompt.md").read_text()}}) + "\n")
         with stdin.open() as prompt, \
                 (job_dir / "stdout.jsonl").open("w") as output, \
                 (job_dir / "stderr.log").open("w") as errors:
-            process = subprocess.Popen(adapter(state, scratch), cwd=state["project"], env=env,
+            process = subprocess.Popen(adapter(state, scratch, job_dir / "prompt.md"), cwd=state["project"], env=env,
                                        stdin=prompt, stdout=output, stderr=errors,
                                        start_new_session=True)
             deadline = time.monotonic() + state["timeout"]
@@ -334,6 +368,29 @@ def check_agy(executable):
         if result.returncode != 0 or result.stdout.strip() != empty:
             raise ConsultError("agy has %s entries configured (or `agy %s list` failed); "
                                "consultations require none" % (command, command))
+
+
+def check_muse(executable):
+    """Refuse Muse with plugins or MCP servers configured, for the same reason as agy."""
+    for path in MUSE_STATE:
+        if not path.is_dir():
+            raise ConsultError("Muse has no %s; sign in with `muse login` first" % path)
+    result = subprocess.run([executable, "plugins", "list", "--json"], capture_output=True,
+                            text=True, timeout=60, stdin=subprocess.DEVNULL)
+    try:
+        plugins = json.loads(result.stdout).get("plugins")
+    except (ValueError, AttributeError):
+        plugins = None
+    if result.returncode != 0 or plugins != []:
+        raise ConsultError("Muse has plugins installed (or `muse plugins list` failed); "
+                           "consultations require none")
+    settings = MUSE_STATE[1] / "settings.json"
+    try:
+        servers = json.loads(settings.read_text()).get("mcpServers") if settings.exists() else None
+    except (ValueError, AttributeError):
+        raise ConsultError("Unable to read %s" % settings) from None
+    if servers:
+        raise ConsultError("Muse has MCP servers configured; consultations require none")
 
 
 def positive(value):
@@ -403,13 +460,15 @@ def main(argv=None):
             raise ConsultError("Required counterpart CLI not found on PATH: " + peer)
         if peer == "agy":
             check_agy(executable)
+        elif peer == "muse":
+            check_muse(executable)
         text = message(args.message_file)
         directory = root / str(uuid.uuid4())
         directory.mkdir(parents=True, mode=0o700)
         state = dict(id=directory.name, origin=args.origin, peer=peer, executable=executable,
                      project=str(project), model=args.model, task=args.task, timeout=args.timeout,
                      max_rounds=args.rounds, rounds=0, confirmed=False, jobs=[], session_id=None)
-        if peer == "claude":
+        if peer in ("claude", "muse"):
             state["new_session_id"] = str(uuid.uuid4())
         with locked(directory):
             state = launch(directory, state, text, "brief")

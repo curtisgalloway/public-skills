@@ -411,6 +411,20 @@ class PlanTests(SwarmCase):
     def names(self, plan):
         return [a["name"] for a in plan["arms"]]
 
+    def test_external_adds_a_twin_correctness_arm_beside_correctness(self):
+        code = patch_for("src/big.py", [f"x{i} = {i}" for i in range(80)])
+        _, plan = self.plan(code, "--external", "muse")
+        names = self.names(plan)
+        self.assertEqual(names[names.index("correctness") + 1], "correctness-muse")
+        twin = plan["arms"][names.index("correctness-muse")]
+        self.assertEqual((twin["model"], twin["mandate"]), ("external:muse", "correctness"))
+        self.assertTrue(any("muse" in r for r in plan["reasons"]))
+
+    def test_external_never_turns_light_into_two_reviewers(self):
+        _, plan = self.plan(patch_for("src/calc.py", ["def add(a, b):"]), "--external", "muse")
+        self.assertEqual(self.names(plan), ["light"])
+        self.assertTrue(any("not added" in r for r in plan["reasons"]))
+
     def test_prose_only_diff_is_light_at_any_size(self):
         _, plan = self.plan(patch_for("docs/guide.md", [f"line {i}" for i in range(800)]))
         self.assertEqual(plan["tier"], "light")
@@ -555,6 +569,39 @@ class RecheckTests(SwarmCase):
         _, data = self.verify("--arms", "recheck")
         self.assertEqual(len(data["findings"]), 1)
         self.assertEqual(len(data["dropped"]), 1)
+
+
+class CollectTests(SwarmCase):
+    def collect(self, text, arm="correctness-muse"):
+        stream = self.run / "stream.out"
+        stream.write_text(text)
+        return subprocess.run(
+            [sys.executable, str(SWARM), "collect", "--run", str(self.run), "--arm", arm,
+             "--stream", str(stream)],
+            capture_output=True, text=True, check=False,
+        )
+
+    def test_muse_event_stream_becomes_an_arm_file_that_verifies(self):
+        answer = "Here it is:\n```json\n" + json.dumps(
+            {"arm": "x", "status": "complete", "findings": [finding()]}) + "\n```"
+        events = [{"payload_type": "run.lifecycle.started", "payload": {}},
+                  {"payload_type": "run.terminal.completed", "payload": {"text": answer}}]
+        proc = self.collect("\n".join(json.dumps(e) for e in events))
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        arm = json.loads((self.run / "correctness-muse.json").read_text())
+        self.assertEqual((arm["arm"], len(arm["findings"])), ("correctness-muse", 1))
+        proc, data = self.verify("--arms", "correctness-muse")
+        self.assertEqual(data["arms"]["correctness-muse"]["status"], "OK")
+
+    def test_plain_text_answer_is_accepted(self):
+        proc = self.collect('{"status": "complete", "findings": []}')
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+
+    def test_no_findings_object_leaves_the_arm_failed(self):
+        proc = self.collect("I could not finish the review.")
+        self.assertEqual(proc.returncode, 1)
+        self.assertIn("ARM FAILED", proc.stderr)
+        self.assertFalse((self.run / "correctness-muse.json").exists())
 
 
 if __name__ == "__main__":

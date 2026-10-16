@@ -3,14 +3,21 @@
 # SPDX-License-Identifier: Apache-2.0
 """review-swarm: check reviewer findings against the code, and render the table.
 
-Three subcommands, stdlib only:
+Four subcommands, stdlib only:
 
-  plan --run DIR [--tier auto|light|standard|full] [--close] [--json]
+  plan --run DIR [--tier auto|light|standard|full] [--close] [--external CLI] [--json]
       Read DIR/diff.patch, pick the review tier from the diff's size, the
       kind of files it touches, and risk triggers in its changed lines, and
       write DIR/plan.json: the tier, the reasons, and the arms to launch
       with a model class and budget for each. The agent launches what the
-      plan says; it does not choose arms itself.
+      plan says; it does not choose arms itself. --external adds, outside
+      the light tier, a correctness-CLI arm with the correctness mandate and
+      model "external:CLI", run in that agent CLI instead of a subagent.
+
+  collect --run DIR --arm NAME --stream FILE
+      Turn an external arm's saved output (Muse's --json events, or plain
+      text) into DIR/NAME.json: the first JSON object with a findings list.
+      Without one, writes nothing, so verify reports the arm FAILED.
 
   verify --repo ROOT --run DIR [--arms a,b,c,d] [--slack N] [--json]
       Read DIR/<arm>.json for every arm (the arms in DIR/plan.json when
@@ -166,7 +173,8 @@ def arm_spec(name: str, code: bool, changed: int) -> dict:
             "tool_budget": budget[0], "wall_minutes": budget[1]}
 
 
-def make_plan(patch: str, tier: str = "auto", close: bool = False) -> dict:
+def make_plan(patch: str, tier: str = "auto", close: bool = False,
+              external: str | None = None) -> dict:
     files = diff_files(patch)
     changed = sum(len(v) for v in files.values())
     code_files = sorted(p for p in files if is_code(p))
@@ -221,6 +229,15 @@ def make_plan(patch: str, tier: str = "auto", close: bool = False) -> dict:
         for a in arms:
             if a["name"] == owners.get(label):
                 a["model"] = "strong"
+    # A second correctness arm on another vendor's model: the bug every same-vendor
+    # reviewer misses is the one a different model is most likely to see.
+    if external and chosen != "light":
+        twin = dict(arm_spec("correctness", True, changed), name=f"correctness-{external}",
+                    model=f"external:{external}", mandate="correctness")
+        arms.insert([a["name"] for a in arms].index("correctness") + 1, twin)
+        reasons.append(f"cross-vendor correctness arm on {external} (requested)")
+    elif external:
+        reasons.append(f"cross-vendor arm on {external} not added: the light tier is one reviewer")
     return {
         "schema": PLAN_SCHEMA,
         "tier": chosen,
@@ -242,7 +259,8 @@ def cmd_plan(args: argparse.Namespace) -> int:
     if not patch.is_file():
         print(f"missing precondition: {patch} not found", file=sys.stderr)
         return 3
-    plan = make_plan(patch.read_text(encoding="utf-8", errors="replace"), args.tier, args.close)
+    plan = make_plan(patch.read_text(encoding="utf-8", errors="replace"), args.tier, args.close,
+                     args.external)
     (run / "plan.json").write_text(json.dumps(plan, indent=2) + "\n", encoding="utf-8")
     if args.json:
         json.dump(plan, sys.stdout, indent=2)
@@ -810,6 +828,61 @@ def cmd_table(args: argparse.Namespace) -> int:
 
 
 # --------------------------------------------------------------------------
+# External arms
+# --------------------------------------------------------------------------
+
+
+def external_name(value: str) -> str:
+    if not re.fullmatch(r"[a-z][a-z0-9]*", value):
+        raise argparse.ArgumentTypeError("a CLI name: lowercase letters and digits")
+    return value
+
+
+def final_text(raw: str) -> str:
+    """The final answer in a CLI's saved output: Muse's run.terminal.completed text when
+    the output is its --json event stream, otherwise the output itself."""
+    answer = None
+    for line in raw.splitlines():
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            return raw
+        if isinstance(event, dict) and event.get("payload_type") == "run.terminal.completed":
+            answer = (event.get("payload") or {}).get("text")
+    return raw if answer is None else answer
+
+
+def arm_object(text: str, arm: str) -> dict | None:
+    """The first JSON object in text that carries a findings list, fences allowed."""
+    decoder = json.JSONDecoder()
+    for start in (i for i, ch in enumerate(text) if ch == "{"):
+        try:
+            obj, _ = decoder.raw_decode(text, start)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(obj, dict) and isinstance(obj.get("findings"), list):
+            obj["arm"] = arm
+            return obj
+    return None
+
+
+def cmd_collect(args: argparse.Namespace) -> int:
+    run = Path(args.run).resolve()
+    stream = Path(args.stream)
+    if not stream.is_file():
+        print(f"!!! ARM FAILED: {args.arm} — no output at {stream}", file=sys.stderr)
+        return 1
+    obj = arm_object(final_text(stream.read_text(encoding="utf-8", errors="replace")), args.arm)
+    if obj is None:
+        # Leave <arm>.json absent, so verify reports the arm as FAILED, never as empty.
+        print(f"!!! ARM FAILED: {args.arm} — no findings object in {stream}", file=sys.stderr)
+        return 1
+    (run / f"{args.arm}.json").write_text(json.dumps(obj, indent=2) + "\n", encoding="utf-8")
+    print(f"wrote {run / (args.arm + '.json')}: {len(obj['findings'])} finding(s)")
+    return 0
+
+
+# --------------------------------------------------------------------------
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -822,8 +895,17 @@ def main(argv: list[str] | None = None) -> int:
                    help="override the computed tier (the user asked for one)")
     p.add_argument("--close", action="store_true",
                    help="this is the closing review of a pull request or milestone")
+    p.add_argument("--external", metavar="CLI", type=external_name,
+                   help="add a correctness arm run in another agent CLI (e.g. muse)")
     p.add_argument("--json", action="store_true", help="emit plan.json on stdout")
     p.set_defaults(func=cmd_plan)
+
+    c = sub.add_parser("collect", help="write <arm>.json from an external CLI's output")
+    c.add_argument("--run", required=True, help="run directory")
+    c.add_argument("--arm", required=True, help="arm name, as in plan.json")
+    c.add_argument("--stream", required=True,
+                   help="the CLI's saved output: Muse --json events, or plain text")
+    c.set_defaults(func=cmd_collect)
 
     v = sub.add_parser("verify", help="check every arm's findings against the checkout")
     v.add_argument("--repo", required=True, help="head checkout root")

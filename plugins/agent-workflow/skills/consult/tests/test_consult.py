@@ -471,3 +471,127 @@ class AgyConsultationTests(ConsultationTests):
     for name in [n for n in dir(ConsultationTests) if n.startswith("test_")]:
         locals()[name] = None
     del name
+
+
+FAKE_MUSE = r'''
+import json, os, pathlib, sys
+args = sys.argv[1:]
+if args[:2] == ["plugins", "list"]:
+    print(os.environ.get("FAKE_MUSE_PLUGINS", '{"plugins": []}'))
+    sys.exit(0)
+session = args[args.index("--session-id") + 1]
+prompt = pathlib.Path(args[args.index("--prompt-file") + 1]).read_text()
+root = pathlib.Path(os.environ["FAKE_STATE"])
+history_path = root / session
+history = json.loads(history_path.read_text()) if history_path.exists() else []
+history.append({"prompt": prompt, "args": args})
+history_path.write_text(json.dumps(history))
+try:
+    pathlib.Path("written-by-peer.txt").write_text("x")
+    wrote = "yes"
+except OSError:
+    wrote = "no"
+stream = {"kind": "session", "id": session}
+answer = "Retained: " + history[0]["prompt"][-12:] + " Turn: " + str(len(history)) + " wrote=" + wrote
+print(json.dumps({"stream": stream, "payload_type": "run.model.configured",
+                  "payload": {"model_id": "muse-test"}}))
+print(json.dumps({"stream": stream, "payload_type": "run.terminal.completed",
+                  "payload": {"terminal": "completed", "text": answer}}))
+'''
+
+
+class MuseAdapterTests(unittest.TestCase):
+    def state(self, **extra):
+        return {**dict(executable="/bin/muse", peer="muse", project="/work", session_id=None,
+                       new_session_id="s-new"), **extra}
+
+    @unittest.skipUnless(consult.platform.system() == "Linux", "bwrap wrapper is Linux-only")
+    def test_muse_is_read_only_without_shell_inside_bubblewrap(self):
+        with unittest.mock.patch.object(consult.shutil, "which", return_value="/usr/bin/bwrap"):
+            command = consult.adapter(self.state(), Path("/scratch"), Path("/job/prompt.md"))
+        binds = [command[i + 1] for i, arg in enumerate(command) if arg == "--bind"]
+        self.assertEqual(binds, [str(p) for p in consult.MUSE_STATE] + ["/scratch"])
+        muse = command[command.index("/bin/muse"):]
+        for flag in ("--disable-write", "--disable-shell", "--no-foreign-personal-context",
+                     "--disable-request-user-input"):
+            self.assertIn(flag, muse)
+        self.assertNotIn("--yolo", muse)
+        self.assertNotIn("--trust-workspace", muse)
+        self.assertEqual(muse[muse.index("--session-id") + 1], "s-new")
+        self.assertEqual(muse[muse.index("--reasoning-effort") + 1], "max")
+        self.assertEqual(muse[-2:], ["--prompt-file", "/job/prompt.md"])
+
+    def test_muse_resume_reuses_the_session(self):
+        with unittest.mock.patch.object(consult, "sandbox", return_value=[]):
+            command = consult.adapter(self.state(session_id="s-1", task="coding",
+                                                 model="m-1"), Path("/s"), Path("/p"))
+        self.assertEqual(command[command.index("--session-id") + 1], "s-1")
+        self.assertEqual(command[command.index("--reasoning-effort") + 1], "medium")
+        self.assertEqual(command[command.index("--model") + 1], "m-1")
+
+    def test_muse_parser(self):
+        stream = {"kind": "session", "id": "s-1"}
+        ok = "\n".join(json.dumps(e) for e in (
+            {"stream": stream, "payload_type": "run.lifecycle.started", "payload": {}},
+            {"stream": stream, "payload_type": "run.terminal.completed",
+             "payload": {"text": "Answer"}}))
+        self.assertEqual(consult.parse_response("muse", ok), ("s-1", "Answer"))
+        failed = json.dumps({"stream": stream, "payload_type": "run.terminal.failed",
+                             "payload": {"reason": "model does not exist"}})
+        with self.assertRaisesRegex(consult.ConsultError, "does not exist"):
+            consult.parse_response("muse", failed)
+        with self.assertRaises(consult.ConsultError):
+            consult.parse_response("muse", json.dumps({"stream": stream}))
+
+
+class MuseConsultationTests(ConsultationTests):
+    """Reuses the fixture; runs only the Muse-specific cases below."""
+
+    def setUp(self):
+        super().setUp()
+        muse = self.bin / "muse"
+        muse.write_text("#!" + sys.executable + "\n" + FAKE_MUSE)
+        muse.chmod(0o700)
+        self.home = self.root / "home"
+        share, config = self.home / ".local" / "share" / "muse", self.home / ".config" / "muse"
+        share.mkdir(parents=True)
+        config.mkdir(parents=True)
+        self.env["HOME"] = str(self.home)
+        self.config = config
+        self.env["FAKE_STATE"] = str(share)
+
+    def start_muse(self):
+        return subprocess.run(self.command("start", "--from", "claude", "--to", "muse",
+                                           "--project", str(self.project), "--message-file", "-"),
+                              input="Brief", text=True, capture_output=True, env=self.env)
+
+    def test_installed_plugin_is_refused(self):
+        self.env["FAKE_MUSE_PLUGINS"] = '{"plugins": [{"id": "x"}]}'
+        result = self.start_muse()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("plugins", result.stdout)
+
+    def test_configured_mcp_server_is_refused(self):
+        (self.config / "settings.json").write_text('{"mcpServers": {"github": {}}}')
+        result = self.start_muse()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("MCP", result.stdout)
+
+    @unittest.skipUnless(bwrap_works(), "needs a working bubblewrap")
+    def test_muse_consultation_is_read_only_and_resumes(self):
+        identity = self.start("claude", "Brief token maple", "--to", "muse")
+        first = self.wait(identity)
+        self.assertEqual(first["status"], "ready", first)
+        self.run_cli("reply", identity, "--message-file", "-", text="Follow-up")
+        second = self.wait(identity)
+        self.assertEqual(second["status"], "ready", second)
+        self.assertEqual(first["session_id"], second["session_id"])
+        answer = self.run_cli("read", identity)["messages"][-1]["answer"]
+        self.assertIn("token maple", answer)
+        self.assertIn("Turn: 2", answer)
+        self.assertIn("wrote=no", answer)
+        self.assertFalse((self.project / "written-by-peer.txt").exists())
+
+    for name in [n for n in dir(ConsultationTests) if n.startswith("test_")]:
+        locals()[name] = None
+    del name

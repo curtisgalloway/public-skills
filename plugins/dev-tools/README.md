@@ -72,6 +72,8 @@ skills. Installing both loads every skill twice.
     history, the project's written rules, performance) when the change touches secrets or
     auth, concurrency or a persisted format, or closes a pull request or milestone. The
     correctness reviewer runs on the strong model, the others on a cheaper one.
+    `--external <cli>` adds a second correctness reviewer run in another agent CLI (Muse,
+    for one), and `swarm.py collect` turns its printed answer into a checked arm file.
   - Every reviewer may report only what it can quote verbatim from the checkout. A stdlib
     checker (`swarm.py verify`) re-reads every cited `file:line`, drops findings whose quote is
     not there, merges plain duplicates, and marks findings that touch no hunk of the diff. Any

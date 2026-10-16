@@ -21,6 +21,9 @@ evaluation; add other terms as the documents that use them are updated.
 | Usage credits | Paid capacity used outside a subscription's included allowance or on a credit-based plan; rates depend on the provider and agreement. |
 | Speed mode | A processing-speed choice such as Standard, Fast, or Ultrafast, separate from model capability and reasoning effort. |
 | Token / cached input | A unit of model input or output / input reused from a provider cache, potentially billed at a different rate. |
+| Agent CLI | A coding agent's command-line program: `claude` (Claude Code), `codex` (Codex), `agy` (Google Antigravity, serving Gemini models), `muse` (Muse Code, serving Muse models). Each keeps its own session logs. |
+| Metered / plan-limited | Billed per token, even under a monthly spend cap / drawn from a subscription's own usage limits. Which one a CLI is depends on the user's account, so skills read it from the user's instruction file. |
+| External arm | In `review-swarm`, a reviewer run in another agent CLI rather than as a subagent, so one review spans more than one vendor's model. |
 | Specification (spec) | A document describing hardware behavior precisely enough to implement a driver. |
 | Driver | Software through which an operating system controls a device. |
 | OS / kernel | Operating system / its core that manages hardware and supplies driver interfaces. |

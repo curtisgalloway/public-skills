@@ -1,6 +1,6 @@
 ---
 name: quota-strategy
-description: Stretch Claude or Codex subscription allowances across long unattended runs by reading available usage pools, reserving capacity for the orchestrator, and routing implementation to a cheaper model or the other provider. Works with either orchestrator and with one or both providers configured. Use when the user mentions quota, usage limits, "stretch my quota", running overnight, or choosing which model or agent should implement a unit of work.
+description: Stretch Claude or Codex subscription allowances across long unattended runs by reading available usage pools, reserving capacity for the orchestrator, and routing implementation to a cheaper model or the other provider. Works with either orchestrator and with one or both providers configured. Also sums per-model token usage from Codex, agy and Muse session logs, and a Google Cloud project's Vertex AI token count. Use when the user mentions quota, usage limits, "stretch my quota", token usage or spend, running overnight, or choosing which model or agent should implement a unit of work.
 ---
 
 <!--
@@ -68,6 +68,34 @@ event. Later tool output, a resumed session, or copying a file cannot make old u
 Malformed lines, empty readings, and records without a usable timestamp are skipped;
 exit 1 means no timestamped reading was found. It needs no token or network call.
 
+### Token counts from the other CLIs
+
+A percentage says how much of a pool is left; it does not say what a run consumed, and
+per-token providers have no pool at all. For that, sum the CLIs' own session logs:
+
+```bash
+python3 <skill-dir>/scripts/agent_usage.py [--days 7] [--source codex|agy|muse] \
+  [--vertex <gcp-project>] [--json]
+```
+
+It prints one row per CLI, day and model: calls, input, cached input, output and
+reasoning tokens. Codex's figures come from the running totals in its rollout logs, agy's
+from the per-call rows in `~/.gemini/antigravity-cli/conversations/*.db`, Muse's from the
+per-call usage records in `~/.local/share/muse/sessions/` (subagent logs included, and
+attributed to the subagent's own model). Nothing is sent anywhere. The agy and Muse formats
+are undocumented; the script reports a skipped file on stderr rather than a guessed number,
+and a CLI update can make a source go quiet, so a zero is "nothing found", not proof of
+none.
+
+`--vertex <project>` adds the provider's own count for a Google Cloud project that a CLI
+bills Gemini through (agy names it under `gcp.project` in its `settings.json`), read from
+Cloud Monitoring's Vertex AI token metric with `gcloud auth print-access-token`. It needs
+`monitoring.timeSeries.list` on that project. It reports tokens, not money: dollar figures
+need the project's billing export or Billing Viewer access. Traffic a CLI sends through its
+own sign-in instead of the project does not appear there.
+
+Exit 0 is a reading, 1 is no usage in the window, 3 is a failed `--vertex` call.
+
 For unattended routing, require a reading no older than 15 minutes by default and taken
 after any applicable reset. Record a user override of that freshness limit. Stale,
 cache-only without a known observation time, missing, or failed readings mean unknown
@@ -102,6 +130,10 @@ Apply these rules in order; a fallback never overrides an earlier exclusion:
    | 60–75% | Prefer an eligible model on the other provider. Otherwise use a cheaper home-provider model. Reruns use an eligible implementer, not the main model. |
    | 75–85% | Use an eligible model on the other provider. Use a cheaper home-provider model only if the alternative is unavailable or cannot run the unit. |
 
+   **Other CLIs (agy, Muse).** How each one bills is the user's fact, not the skill's:
+   read it from the user's instruction file, or ask. A CLI on a capped subscription is a
+   pool like any other. A per-token one, even under a monthly spend cap, is never chosen
+   by routing: use it only when the user names it for the task, and say which model ran.
 4. **If nothing is eligible, checkpoint and wait or stop.** Report the blocking pool and
    its reset time when known. Re-read usage after a reset before continuing; a timestamp
    passing is not itself a new reading. Do not bounce work between two exhausted providers.
