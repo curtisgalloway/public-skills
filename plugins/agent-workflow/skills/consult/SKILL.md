@@ -362,3 +362,10 @@ Verify inspection succeeds, mutation is denied, and the session ID stays constan
 For agy and Muse, also ask the counterpart to write a file in the project, and
 confirm that no file appears.
 Record failures honestly; fixture tests alone do not prove live compatibility.
+
+The issue #117 fix was checked live on macOS with agy 1.4.0 and
+`gemini-4-argon`: `view_file` inspection succeeded, a follow-up retained the
+file's values without rereading, and a final confirmation kept the same session.
+A separate write request was refused by the model before any write-tool call;
+no file appeared. Independently, `touch` under the adapter's OS sandbox failed
+with `Operation not permitted` and created no file.
