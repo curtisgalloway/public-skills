@@ -29,6 +29,15 @@ to achieve consensus. When asked to confirm a final proposal, explicitly agree
 with that exact proposal or enumerate remaining objections. Missing access or
 evidence must be disclosed. The initiating agent owns implementation.
 """
+# Per-peer additions. A headless agy run cannot approve a shell command, and one
+# denied command ends the turn with no answer (agy 1.4.0, 2026-10-16), so the
+# peer is steered to the file tools it can use unattended.
+PEER_TOOLS = {"agy": """Shell commands are unavailable in this session: nobody can approve them,
+and a single attempt ends your turn without an answer. Inspect the project only
+with your file tools (view_file, list_dir, grep_search, find_by_name). If the
+evidence needs a command, name it and say why; the initiating agent can run it
+and share the result.
+"""}
 ACTIVE = {"running", "closing"}
 PEERS = ("claude", "codex", "agy", "muse")
 DEFAULT_PEER = {"claude": "codex", "codex": "claude"}
@@ -188,8 +197,13 @@ def parse_response(peer, raw):
         if len(results) != 1 or results[0].get("status") != "SUCCESS":
             raise ConsultError("agy did not return one successful result; inspect stdout.jsonl")
         result = results[0]
-        if result.get("denied_actions") and not (result.get("response") or "").strip():
-            raise ConsultError("agy stopped on a denied action; inspect stdout.jsonl")
+        denied = result.get("denied_actions")
+        if denied and not (result.get("response") or "").strip():
+            names = ", ".join(sorted({str(action.get("display_name") or action.get("action"))
+                                      for action in denied if isinstance(action, dict)}))
+            raise ConsultError("agy stopped on a denied action (%s); inspect stdout.jsonl. "
+                               "Close this consultation and gather that evidence yourself."
+                               % (names or "unnamed"))
         session, answer = result.get("conversation_id"), result.get("response")
     elif peer == "muse":
         session, answer = None, None
@@ -250,7 +264,8 @@ def launch(directory, state, text, phase):
     job_dir = directory / str(number)
     job_dir.mkdir(mode=0o700)
     (job_dir / "message.md").write_text(text)
-    (job_dir / "prompt.md").write_text(PEER_INSTRUCTIONS + "\nPhase: " + phase + "\n\n" + text)
+    preamble = PEER_INSTRUCTIONS + PEER_TOOLS.get(state["peer"], "")
+    (job_dir / "prompt.md").write_text(preamble + "\nPhase: " + phase + "\n\n" + text)
     job = {"number": number, "phase": phase, "status": "running"}
     state["jobs"].append(job)
     state.update(status="running", error=None, outcome=None, summary=None)
@@ -284,6 +299,21 @@ def terminate(process):
     except subprocess.TimeoutExpired:
         os.killpg(process.pid, signal.SIGKILL)
         process.wait()
+
+
+def peer_exit_error(peer, returncode, stderr):
+    """Explain a blocked macOS sandbox without relaxing peer restrictions."""
+    diagnostic = f"Peer exited with status {returncode}; inspect stderr.log"
+    if peer in SANDBOXED and returncode == 71 and (
+        "sandbox-exec: sandbox_apply: Operation not permitted" in stderr
+    ):
+        diagnostic += (
+            ". The host sandbox prevented the peer sandbox from starting. "
+            "Close the failed consultation, then start a fresh one through the "
+            "host's normal approval mechanism. Keep the peer sandbox enabled; "
+            "do not remove its restrictions."
+        )
+    return diagnostic
 
 
 def worker(directory, lease_fd):
@@ -327,7 +357,9 @@ def worker(directory, lease_fd):
                     raise ConsultError("Peer timed out; no automatic retry")
                 time.sleep(0.1)
             if process.returncode != 0:
-                raise ConsultError("Peer exited with status %s; inspect stderr.log" % process.returncode)
+                raise ConsultError(peer_exit_error(
+                    state["peer"], process.returncode,
+                    (job_dir / "stderr.log").read_text(errors="replace")))
         session, answer = parse_response(state["peer"], (job_dir / "stdout.jsonl").read_text())
         if state.get("session_id") and session != state["session_id"]:
             raise ConsultError("Peer changed session ID during resume")

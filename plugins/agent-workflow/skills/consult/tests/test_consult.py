@@ -60,6 +60,65 @@ else:
 '''
 
 
+class PeerExitErrorTests(unittest.TestCase):
+    """Check launch diagnostics and the worker's failure state."""
+
+    def test_worker_records_blocked_sandbox_without_retry(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            job = directory / "1"
+            job.mkdir()
+            (job / "prompt.md").write_text("Inspect the project")
+            consult.save(directory / "state.json", {
+                "peer": "agy", "project": temporary, "timeout": 10,
+                "status": "running", "session_id": None,
+                "jobs": [{"number": 1, "status": "running"}],
+            })
+            command = [sys.executable, "-c", (
+                "import sys; "
+                "sys.stderr.write('sandbox-exec: sandbox_apply: "
+                "Operation not permitted\\n'); "
+                "sys.exit(71)"
+            )]
+            lease = os.open(directory / "lease", os.O_CREAT | os.O_RDWR, 0o600)
+            with unittest.mock.patch.object(
+                    consult, "adapter", return_value=command) as adapter, \
+                    unittest.mock.patch.object(consult.signal, "signal"):
+                consult.worker(directory, lease)
+            state = consult.load(directory)
+            self.assertEqual(state["status"], "failed")
+            self.assertEqual(state["jobs"][0]["status"], "failed")
+            self.assertIsNone(state["session_id"])
+            self.assertIn("host sandbox prevented", state["error"])
+            self.assertIn("sandbox_apply", (job / "stderr.log").read_text())
+            self.assertFalse((job / "answer.md").exists())
+            adapter.assert_called_once()
+
+    def test_blocked_sandbox_has_actionable_recovery(self):
+        stderr = "sandbox-exec: sandbox_apply: Operation not permitted\n"
+        for peer in ("agy", "muse"):
+            with self.subTest(peer=peer):
+                error = consult.peer_exit_error(peer, 71, stderr)
+                self.assertIn("host sandbox prevented", error)
+                self.assertIn("Close the failed consultation", error)
+                self.assertIn("host's normal approval mechanism", error)
+                self.assertIn("Keep the peer sandbox enabled", error)
+
+    def test_unrelated_failures_keep_generic_diagnostic(self):
+        signature = "sandbox-exec: sandbox_apply: Operation not permitted"
+        for peer, code, stderr in (
+            ("agy", 7, signature),
+            ("agy", 71, "authentication unavailable"),
+            ("codex", 71, signature),
+            ("claude", 71, signature),
+        ):
+            with self.subTest(peer=peer, code=code, stderr=stderr):
+                self.assertEqual(
+                    consult.peer_exit_error(peer, code, stderr),
+                    f"Peer exited with status {code}; inspect stderr.log",
+                )
+
+
 class ConsultationTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
@@ -422,6 +481,29 @@ class AgyAdapterTests(unittest.TestCase):
         with self.assertRaises(consult.ConsultError):
             consult.parse_response("agy", json.dumps({"event": "init", "conversation_id": "c-1"}))
 
+    def test_denied_command_is_named(self):
+        # The shape agy 1.4.0 returned when a headless review tried `ls` (issue #117).
+        result = {"conversation_id": "c-1", "status": "SUCCESS", "response": "",
+                  "denied_actions": [{"action": "command", "display_name": "RunCommand"}]}
+        with self.assertRaisesRegex(consult.ConsultError, r"denied action \(RunCommand\)"):
+            consult.parse_response("agy", json.dumps({"event": "result", "result": result}))
+
+    def test_denied_action_with_an_answer_is_kept(self):
+        result = {"conversation_id": "c-1", "status": "SUCCESS", "response": "Answer",
+                  "denied_actions": [{"action": "command", "display_name": "RunCommand"}]}
+        self.assertEqual(consult.parse_response(
+            "agy", json.dumps({"event": "result", "result": result})), ("c-1", "Answer"))
+
+    def test_only_agy_prompts_steer_away_from_shell_commands(self):
+        for peer, steered in (("agy", True), ("codex", False), ("claude", False), ("muse", False)):
+            with tempfile.TemporaryDirectory() as directory, \
+                    unittest.mock.patch.object(consult.subprocess, "Popen"):
+                consult.launch(Path(directory), {"peer": peer, "jobs": []}, "Brief", "initial")
+                prompt = (Path(directory) / "1" / "prompt.md").read_text()
+            self.assertEqual("Shell commands are unavailable" in prompt, steered, peer)
+            self.assertTrue(prompt.startswith(consult.PEER_INSTRUCTIONS))
+            self.assertTrue(prompt.endswith("Phase: initial\n\nBrief"))
+
 
 class AgyConsultationTests(ConsultationTests):
     """Reuses the fixture; runs only the agy-specific cases below."""
@@ -470,6 +552,8 @@ class AgyConsultationTests(ConsultationTests):
         self.assertIn("Turn: 2", answer)
         self.assertIn("wrote=no", answer)
         self.assertFalse((self.project / "written-by-peer.txt").exists())
+        history = json.loads((self.fake_state / first["session_id"]).read_text())
+        self.assertTrue(all("Shell commands are unavailable" in turn["prompt"] for turn in history))
 
     # The inherited Claude/Codex cases already ran in ConsultationTests.
     for name in [n for n in dir(ConsultationTests) if n.startswith("test_")]:

@@ -52,7 +52,21 @@ Both adapters enforce restrictions on every invocation, including resume:
 | Muse | The same OS sandbox, writable only for Muse's state and sign-in (`~/.local/share/muse`, `~/.config/muse`) and a private temp directory; `--disable-write`, `--disable-shell`, web tools off, hooks and plugins off; the workspace is left untrusted and other agents' personal rules and skills are excluded; refused if any plugin or MCP server is configured |
 
 These controls are deliberately different. Claude and Muse cannot run shell
-commands; Codex can run commands within its read-only sandbox.
+commands; Codex can run commands within its read-only sandbox. agy has a shell
+tool but cannot use it: a headless run has nobody to approve a command, and one
+denied command ends the turn with an empty answer (agy 1.4.0, 2026-10-16, issue
+#117). So each agy prompt tells it to inspect with its file tools (`view_file`,
+`list_dir`, `grep_search`, `find_by_name`) and to ask you for any command's
+output. If it tries a command anyway, the turn fails with "agy stopped on a
+denied action (RunCommand)": close the consultation, run the command yourself,
+and start a fresh one with the output in the brief. Do not approve commands by
+adding rules to agy's configuration; that changes the user's agent setup.
+
+On macOS, exit status 71 with `sandbox-exec: sandbox_apply: Operation not
+permitted` means the host blocked the peer sandbox from starting. The helper
+reports this separately from a denied tool action. Close the failed consultation
+and start a fresh one through the host's normal approval mechanism, keeping the
+peer sandbox enabled. The helper does not retry or request approval itself.
 
 Muse's shell is off because its own shell sandbox is also bubblewrap, which
 cannot start inside the outer one ("No permissions to create a new namespace",
@@ -387,3 +401,10 @@ Verify inspection succeeds, mutation is denied, and the session ID stays constan
 For agy and Muse, also ask the counterpart to write a file in the project, and
 confirm that no file appears.
 Record failures honestly; fixture tests alone do not prove live compatibility.
+
+The issue #117 fix was checked live on macOS with agy 1.4.0 and
+`gemini-4-argon`: `view_file` inspection succeeded, a follow-up retained the
+file's values without rereading, and a final confirmation kept the same session.
+A separate write request was refused by the model before any write-tool call;
+no file appeared. Independently, `touch` under the adapter's OS sandbox failed
+with `Operation not permitted` and created no file.
