@@ -52,7 +52,15 @@ Both adapters enforce restrictions on every invocation, including resume:
 | Muse | The same OS sandbox, writable only for Muse's state and sign-in (`~/.local/share/muse`, `~/.config/muse`) and a private temp directory; `--disable-write`, `--disable-shell`, web tools off, hooks and plugins off; the workspace is left untrusted and other agents' personal rules and skills are excluded; refused if any plugin or MCP server is configured |
 
 These controls are deliberately different. Claude and Muse cannot run shell
-commands; Codex can run commands within its read-only sandbox.
+commands; Codex can run commands within its read-only sandbox. agy has a shell
+tool but cannot use it: a headless run has nobody to approve a command, and one
+denied command ends the turn with an empty answer (agy 1.4.0, 2026-10-16, issue
+#117). So each agy prompt tells it to inspect with its file tools (`view_file`,
+`list_dir`, `grep_search`, `find_by_name`) and to ask you for any command's
+output. If it tries a command anyway, the turn fails with "agy stopped on a
+denied action (RunCommand)": close the consultation, run the command yourself,
+and start a fresh one with the output in the brief. Do not approve commands by
+adding rules to agy's configuration; that changes the user's agent setup.
 
 Muse's shell is off because its own shell sandbox is also bubblewrap, which
 cannot start inside the outer one ("No permissions to create a new namespace",

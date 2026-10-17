@@ -422,6 +422,29 @@ class AgyAdapterTests(unittest.TestCase):
         with self.assertRaises(consult.ConsultError):
             consult.parse_response("agy", json.dumps({"event": "init", "conversation_id": "c-1"}))
 
+    def test_denied_command_is_named(self):
+        # The shape agy 1.4.0 returned when a headless review tried `ls` (issue #117).
+        result = {"conversation_id": "c-1", "status": "SUCCESS", "response": "",
+                  "denied_actions": [{"action": "command", "display_name": "RunCommand"}]}
+        with self.assertRaisesRegex(consult.ConsultError, r"denied action \(RunCommand\)"):
+            consult.parse_response("agy", json.dumps({"event": "result", "result": result}))
+
+    def test_denied_action_with_an_answer_is_kept(self):
+        result = {"conversation_id": "c-1", "status": "SUCCESS", "response": "Answer",
+                  "denied_actions": [{"action": "command", "display_name": "RunCommand"}]}
+        self.assertEqual(consult.parse_response(
+            "agy", json.dumps({"event": "result", "result": result})), ("c-1", "Answer"))
+
+    def test_only_agy_prompts_steer_away_from_shell_commands(self):
+        for peer, steered in (("agy", True), ("codex", False), ("claude", False), ("muse", False)):
+            with tempfile.TemporaryDirectory() as directory, \
+                    unittest.mock.patch.object(consult.subprocess, "Popen"):
+                consult.launch(Path(directory), {"peer": peer, "jobs": []}, "Brief", "initial")
+                prompt = (Path(directory) / "1" / "prompt.md").read_text()
+            self.assertEqual("Shell commands are unavailable" in prompt, steered, peer)
+            self.assertTrue(prompt.startswith(consult.PEER_INSTRUCTIONS))
+            self.assertTrue(prompt.endswith("Phase: initial\n\nBrief"))
+
 
 class AgyConsultationTests(ConsultationTests):
     """Reuses the fixture; runs only the agy-specific cases below."""
@@ -470,6 +493,8 @@ class AgyConsultationTests(ConsultationTests):
         self.assertIn("Turn: 2", answer)
         self.assertIn("wrote=no", answer)
         self.assertFalse((self.project / "written-by-peer.txt").exists())
+        history = json.loads((self.fake_state / first["session_id"]).read_text())
+        self.assertTrue(all("Shell commands are unavailable" in turn["prompt"] for turn in history))
 
     # The inherited Claude/Codex cases already ran in ConsultationTests.
     for name in [n for n in dir(ConsultationTests) if n.startswith("test_")]:
