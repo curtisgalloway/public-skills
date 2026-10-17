@@ -301,6 +301,21 @@ def terminate(process):
         process.wait()
 
 
+def peer_exit_error(peer, returncode, stderr):
+    """Explain a blocked macOS sandbox without relaxing peer restrictions."""
+    diagnostic = f"Peer exited with status {returncode}; inspect stderr.log"
+    if peer in SANDBOXED and returncode == 71 and (
+        "sandbox-exec: sandbox_apply: Operation not permitted" in stderr
+    ):
+        diagnostic += (
+            ". The host sandbox prevented the peer sandbox from starting. "
+            "Close the failed consultation, then start a fresh one through the "
+            "host's normal approval mechanism. Keep the peer sandbox enabled; "
+            "do not remove its restrictions."
+        )
+    return diagnostic
+
+
 def worker(directory, lease_fd):
     process = None
     state = load(directory)
@@ -342,7 +357,9 @@ def worker(directory, lease_fd):
                     raise ConsultError("Peer timed out; no automatic retry")
                 time.sleep(0.1)
             if process.returncode != 0:
-                raise ConsultError("Peer exited with status %s; inspect stderr.log" % process.returncode)
+                raise ConsultError(peer_exit_error(
+                    state["peer"], process.returncode,
+                    (job_dir / "stderr.log").read_text(errors="replace")))
         session, answer = parse_response(state["peer"], (job_dir / "stdout.jsonl").read_text())
         if state.get("session_id") and session != state["session_id"]:
             raise ConsultError("Peer changed session ID during resume")

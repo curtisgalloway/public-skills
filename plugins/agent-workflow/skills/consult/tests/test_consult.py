@@ -60,6 +60,65 @@ else:
 '''
 
 
+class PeerExitErrorTests(unittest.TestCase):
+    """Check launch diagnostics and the worker's failure state."""
+
+    def test_worker_records_blocked_sandbox_without_retry(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            job = directory / "1"
+            job.mkdir()
+            (job / "prompt.md").write_text("Inspect the project")
+            consult.save(directory / "state.json", {
+                "peer": "agy", "project": temporary, "timeout": 10,
+                "status": "running", "session_id": None,
+                "jobs": [{"number": 1, "status": "running"}],
+            })
+            command = [sys.executable, "-c", (
+                "import sys; "
+                "sys.stderr.write('sandbox-exec: sandbox_apply: "
+                "Operation not permitted\\n'); "
+                "sys.exit(71)"
+            )]
+            lease = os.open(directory / "lease", os.O_CREAT | os.O_RDWR, 0o600)
+            with unittest.mock.patch.object(
+                    consult, "adapter", return_value=command) as adapter, \
+                    unittest.mock.patch.object(consult.signal, "signal"):
+                consult.worker(directory, lease)
+            state = consult.load(directory)
+            self.assertEqual(state["status"], "failed")
+            self.assertEqual(state["jobs"][0]["status"], "failed")
+            self.assertIsNone(state["session_id"])
+            self.assertIn("host sandbox prevented", state["error"])
+            self.assertIn("sandbox_apply", (job / "stderr.log").read_text())
+            self.assertFalse((job / "answer.md").exists())
+            adapter.assert_called_once()
+
+    def test_blocked_sandbox_has_actionable_recovery(self):
+        stderr = "sandbox-exec: sandbox_apply: Operation not permitted\n"
+        for peer in ("agy", "muse"):
+            with self.subTest(peer=peer):
+                error = consult.peer_exit_error(peer, 71, stderr)
+                self.assertIn("host sandbox prevented", error)
+                self.assertIn("Close the failed consultation", error)
+                self.assertIn("host's normal approval mechanism", error)
+                self.assertIn("Keep the peer sandbox enabled", error)
+
+    def test_unrelated_failures_keep_generic_diagnostic(self):
+        signature = "sandbox-exec: sandbox_apply: Operation not permitted"
+        for peer, code, stderr in (
+            ("agy", 7, signature),
+            ("agy", 71, "authentication unavailable"),
+            ("codex", 71, signature),
+            ("claude", 71, signature),
+        ):
+            with self.subTest(peer=peer, code=code, stderr=stderr):
+                self.assertEqual(
+                    consult.peer_exit_error(peer, code, stderr),
+                    f"Peer exited with status {code}; inspect stderr.log",
+                )
+
+
 class ConsultationTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()

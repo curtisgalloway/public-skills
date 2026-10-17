@@ -62,6 +62,12 @@ denied action (RunCommand)": close the consultation, run the command yourself,
 and start a fresh one with the output in the brief. Do not approve commands by
 adding rules to agy's configuration; that changes the user's agent setup.
 
+On macOS, exit status 71 with `sandbox-exec: sandbox_apply: Operation not
+permitted` means the host blocked the peer sandbox from starting. The helper
+reports this separately from a denied tool action. Close the failed consultation
+and start a fresh one through the host's normal approval mechanism, keeping the
+peer sandbox enabled. The helper does not retry or request approval itself.
+
 Muse's shell is off because its own shell sandbox is also bubblewrap, which
 cannot start inside the outer one ("No permissions to create a new namespace",
 Muse Code 1.4.9, 2026-10-16). Skills installed for Muse itself stay loaded: it
