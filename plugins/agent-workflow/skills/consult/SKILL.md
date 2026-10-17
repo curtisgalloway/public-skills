@@ -318,7 +318,46 @@ Revisit a successfully closed discussion with `reply <id> --reopen --message-fil
 for a new user request or genuinely new evidence, not to evade the round limit.
 Failed/interrupted turns cannot be blindly resumed: provider-side completion may
 be ambiguous. Close them, report the problem, and only start a fresh consultation
-when appropriate. There are no automatic retries or permission escalation.
+when appropriate. There are no automatic retries or permission escalation. If the
+failure came from the skill or a counterpart's harness rather than the question,
+also file a bug (next section).
+
+## File bugs against this skill
+
+When a consultation fails for a reason that is not the question itself, file an
+issue at <https://github.com/curtisgalloway/public-skills/issues> so the adapter
+gets fixed instead of worked around in the next session. That includes:
+
+- the counterpart failing because of a sandbox or harness problem: a write or
+  read denied that should have been allowed, a headless permission prompt that
+  stops the turn, `bwrap` or `sandbox-exec` refusing to start, a nested sandbox
+  that cannot create a namespace;
+- a CLI rejecting a flag or model the adapter passes, or a release changing its
+  output so the helper misreads it;
+- the helper itself misbehaving: a wrong `status`, a lost session ID, a lock
+  that is never released, a crash or traceback;
+- instructions in this file that turned out to be wrong or missing.
+
+Not a bug in this skill: the provider is down, the user's CLI is signed out, or a
+restriction worked as documented (Claude and Muse have no shell by design).
+
+1. **Check for an existing report:** `gh issue list --repo
+   curtisgalloway/public-skills --state all --search "consult <keyword>"`. If one
+   matches, add a comment with the new evidence instead of a new issue.
+2. **Write the report.** Title it `consult: <what failed>`. Include the
+   direction (`--from`/`--to`, `--model`), the CLI versions (`<cli> --version`),
+   the OS, the exact command, the `status` JSON, the relevant lines of the
+   retained peer log, and what you expected. Say whether you reproduced it.
+3. **Scrub it.** The repository is public. Remove hostnames, IP addresses,
+   usernames, home-directory paths (write `~`), project names and file contents
+   from the user's work, and anything from the brief. Keep only the lines that
+   show the failure.
+4. **Show the user the title and body, then file it** with `gh issue create
+   --repo curtisgalloway/public-skills --label bug`, unless the user has already
+   said to file without asking. Give them the issue URL.
+
+If `gh` is missing or not signed in, give the user the drafted issue to file
+instead of dropping it.
 
 ## Local state and privacy
 
