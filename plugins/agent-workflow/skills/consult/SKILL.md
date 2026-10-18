@@ -253,17 +253,30 @@ approval. To approve them once, add an allow rule for the helper's real path
 (`/permissions`, or `permissions.allow` in settings):
 `Bash(python3 <skill-dir>/scripts/consult.py *)`. The hook still applies.
 
-For Codex, link the role into your personal agents (one-time; Codex reads
-`~/.codex/agents/` and a project's `.codex/agents/`):
+For Codex, copy the role into your personal agents (Codex reads
+`~/.codex/agents/` and a project's `.codex/agents/`). Copy it rather than linking
+it: Codex 0.163.0 lists a symlinked agent file but refuses to spawn it ("agent
+type is currently not available"). Copy it again after updating the skill.
 
 ```sh
 mkdir -p ~/.codex/agents
-ln -s <skill-dir>/agents/codex/consult-runner.toml ~/.codex/agents/consult-runner.toml
+cp <skill-dir>/agents/codex/consult-runner.toml ~/.codex/agents/consult-runner.toml
 ```
+
+The helper writes its state under `~/.local/state/agent-consult/` and starts the
+counterpart in its own sandbox. Neither works inside Codex's `workspace-write`
+sandbox on macOS, so the runner's helper calls need Codex's normal approval to
+run outside it. A headless `codex exec` cannot give that approval, and the
+runner then reports the failure and stops.
 
 Checked live on 2026-10-17 with Claude Code and the plugin loaded from a
 checkout: the runner's `ls -la` was denied by the hook, and a review by Codex
-returned through the runner with its report. The Codex role was not run live.
+returned through the runner with its report. The Codex role was checked the
+same day with Codex 0.163.0 in headless `codex exec` under `workspace-write`:
+it spawned, ran the helper, and reported the sandbox's refusal to create the
+state directory as a harness problem without working around it. A full Codex
+review through it was not run, because that needs an approval only an
+interactive session can give.
 
 ## Drive the helper
 

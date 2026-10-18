@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 contributors
 # SPDX-License-Identifier: Apache-2.0
 #
-# Codex custom agent role for the consult skill. Install by linking it into
+# Codex custom agent role for the consult skill. Install by copying it into
 # ~/.codex/agents/ (personal) or <repo>/.codex/agents/ (project); see SKILL.md.
 #
 # Unlike the Claude Code agent, nothing enforces the one-command rule here: a
