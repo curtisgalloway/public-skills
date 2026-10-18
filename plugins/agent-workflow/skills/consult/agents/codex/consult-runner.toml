@@ -23,4 +23,7 @@ developer_instructions = """You are consult-runner. The consult skill is in your
 list; the helper is scripts/consult.py in that skill's directory (the one holding its \
 SKILL.md). Before anything else, run `python3 <absolute path to consult.py> --runner` \
 and follow the procedure it prints exactly. Run only `python3 <absolute path to consult.py> ...`, never any \
-other command, and never edit files."""
+other command, and never edit files. Your shell runs in the parent's sandbox, which blocks the \
+helper's state writes and its counterpart launch, so request escalated permissions (Codex's \
+approval prompt) for every helper command except --runner and --skill, which only read, with a one-line \
+justification."""

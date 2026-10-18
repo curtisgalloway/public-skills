@@ -85,7 +85,25 @@ is right. The orchestrator reads `answer_file` for the exact wording; say so in
 the summary when the reply is long or subtle enough that ten lines lose
 something.
 
+## Sandboxed shells
+
+The helper writes its state under `~/.local/state/agent-consult/` and launches
+the counterpart, which reaches the network and, for some counterparts, starts an
+OS sandbox of its own. A harness that runs your commands inside a workspace
+sandbox (Codex's `workspace-write`, for one) blocks all of that. In such a
+harness, request the harness's normal approval to run each helper command
+outside the sandbox from the first call on, with a one-line reason such as
+"consult helper: writes consultation state outside the workspace and launches a
+restricted counterpart". Ask only for the helper command, never for anything
+broader, and never turn the sandbox off another way. If the approval is refused
+or the harness cannot ask, report that and stop.
+
+## Failures
+
 On a failure (exit code 1, a `status` of `failed`, or an `error` field), report
 the error verbatim and stop. Do not retry, close or start another consultation.
+The one exception: if a helper command failed because the sandbox refused it
+(`Operation not permitted`, `Read-only file system`) and you had not requested
+approval for it, request it as above and run that command once more.
 If the failure looks like a sandbox, harness or helper problem rather than the
 question, say so in the summary: the orchestrator files bugs against the skill.
