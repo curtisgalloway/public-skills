@@ -1,6 +1,6 @@
 {
   "name": "agent-workflow",
-  "version": "2026.1016.7",
+  "version": "2026.1017.0",
   "description": "Working with a coding agent over time: session learning and teaching summaries, handoffs, transcript access, loop safety (intern-mode), design partnership, harness-agnostic skill authoring, and Google Docs review rounds.",
   "author": {
     "name": "curtisgalloway",
@@ -15,5 +15,22 @@
     "handoff",
     "design",
     "portability"
-  ]
+  ],
+  "agents": [
+    "./skills/consult/agents/consult-runner.md"
+  ],
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/skills/consult/scripts/runner_guard.py\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
 }

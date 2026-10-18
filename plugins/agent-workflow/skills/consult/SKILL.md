@@ -214,6 +214,70 @@ Neither participant should recursively consult or delegate consultation. Peer
 processes receive `CONSULT_PEER=1`; the helper refuses calls from that environment.
 If you are already the counterpart, answer directly rather than invoking this skill.
 
+## Run it through the consult-runner agent
+
+Never launch a counterpart CLI yourself (`agy -p`, `codex exec`, `claude -p`,
+`muse exec`): without the helper's flags and sandbox, a headless peer can write
+files or stall on permission prompts. Use the helper, preferably through the
+`consult-runner` agent that ships with this skill. It drives the helper and
+returns a short report, so polls and long replies stay out of your context, and
+several reviews can run in parallel, one runner each.
+
+Give it a mode and the exact text to send:
+
+- **`mode=review`**: one brief, one reply. Pass `--from`, `--to`, optional
+  `--model`, `--task`, the project and the brief. It closes the consultation as
+  `unresolved` ("one-shot review"); continue later with `reply <id> --reopen`.
+- **`mode=consensus`**: one step per call, `step=start`, `reply`, `confirm` or
+  `close`, with the consultation ID after `start`. Every judgment in "Conduct
+  the discussion" stays with you between calls.
+
+It reports the consultation ID, status, counterpart, `answer_file` (the verbatim
+reply), any error, and a summary of 10 lines or fewer. A confirm step's summary
+starts with `AGREES`, `OBJECTS` or `UNCLEAR`. Read `answer_file` yourself before
+closing a confirm as consensus, or whenever the summary says detail was lost.
+The runner never picks a counterpart or model, and never retries a failure. The
+metered-counterpart rule above is still yours to apply.
+
+Its procedure is `references/runner.md` (`consult.py --runner` prints it).
+
+| Harness | Agent | Confinement |
+| --- | --- | --- |
+| Claude Code | `consult-runner` (as `agent-workflow:consult-runner` from the plugin), model `sonnet` | Bash only. A hook in the plugin manifest (`scripts/runner_guard.py`) denies the runner every command except `python3 <skill-dir>/scripts/consult.py ...`, with text passed in a single-quoted heredoc |
+| Codex | `agents/codex/consult-runner.toml`, model `gpt-6.1-sol` at low effort | Instructions only. A Codex custom agent inherits the parent's sandbox and approvals, and Codex's pre-tool-use hook input does not say which agent made the call (Codex docs, 2026-10-17) |
+
+Claude Code loads the agent and hook from the `agent-workflow` or `everything`
+plugin, not from a skill directory installed on its own. A subagent inherits the
+parent's permission mode, so in the default mode each helper call asks for
+approval. To approve them once, add an allow rule for the helper's real path
+(`/permissions`, or `permissions.allow` in settings):
+`Bash(python3 <skill-dir>/scripts/consult.py *)`. The hook still applies.
+
+For Codex, copy the role into your personal agents (Codex reads
+`~/.codex/agents/` and a project's `.codex/agents/`). Copy it rather than linking
+it: Codex 0.163.0 lists a symlinked agent file but refuses to spawn it ("agent
+type is currently not available"). Copy it again after updating the skill.
+
+```sh
+mkdir -p ~/.codex/agents
+cp <skill-dir>/agents/codex/consult-runner.toml ~/.codex/agents/consult-runner.toml
+```
+
+The helper writes its state under `~/.local/state/agent-consult/` and starts the
+counterpart in its own sandbox. Neither works inside Codex's `workspace-write`
+sandbox on macOS, so the runner's helper calls need Codex's normal approval to
+run outside it. A headless `codex exec` cannot give that approval, and the
+runner then reports the failure and stops.
+
+Checked live on 2026-10-17 with Claude Code and the plugin loaded from a
+checkout: the runner's `ls -la` was denied by the hook, and a review by Codex
+returned through the runner with its report. The Codex role was checked the
+same day with Codex 0.163.0 in headless `codex exec` under `workspace-write`:
+it spawned, ran the helper, and reported the sandbox's refusal to create the
+state directory as a harness problem without working around it. A full Codex
+review through it was not run, because that needs an approval only an
+interactive session can give.
+
 ## Drive the helper
 
 Resolve `scripts/consult.py` relative to **this loaded skill**, not a hardcoded
@@ -259,18 +323,19 @@ for "ready": `status` and `read` also list every job with its own status, so aft
 the first turn a grep matches an earlier job and reports a still-running reply as
 done.
 
-```bash
-until python3 <skill-dir>/scripts/consult.py status <id> | python3 -c "import json,sys
-try: s = json.load(sys.stdin).get('status')
-except Exception: sys.exit(0)
-sys.exit(s in ('running', 'closing'))"; do sleep 10; done
+`wait` does the polling for you: it blocks while the status is `running` or
+`closing`, up to `--timeout` seconds (default 540, under the 10-minute limit some
+hosts put on one shell call), then prints the same JSON as `status`. Run it
+again if the status is still active.
+
+```sh
+python3 <skill-dir>/scripts/consult.py wait <id>
 ```
 
-The loop waits through both active states (`running`, `closing`) and ends on
-anything else, including output that is not JSON, so a wrong id or a helper
-error shows up on the next command instead of looping forever.
+`read` gives each reply's `answer_file`, the file holding it verbatim.
 
-All public commands print JSON, except `--skill`, which prints these instructions.
+All public commands print JSON, except `--skill`, which prints these instructions,
+and `--runner`, which prints the consult-runner procedure.
 Exit codes: 0 = command succeeded (possibly still running), 1 = operational failure
 or failed peer turn, 2 = invalid command-line usage. Inspect `status`, not just the
 exit code. Peer stdout/stderr and worker errors are retained for diagnosis; do not
