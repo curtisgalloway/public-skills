@@ -133,6 +133,29 @@ class TestHeuristics(unittest.TestCase):
             "Install to `~/.claude/agents/thing.md`.\n"))
         self.assertEqual(rc, 0, out)
 
+    TOOL_TABLE = 'TOOLS = ("Read", "Write", "Bash")\n'
+
+    def test_file_suppression_covers_tool_names(self):
+        """A hook for one harness names that harness's tools on purpose.
+
+        The documented opt-out must silence the whole-file vocabulary check
+        too, not only the per-line ones.
+        """
+        rc, out = self.scan_text("hook_test.py", (
+            "# portability-scan: intentional - a Claude Code hook's tests\n"
+            + self.TOOL_TABLE))
+        self.assertEqual(rc, 0, out)
+
+    def test_line_suppression_drops_names_from_the_count(self):
+        rc, out = self.scan_text("hook_test.py", (
+            self.TOOL_TABLE.rstrip("\n") + "  # portability-ok: hook input\n"))
+        self.assertEqual(rc, 0, out)
+
+    def test_unmarked_tool_table_is_still_flagged(self):
+        rc, out = self.scan_text("router.py", self.TOOL_TABLE)
+        self.assertEqual(rc, 1, out)
+        self.assertIn("tool-name-table", out)
+
     def test_missing_path_is_error(self):
         rc, out = run_scan(HERE / "no-such-directory")
         self.assertEqual(rc, 2, out)
