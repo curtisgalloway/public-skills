@@ -266,17 +266,22 @@ cp <skill-dir>/agents/codex/consult-runner.toml ~/.codex/agents/consult-runner.t
 The helper writes its state under `~/.local/state/agent-consult/` and starts the
 counterpart in its own sandbox. Neither works inside Codex's `workspace-write`
 sandbox on macOS, so the runner's helper calls need Codex's normal approval to
-run outside it. A headless `codex exec` cannot give that approval, and the
-runner then reports the failure and stops.
+run outside it. The runner asks for it on each helper call (`start`, `wait`,
+`read`, `close`); approve those, or add a Codex rule allowing
+`python3 <skill-dir>/scripts/consult.py` outside the sandbox. Without the request
+it only reports "Operation not permitted" (observed 2026-10-17). A headless
+`codex exec` cannot give that approval, and the runner then reports the failure
+and stops.
 
 Checked live on 2026-10-17 with Claude Code and the plugin loaded from a
 checkout: the runner's `ls -la` was denied by the hook, and a review by Codex
 returned through the runner with its report. The Codex role was checked the
 same day with Codex 0.163.0 in headless `codex exec` under `workspace-write`:
 it spawned, ran the helper, and reported the sandbox's refusal to create the
-state directory as a harness problem without working around it. A full Codex
-review through it was not run, because that needs an approval only an
-interactive session can give.
+state directory as a harness problem without working around it. In an
+interactive Codex session, once the role requested approval for its helper
+calls, a review by Claude ran end to end: the brief turn came back `ready` and
+the runner closed it as a one-shot review.
 
 ## Drive the helper
 
