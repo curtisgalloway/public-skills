@@ -157,7 +157,11 @@ def scan_file(path, allow):
     is_ladder = len(breadth) >= 2 or bool(FILE_SUPPRESS.search(text))
     suffix = os.path.splitext(path)[1].lower()
 
-    tool_hits = tool_families_in(text)
+    # Both opt-outs reach this whole-file check too: a file marked intentional
+    # skips it, and names on a portability-ok line are not counted.
+    counted = "\n".join(line for line in text.splitlines()
+                        if not SUPPRESS.search(line))
+    tool_hits = {} if FILE_SUPPRESS.search(text) else tool_families_in(counted)
     # A vocabulary is lock-in only if it is one harness's alone. Shared names
     # (read_file, grep_search) resolve to several families and so never trip
     # this on their own.
