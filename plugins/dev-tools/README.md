@@ -96,6 +96,8 @@ skills. Installing both loads every skill twice.
     pushes, publishes, then re-verifies the published artifacts from the URLs a user would
     use.
 
+  The full train runs for a project's first release, a new channel, or a change to the release
+  path; a routine release leans on the project's CI release workflow and gets a light pass.
   Driven by a per-repo `RELEASE-TRAIN.md` profile the skill constructs (`init`), checks for
   drift (`check`), and executes (`run`). Ships `scripts/profile_check.py` (stdlib-only) so the
   profile cannot quietly describe last quarter's packaging.
