@@ -438,6 +438,8 @@ def main(argv=None):
     os.umask(0o077)
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--skill", action="store_true", help="Print the companion skill")
+    parser.add_argument("--runner", action="store_true",
+                        help="Print the consult-runner agent's procedure")
     parser.add_argument("--state-dir", default=os.environ.get(
         "CONSULT_STATE_DIR", str(Path.home() / ".local" / "state" / "agent-consult")))
     commands = parser.add_subparsers(dest="command")
@@ -458,11 +460,15 @@ def main(argv=None):
     reply.add_argument("--message-file", required=True)
     reply.add_argument("--phase", choices=["compare", "confirm"], default="compare")
     reply.add_argument("--reopen", action="store_true", help="Start a new bounded cycle after close")
-    for name in ("status", "read"):
+    for name in ("status", "read", "wait"):
         sub = commands.add_parser(name)
         sub.add_argument("id")
         if name == "read":
             sub.add_argument("--all", action="store_true", help="Include every exchanged message")
+        if name == "wait":
+            # Under the 10-minute limit some hosts put on one shell call.
+            sub.add_argument("--timeout", type=positive, default=540,
+                             help="Seconds to wait before returning the still-active status")
     close = commands.add_parser("close", help="Record outcome, or request cancellation of active work")
     close.add_argument("id")
     close.add_argument("--outcome", choices=["consensus", "unresolved", "cancelled"], required=True)
@@ -470,6 +476,10 @@ def main(argv=None):
     args = parser.parse_args(argv)
     if args.skill:
         print(Path(__file__).resolve().parents[1].joinpath("SKILL.md").read_text())
+        return 0
+    if args.runner:
+        # Printed rather than read, so the runner needs no file access beyond this script.
+        print(Path(__file__).resolve().parents[1].joinpath("references", "runner.md").read_text())
         return 0
     if not args.command:
         parser.error("A subcommand is required")
@@ -511,6 +521,15 @@ def main(argv=None):
         # Read stdin before acquiring the state lock; an interactive pipe must not stall workers.
         text = message(args.message_file) if args.command == "reply" else None
         summary = message(args.summary_file) if args.command == "close" and args.summary_file else None
+        if args.command == "wait":
+            # Poll here, not in a shell loop: an agent confined to this script has no shell.
+            deadline = time.monotonic() + args.timeout
+            while True:
+                with locked(directory):
+                    state = refresh(directory, load(directory))
+                if state["status"] not in ACTIVE or time.monotonic() >= deadline:
+                    break
+                time.sleep(2)
         with locked(directory):
             state = refresh(directory, load(directory))
             if args.command == "reply":
@@ -546,8 +565,10 @@ def main(argv=None):
         for job in jobs:
             job_dir = directory / str(job["number"])
             answer_file = job_dir / "answer.md"
+            exists = answer_file.exists()
             result["messages"].append(dict(job, message=(job_dir / "message.md").read_text(),
-                                           answer=answer_file.read_text() if answer_file.exists() else None))
+                                           answer=answer_file.read_text() if exists else None,
+                                           answer_file=str(answer_file) if exists else None))
     emit(result)
     return 1 if state["status"] == "failed" else 0
 

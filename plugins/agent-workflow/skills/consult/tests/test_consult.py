@@ -172,6 +172,21 @@ class ConsultationTests(unittest.TestCase):
             time.sleep(0.03)
         self.fail("Worker did not finish")
 
+    def test_wait_blocks_until_the_turn_ends_and_read_names_the_answer_file(self):
+        identity = self.start("codex")
+        state = self.run_cli("wait", identity, "--timeout", "8")
+        self.assertEqual(state["status"], "ready", state)
+        last = self.run_cli("read", identity)["messages"][-1]
+        self.assertEqual(Path(last["answer_file"]).read_text().strip(), last["answer"].strip())
+
+    def test_wait_returns_the_active_status_at_its_timeout(self):
+        identity = self.start("codex", "FIXTURE_SLEEP")
+        started = time.monotonic()
+        state = self.run_cli("wait", identity, "--timeout", "1")
+        self.assertEqual(state["status"], "running")
+        self.assertLess(time.monotonic() - started, 6)
+        self.assertIsNone(self.run_cli("read", identity)["messages"][-1]["answer_file"])
+
     def test_both_directions_retain_context_and_confirm(self):
         for origin, peer in (("claude", "codex"), ("codex", "claude")):
             with self.subTest(origin=origin):

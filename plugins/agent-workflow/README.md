@@ -51,7 +51,9 @@ skills. Installing both loads every skill twice.
   mode, and for `muse`), resumable context, bounded rounds, per-task reasoning effort, cancellation, and
   local transcripts. Needs Python 3.9+, macOS or Linux, and an authenticated counterpart
   CLI; `agy` and `muse` also need bubblewrap on Linux. A counterpart billed per token runs
-  only when the user names it. Triggers on "consult with Codex", "consult with Fable",
+  only when the user names it. Ships the `consult-runner` agent, which runs a review
+  or one consensus step and returns a short report; in Claude Code a plugin hook confines it
+  to the helper, and a Codex agent role is included. Triggers on "consult with Codex", "consult with Fable",
   "consult with Gemini", "consult with Muse", or "work toward consensus".
 - **`project-plan`** — turn a project outcome into a detailed design, then an implementation
   plan of cohesive milestones, each sized for about 75% of a fresh session's context.
