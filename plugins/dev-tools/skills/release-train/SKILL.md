@@ -4,7 +4,9 @@ description: >-
   Cut a release only after every distribution channel has been built, installed the way a user
   would in a throwaway prefix, and smoke-tested end to end by a parallel subagent per channel,
   with a regression archaeologist pinning every previously fixed bug that has no executing test.
-  Blocks on any failure and files one issue per failure with a minimal reproduction; on all-green,
+  Runs that full train for a project's first release, a new channel, or another compelling
+  reason; a routine later release leans on the project's own CI release workflow and gets a
+  light pass (profile check, CI status, gate, published re-verify) instead. Blocks on any failure and files one issue per failure with a minimal reproduction; on all-green,
   and only behind an explicit gate, tags, pushes, publishes, then re-verifies the published
   artifacts from the URLs a user would use. Driven by a per-repo RELEASE-TRAIN.md profile the
   skill can construct (init), check for drift against the repo (check), and execute (run).
@@ -31,13 +33,45 @@ for the facts that must never be committed (hostnames, addresses, key paths). Th
 
 | mode | invocation | what it does |
 |---|---|---|
-| `run` (default) | `/release-train [--dry-run] [--version X.Y.Z] [--waive <arm>] [--max-archaeology N]` | check the profile, then drive the train |
+| `run` (default) | `/release-train [--dry-run] [--full] [--version X.Y.Z] [--waive <arm>] [--max-archaeology N]` | check the profile, pick a depth, then drive the train |
 | `init` | `/release-train init` | construct the profile for a repo that has none |
 | `check` | `/release-train check [--update]` | report profile drift against the repo; `--update` re-pins it after re-reading |
 
 `run` begins with `check`, and a stale or malformed profile stops the train before any arm
 starts. That is the point of the profile being checkable: a train that runs from a description
 of last quarter's packaging ships last quarter's mistakes.
+
+## How much train: full the first time, light after that
+
+The full train (Steps 2 and 3: every channel built, installed and smoke-tested locally, plus
+the archaeologist) costs an hour or more of agent time and host setup. Once a project's CI
+release workflow builds, installs and smoke-tests each channel on the tag, repeating all of it
+locally for every release mostly duplicates what CI is about to do. So `run` picks a depth
+after Step 0 and states it, with the reason, in the report's header.
+
+**Full train** when any of these hold:
+
+1. **First release.** No stable tag exists yet. This run qualifies the CI release workflow
+   itself, and the arm that has never run is the one that fails.
+2. **A new channel**, or one that has never published.
+3. **The release path changed.** Since the last tag, a release workflow, packaging script,
+   manifest or installer changed (`git diff --stat <last tag>..HEAD -- <those paths>`; the
+   profile's Sources table names them). Docs-only changes do not count.
+4. **CI cannot see it.** Code under a channel that CI cannot exercise (bench hardware, a real
+   keychain or signing store, a live account) changed, the last release's re-verify failed,
+   or users reported an install bug since the last tag.
+5. **Asked for**: `--full`, or a dry run of the train.
+
+**Light pass** otherwise:
+
+- Step 0 preflight, `check` included, and Step 1 versioning, as written.
+- Confirm the CI release workflow covers every arm: the arm's `workflow job:` names a job that
+  builds, installs and smoke-tests it. An arm CI does not cover runs locally as in Step 2,
+  and only that arm.
+- Skip Step 3. List fix commits since the last tag that touched no test as a caveat in the
+  report, so the reader can ask for `--full`.
+- Step 5 as written, minus the archaeology PR: tag the main branch's head. Re-verify only the
+  channels whose published artifacts the release workflow does not re-verify itself.
 
 ## Non-negotiables (every mode)
 
@@ -171,7 +205,7 @@ dry run continues with the hypothetical next patch and says so in the report's f
 Create the worktree and branch (`release/vX.Y.Z`); all builds and archaeology commits happen
 there.
 
-### Step 2: channel arms (parallel subagents)
+### Step 2: channel arms (parallel subagents; every arm in a full train, uncovered arms in a light pass)
 
 One subagent per `### <arm>` in the profile, all launched in one message. Each gets the
 worktree, the run dir, the version, its arm section verbatim, the smoke contract, the host
@@ -196,7 +230,7 @@ Use this arm's brief and permissions, not its command-runner brief. If that skil
 selection is unavailable, retain the current model and make no cheaper-model claim.
 Keep the verdict on the main model.
 
-### Step 3: regression archaeologist (one subagent, parallel with Step 2)
+### Step 3: regression archaeologist (one subagent, parallel with Step 2; full train only)
 
 From the profile's `## Archaeology`: gather closed issues and fix commits, join on issue
 number where possible (a fix commit with no issue still counts; loose `#N` matching mis-maps
@@ -233,6 +267,7 @@ public tag: open an issue and report `PUBLISHED, unverified on <channel>`.
 ```
 # release-train report: <run>
 Mode: dry-run | real    HEAD: <sha> <subject>    Repo: public | private
+Depth: full (<which condition>) | light (<arms run locally, or none>)
 Latest tag: vA.B.C   Candidate: vX.Y.Z (<bump>; <n> commits; <m> heuristic)
 Release due: yes | NO (<why>) [dry run continued anyway]
 Profile: current | <findings>
