@@ -67,6 +67,12 @@ class RunnerGuardTests(unittest.TestCase):
                         "python3 %s start <<'E'\nE\nmore\nE" % HELPER,
                         "cd /tmp && python3 %s status 1" % HELPER,
                         "bash -c 'python3 %s status 1'" % HELPER,
+                        # A quote of one kind inside the other must not hide an operator.
+                        "python3 %s status \"'\"; ls; \"'\"" % HELPER,
+                        "python3 %s status '\"'; ls; '\"'" % HELPER,
+                        "python3 %s status \"a\\\"; ls; \\\"\"" % HELPER,
+                        "python3 %s status \"`id`\"" % HELPER,
+                        "python3 %s status 'unterminated" % HELPER,
                         ""):
             with self.subTest(command=command):
                 self.assertEqual(decide(event(command)), 2)

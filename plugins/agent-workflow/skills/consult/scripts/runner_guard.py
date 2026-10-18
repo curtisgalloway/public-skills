@@ -36,6 +36,31 @@ def is_runner(agent_type):
         agent_type == AGENT or agent_type.endswith(":" + AGENT))
 
 
+def shell_syntax(line):
+    """True when the shell would see an operator, expansion or glob in this line.
+
+    Scans left to right with the shell's own quote state, so a quote character
+    inside the other kind of quotes (`"'"`) cannot hide what follows it.
+    Single quotes make everything literal; double quotes still expand `$`,
+    backticks, `\\` escapes and `!` history, so those stay refused there too.
+    """
+    quote = None
+    for char in line:
+        if quote == "'":
+            if char == "'":
+                quote = None
+        elif quote == '"':
+            if char == '"':
+                quote = None
+            elif char in "$`\\!":
+                return True
+        elif char in "'\"":
+            quote = char
+        elif SHELL_SYNTAX.match(char):
+            return True
+    return quote is not None
+
+
 def command_problem(command):
     """None when the command only runs the helper, else the reason it is refused."""
     if not isinstance(command, str) or not command.strip():
@@ -51,9 +76,7 @@ def command_problem(command):
             return "the heredoc delimiter appears inside the message; pick another"
     elif rest.strip():
         return "multi-line commands are allowed only as a single-quoted heredoc"
-    # Quoted arguments may hold spaces; strip them before looking for shell syntax.
-    unquoted = re.sub(r"'[^']*'", "''", first)
-    if SHELL_SYNTAX.search(unquoted.replace('"', "")):
+    if shell_syntax(first):
         return "shell operators, substitutions and globs are not allowed"
     try:
         words = shlex.split(first)
