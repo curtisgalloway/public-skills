@@ -16,7 +16,7 @@ Checks, in order:
             is gone.
   paths     every backtick-quoted repo path in the profile exists. Only
             tokens whose first segment is a directory at the repo root (or a
-            file at the root) are treated as repo paths, so `bin/paniolo`
+            file at the root) are treated as repo paths, so `bin/panio`
             inside a tarball or `$T/lab.toml` is not a false alarm.
   headings  the fixed headings the skill reads are all present.
   channels  every `### <arm>` under `## Channels` carries the bullets the
