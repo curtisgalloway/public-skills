@@ -8,7 +8,7 @@ supports skills or slash commands. Terms are defined in the [glossary](GLOSSARY.
 
 Skills are grouped by theme into plugins, each with its own README. Three live under
 `plugins/` here; `driver-porting` lives in its own repository,
-[driver-lab](https://github.com/curtisgalloway/driver-lab), and this marketplace's entry for it
+[hardware-specs](https://github.com/curtisgalloway/hardware-specs), and this marketplace's entry for it
 points there. The specs that `driver-porting` produces are published in three repositories by
 license: [hardware-specs-docs](https://github.com/curtisgalloway/hardware-specs-docs),
 [hardware-specs-permissive](https://github.com/curtisgalloway/hardware-specs-permissive) and
@@ -17,7 +17,7 @@ license: [hardware-specs-docs](https://github.com/curtisgalloway/hardware-specs-
 | Plugin | What it covers | Skills |
 | --- | --- | --- |
 | [`hardware-lab`](plugins/hardware-lab/README.md) | USB traffic capture, decoding and protocol reverse-engineering with a Cynthion; bench instruments | `cynthion-setup`, `cynthion-capture`, `cynthion-pcap-decode`, `cynthion-reverse-engineer`, `usb-device-profile`, `mcci-3411`, `bus-pirate`, `siglent-scope`, `owon-dc-load`, `fnirsi-dps-150` |
-| [`driver-porting`](https://github.com/curtisgalloway/driver-lab) (in driver-lab) | Peripheral specs whose every fact cites its source, reviews of a driver against its reference, a hardware investigator, board specs and their reader. The clean-room skills are a separate plugin, [`cleanroom-skills`](https://github.com/curtisgalloway/cleanroom-skills), in its own repository and marketplace | `peripheral-spec`, `reference-driver-review`, `hardware-investigator`, `board-expert`, `board-spec-scaffold`, `spec-verifier`, `campaign-review` |
+| [`driver-porting`](https://github.com/curtisgalloway/hardware-specs) (in hardware-specs) | Peripheral specs whose every fact cites its source, reviews of a driver against its reference, a hardware investigator, board specs and their reader. The clean-room skills are a separate plugin, [`cleanroom-skills`](https://github.com/curtisgalloway/cleanroom-skills), in its own repository and marketplace | `peripheral-spec`, `reference-driver-review`, `hardware-investigator`, `board-expert`, `board-spec-scaffold`, `spec-verifier`, `campaign-review` |
 | [`agent-workflow`](plugins/agent-workflow/README.md) | Working with a coding agent over time: design partnership, counterpart consultation, project planning, loop safety, cheap-model git and test-run delegation, lab notebooks, handoffs, session learning, document review, portable skill authoring | `design-partner`, `consult`, `project-plan`, `orchestrate-milestones`, `quota-strategy`, `claude-model-selection`, `codex-model-selection`, `git-delegate`, `run-delegate`, `lab-notebook`, `intern-mode`, `handoff`, `learn`, `teach`, `claude-session-transcript`, `gdoc-review-loop`, `agent-agnostic-skills` |
 | [`dev-tools`](plugins/dev-tools/README.md) | Engineering utilities | `jj`, `dep-quality`, `cli-conventions`, `review-swarm`, `release-train` |
 
@@ -105,7 +105,7 @@ under `/agents`. Workspace-wide instructions go in `AGENTS.md` at the workspace 
   skills for checking out the source tree, bridging its Gemini-oriented agent config into
   Claude Code, running parallel workstreams, answering deep source questions, debugging driver
   binding, and the hardware bench and boot-test CI. They hand off by name to
-  `driver-porting` skills (in [driver-lab](https://github.com/curtisgalloway/driver-lab)) and,
+  `driver-porting` skills (in [hardware-specs](https://github.com/curtisgalloway/hardware-specs)) and,
   for the clean-room method, to [cleanroom-skills](https://github.com/curtisgalloway/cleanroom-skills).
 
   ```
