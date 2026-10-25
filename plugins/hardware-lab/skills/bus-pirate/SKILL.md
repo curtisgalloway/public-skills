@@ -5,8 +5,9 @@ description: >-
   mode selection, IO pinout, programmable power supply and pull-ups, per-pin voltage measurement,
   logic analyzer, and the BPIO2 binary scripting port. Use when probing, sniffing, scanning, or
   bit-banging an I2C, SPI, UART, 1-Wire, 2-wire, 3-wire, or JTAG/SWD bus, dumping an EEPROM or
-  flash chip, or figuring out which of the two serial ports is which. Covers Bus Pirate 5 and
-  later only — classic v3.x is entirely different firmware.
+  flash chip, figuring out which of the two serial ports is which, or updating the Bus Pirate's
+  firmware to the latest main-branch build. Covers Bus Pirate 5 and later only — classic v3.x
+  is entirely different firmware.
 ---
 
 <!--
@@ -31,6 +32,9 @@ Detail lives in two companion files, read them when the task needs them:
 - `references/automation.md` — driving it from a host script: the BPIO2 binary
   port, on-device `script`/`macro` files, binmodes for PulseView/flashrom/
   AVRDUDE, and how to cope with the interactive ANSI terminal from pyserial.
+- `references/firmware-update.md` — updating to the newest upstream `main`
+  build: where "latest" lives, `scripts/bp_firmware.py` to fetch it, flashing
+  with `picotool`, and what changes afterwards.
 
 ## Identify the hardware first
 
@@ -40,7 +44,7 @@ Detail lives in two companion files, read them when the task needs them:
 | RAM | 264 KB | 520 KB | 512 KB | tiny |
 | Follow-along logic analyzer | No | No | **Yes** | No |
 | USB | native CDC, 2 ports + mass storage | same | same | FTDI, **one** port |
-| Firmware file | `bus_pirate5_rev10.uf2` | (discontinued) | `bus_pirate6_rev2.uf2` | `.hex` via PIC bootloader |
+| Firmware file | `bus_pirate5_rev10.uf2` | `attic/bus_pirate5_xl.uf2` | `bus_pirate6.uf2` | `.hex` via PIC bootloader |
 | Status | volume production, primary dev platform | **discontinued** (RP2350 E9 errata; owners swapped to 6) | limited/"luxury" production | legacy, different codebase |
 
 - 5 vs 6 is a small difference: same firmware features today; 6 has more RAM/PIO
@@ -61,7 +65,7 @@ Detail lives in two companion files, read them when the task needs them:
 # 1. find the two CDC ports (macOS)
 ls /dev/cu.usbmodem*
 # 2. attach to the LOWER-numbered one (the terminal)
-screen /dev/cu.usbmodem1234567890121        # or: tio /dev/ttyACM0   (Linux)
+screen /dev/cu.usbmodem5buspirate1          # or: tio /dev/ttyACM0   (Linux)
 ```
 
 Then in the terminal:
@@ -97,8 +101,10 @@ Serial settings do not matter — it is USB CDC, the baud rate is ignored.
 **Which port is which:**
 
 - **macOS** — `ls /dev/cu.usbmodem*` shows two (plus matching `tty.*`). The name
-  ends in the USB interface number: the **lower** suffix (e.g. `…121`) is the
-  terminal, the **higher** (`…123`) is the binary port. Prefer `cu.*` over
+  ends in the USB interface number: the **lower** suffix is the terminal, the
+  **higher** is the binary port. Current firmware gives
+  `cu.usbmodem5buspirate1` / `…3`; very old builds give
+  `cu.usbmodem1234567890121` / `…123`, so the name changes after an update. Prefer `cu.*` over
   `tty.*` (`cu` allows multiple openers, `tty` is exclusive).
 - **Linux** — two `/dev/ttyACM*` nodes. `/dev/serial/by-id/` disambiguates
   stably; the lower interface number is the terminal. (`by-id` naming is not in
@@ -354,6 +360,11 @@ w                 # off
 - **Wrong `.uf2` → menacing red blink.** Hold the underside button while
   plugging in to force the bootloader, then load the other file. Bootloader disk
   names: `RPI-RP2` (v5), `RP2350` or `BP__BOOT` (v6).
+- **To update firmware, use the forum auto-build, not GitHub.** Upstream has no
+  firmware releases or tags. `scripts/bp_firmware.py fetch --board rev10 <dir>`
+  gets the newest `main` build, and `picotool load -v -x` flashes it even when
+  the bootloader drive does not mount. Full steps:
+  `references/firmware-update.md`.
 - **The terminal is a full-screen ANSI UI.** The live status bar constantly
   rewrites the bottom of the screen, so naive `readline()` scripting sees escape
   sequences and cursor moves interleaved with your data. Fixes, in order of
