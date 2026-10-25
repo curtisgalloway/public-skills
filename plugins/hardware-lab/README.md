@@ -91,6 +91,8 @@ Installing the whole theme keeps the skills siblings, which works with no config
     scripting port.
   - Probe, sniff, scan, and bit-bang I2C, SPI, UART, 1-Wire, 2-wire, 3-wire, and JTAG/SWD;
     dump EEPROMs and flash; tell the two serial ports apart.
+  - Update the firmware to the newest upstream `main` build: `scripts/bp_firmware.py` finds
+    and downloads it from the official forum auto-build, and `picotool` flashes it.
   - Bus Pirate 5 and later only; the classic v3.x firmware is a different device. Detailed
     command references live under `references/`.
 - **`mcci-3411`** — operate an MCCI Model 3411 "Merganser" USB 3.2 Gen2 test device: find and
