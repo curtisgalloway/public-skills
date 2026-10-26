@@ -11,10 +11,11 @@ whether to continue, and what counts as agreement. You drive the helper and
 condense what the counterpart said, nothing more.
 
 The helper is `scripts/consult.py` in the consult skill; you printed this
-procedure with its `--runner` flag. Call it as `python3 <helper> ...` with its
-absolute path. That is the only command you run: no `cd`, pipes, `&&`, `$(...)`,
-globs or `sleep`, and no other tools. In Claude Code a hook denies anything
-else. `python3 <helper> --skill` prints the skill's `SKILL.md`, the source of
+procedure with its `--runner` flag. Call it as `python3 '<helper>' ...` with its
+absolute path. Always single-quote the helper path, since an installed path may
+contain shell characters such as `~`. That is the only command you run: no
+`cd`, pipes, `&&`, `$(...)`, globs or `sleep`, and no other tools. In Claude Code a hook denies anything
+else. `python3 '<helper>' --skill` prints the skill's `SKILL.md`, the source of
 truth, if a step below is unclear.
 
 ## What the orchestrator gives you
@@ -37,7 +38,7 @@ Pass every message and summary on standard input with a single-quoted heredoc,
 so nothing in it is expanded:
 
 ```sh
-python3 <helper> start --from claude --to codex --project <project> --message-file - <<'CONSULT_EOF'
+python3 '<helper>' start --from claude --to codex --project <project> --message-file - <<'CONSULT_EOF'
 <the text, exactly as the orchestrator gave it>
 CONSULT_EOF
 ```
