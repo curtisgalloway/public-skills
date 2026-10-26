@@ -12,6 +12,7 @@ import json
 from pathlib import Path
 import subprocess
 import sys
+import tempfile
 import unittest
 
 SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
@@ -50,6 +51,18 @@ class RunnerGuardTests(unittest.TestCase):
                         heredoc):
             with self.subTest(command=command):
                 self.assertEqual(decide(event(command)), 0)
+
+    def test_tilde_helper_path_must_be_single_quoted(self):
+        # A synced plugin cache can put the skill under a directory named like `x~g2`.
+        with tempfile.TemporaryDirectory() as tmp:
+            link = Path(tmp) / "agent-workflow~g2"
+            link.symlink_to(SCRIPTS, target_is_directory=True)
+            path = str(link / "consult.py")
+            self.assertEqual(Path(path).resolve(), Path(HELPER))
+            self.assertEqual(decide(event("python3 %s status 1" % path)), 2)
+            self.assertIn("single-quote", sys.stderr.getvalue())
+            self.assertIn("'~'", sys.stderr.getvalue())
+            self.assertEqual(decide(event("python3 '%s' status 1" % path)), 0)
 
     def test_everything_else_is_denied(self):
         for command in ("ls -la",

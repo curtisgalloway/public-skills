@@ -37,7 +37,9 @@ def is_runner(agent_type):
 
 
 def shell_syntax(line):
-    """True when the shell would see an operator, expansion or glob in this line.
+    """The first character the shell would treat as an operator, expansion or glob.
+
+    None when the line is clean. An unterminated quote returns the quote character.
 
     Scans left to right with the shell's own quote state, so a quote character
     inside the other kind of quotes (`"'"`) cannot hide what follows it.
@@ -53,12 +55,12 @@ def shell_syntax(line):
             if char == '"':
                 quote = None
             elif char in "$`\\!":
-                return True
+                return char
         elif char in "'\"":
             quote = char
         elif SHELL_SYNTAX.match(char):
-            return True
-    return quote is not None
+            return char
+    return quote
 
 
 def command_problem(command):
@@ -76,8 +78,10 @@ def command_problem(command):
             return "the heredoc delimiter appears inside the message; pick another"
     elif rest.strip():
         return "multi-line commands are allowed only as a single-quoted heredoc"
-    if shell_syntax(first):
-        return "shell operators, substitutions and globs are not allowed"
+    offender = shell_syntax(first)
+    if offender:
+        return ("%r is not allowed here (unquoted, or unbalanced quotes); "
+                "single-quote paths and arguments" % offender)
     try:
         words = shlex.split(first)
     except ValueError as exc:
