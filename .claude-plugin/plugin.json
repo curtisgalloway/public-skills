@@ -1,6 +1,6 @@
 {
   "name": "everything",
-  "version": "2026.1026.0",
+  "version": "2026.1027.0",
   "description": "Every skill in this repo in one plugin: hardware-lab, agent-workflow and dev-tools combined. driver-porting moved to the driver-lab repository.",
   "author": {
     "name": "curtisgalloway",
@@ -19,7 +19,8 @@
     "hardware"
   ],
   "agents": [
-    "./plugins/agent-workflow/skills/consult/agents/consult-runner.md"
+    "./plugins/agent-workflow/skills/consult/agents/consult-runner.md",
+    "./plugins/agent-workflow/skills/orchestrate-milestones/agents/milestone-implementer.md"
   ],
   "hooks": {
     "PreToolUse": [
@@ -29,6 +30,11 @@
           {
             "type": "command",
             "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/plugins/agent-workflow/skills/consult/scripts/runner_guard.py\"",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/plugins/agent-workflow/skills/orchestrate-milestones/scripts/implementer_guard.py\"",
             "timeout": 10
           }
         ]

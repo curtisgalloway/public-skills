@@ -76,26 +76,28 @@ why, before launching. If the plan leaves the order or scope ambiguous, ask once
 ## 3. Brief each subagent
 
 One fresh subagent per milestone, working in its own branch and worktree created from the
-up-to-date integration branch. Never commit in a worktree while its subagent is live. The
-brief must stand alone:
+up-to-date integration branch. Never commit in a worktree while its subagent is live.
 
-- **Unit and role:** the milestone ID and title; "you are the implementer; the orchestrator
-  lands the work."
+In Claude Code, launch the `milestone-implementer` agent that ships with this skill (as
+`agent-workflow:milestone-implementer` from the plugin). Its definition,
+`agents/milestone-implementer.md`, carries the fixed half of every brief: the role, the
+process (`project-plan`), the hard limits (no push, pull request, merge, gated launch, or
+guessed user decision) and the report format. A hook in the plugin manifest
+(`scripts/implementer_guard.py`) denies it `git push` and every `gh` command. Its tool
+list leaves out GitHub connector tools. The hook catches mistakes; it is not a sandbox.
+In any other harness, or when the agent is not installed, paste the definition's body
+into the brief.
+
+Either way, the brief adds the per-milestone half, and must stand alone:
+
+- **Unit:** the milestone ID and title.
 - **Where things are:** the worktree path and branch, starting commit, private run
   directories, and the files to read first (project instructions, plan sections, notebook
   index and chapter, relevant evidence).
 - **Recovered state:** what the orchestrator verified, marked as verified, with the
   instruction to confirm it independently.
-- **The process:** "finish the unit per `project-plan` and the project's instructions",
-  plus any milestone-specific decisions the user has made, quoted with their dates.
-- **Hard limits:** no push, pull request, or merge. No launching of agent CLIs, sandbox
-  bypasses, or anything else that needs per-launch user approval: prepare it (brief,
-  workspace, hashes, the exact command) and stop. No guessing at user decisions: return
-  the question with a recommendation.
-- **The report:** which case it ended in (finished, stopped to hand over a gated step,
-  question); branch state and whether the tree is clean; test and review outcomes with
-  artifact locations; open items; a suggested pull-request title and body free of private
-  infrastructure.
+- **Decisions:** any milestone-specific decisions the user has made, quoted with their
+  dates.
 
 ## 4. Handle what comes back
 
