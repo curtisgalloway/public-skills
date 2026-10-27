@@ -24,7 +24,8 @@ evaluation; add other terms as the documents that use them are updated.
 | Agent CLI | A coding agent's command-line program: `claude` (Claude Code), `codex` (Codex), `agy` (Google Antigravity, serving Gemini models), `muse` (Muse Code, serving Muse models). Each keeps its own session logs. |
 | Metered / plan-limited | Billed per token, even under a monthly spend cap / drawn from a subscription's own usage limits. Which one a CLI is depends on the user's account, so skills read it from the user's instruction file. |
 | Counterpart / consult-runner | In `consult`, the other agent or model asked for an independent view / the subagent that sends it one message through the skill's helper and returns a short report. |
-| Hook (pre-tool-use) | A command the harness runs before each tool call, which can deny the call. A plugin can ship one; `consult` uses one to confine its runner to the helper script. |
+| Orchestrator / milestone-implementer | In `orchestrate-milestones`, the main session that lands each milestone and talks to the user / the subagent that implements one milestone and returns a report, without pushing or merging. |
+| Hook (pre-tool-use) | A command the harness runs before each tool call, which can deny the call. A plugin can ship one; `consult` uses one to confine its runner to the helper script, `orchestrate-milestones` one to keep its implementer from pushing. |
 | External arm | In `review-swarm`, a reviewer run in another agent CLI rather than as a subagent, so one review spans more than one vendor's model. |
 | Specification (spec) | A document describing hardware behavior precisely enough to implement a driver. |
 | Driver | Software through which an operating system controls a device. |

@@ -70,8 +70,10 @@ skills. Installing both loads every skill twice.
   (also after a crash), then one fresh subagent per milestone following `project-plan`,
   with the orchestrator verifying each report and landing it as a pull request (push, CI,
   merge, branch cleanup) before launching the next. Pushes, merges, user questions and
-  launches that need the user's approval stay in the orchestrator. Triggers on "act as
-  orchestrator" or "a fresh subagent per milestone, PR and merge each".
+  launches that need the user's approval stay in the orchestrator. Ships the
+  `milestone-implementer` agent, which carries the fixed half of every brief, and a hook
+  that denies it `git push` and `gh`. Triggers on "act as orchestrator" or "a fresh
+  subagent per milestone, PR and merge each".
 - **`quota-strategy`** — during a long unattended run led by Claude or Codex: read available
   usage pools at each milestone boundary, reserve capacity for the orchestrator, and route
   implementation to a cheaper model or the other provider. Supports either provider alone;

@@ -43,6 +43,9 @@ jobs:
       - name: consult tests
         run: python3 -m unittest discover -s plugins/agent-workflow/skills/consult/tests -v
 
+      - name: orchestrate-milestones tests
+        run: python3 -m unittest discover -s plugins/agent-workflow/skills/orchestrate-milestones/tests -v
+
       - name: quota-strategy tests
         run: python3 -m unittest discover -s plugins/agent-workflow/skills/quota-strategy/tests -v
 
