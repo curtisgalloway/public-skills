@@ -11,6 +11,11 @@ description: >-
   "extract learnings". Both modes propose before writing.
 ---
 
+<!--
+SPDX-FileCopyrightText: 2026 contributors
+SPDX-License-Identifier: Apache-2.0
+-->
+
 # Learn: extract durable lessons
 
 Convert mistakes, retries, and corrections into instructions and skills that future sessions
