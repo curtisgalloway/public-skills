@@ -3,6 +3,11 @@ name: teach
 description: Summarize past coding-agent sessions into teaching-oriented markdown files. Reads session transcripts from the agent's project-specific transcript directory, finds sessions that haven't been summarized yet (keyed on session_id in existing summary frontmatter), and writes one summary per unsummarized session. Use when the user invokes /teach or asks to "summarize previous sessions" / "catch up on session summaries".
 ---
 
+<!--
+SPDX-FileCopyrightText: 2026 contributors
+SPDX-License-Identifier: Apache-2.0
+-->
+
 # Teach: summarize past sessions for teaching
 
 The user produces teaching material that shows students how they used agentic coding tools to build a project. Each summary file is a **teaching artifact** — the goal is to make the user's prompting technique legible to a student reading later, not to recap the work in a developer-changelog tone.

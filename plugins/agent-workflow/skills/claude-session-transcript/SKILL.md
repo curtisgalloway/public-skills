@@ -3,6 +3,11 @@ name: claude-session-transcript
 description: Reference doc — how to locate the live Claude Code session transcript on disk and extract real user prompts from it (filter rules, slash-command pair collapsing, noise stripping). Other skills (learn, teach) Read this file before parsing transcripts. Not a user-invocable skill.
 ---
 
+<!--
+SPDX-FileCopyrightText: 2026 contributors
+SPDX-License-Identifier: Apache-2.0
+-->
+
 # Claude session transcript: location and extraction rules
 
 This skill is a reference for other skills that need to read the user's prompts (or other events) from the current Claude Code session's on-disk transcript. It is not user-invocable. Other skills `Read` this file and apply its rules.
