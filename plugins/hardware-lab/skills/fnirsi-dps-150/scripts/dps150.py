@@ -10,8 +10,9 @@
 Exit status:
   0   success
   2   usage error, or more than one candidate port
-  3   precondition missing: pyserial, wrong device, or a live output
-      request above the supply's present upper limit
+  3   precondition missing: pyserial, wrong device, a live output request
+      above the supply's present upper limit, or a limit or setpoint that
+      cannot be checked because it is not a finite number
   4   supply unreachable: no port, port busy, or no handshake
   21  a write landed but read back differently; check the state
   22  a write went out and no status came back; check the state first
@@ -19,6 +20,7 @@ Exit status:
 
 import argparse
 import json
+import math
 import pathlib
 import struct
 import sys
@@ -52,6 +54,7 @@ MAX_VOLTS = 30.0
 MAX_AMPS = 5.1
 READBACK_TOLERANCE = 0.01
 STATUS_LENGTH = 139
+MAX_TEXT_LENGTH = 64
 
 PROTECTION = ("none", "OVP", "OCP", "OPP", "OTP", "LVP", "REP")
 
@@ -100,6 +103,16 @@ def parse_frames(buf):
         else:
             i += 1
     return frames, bytes(buf[i:])
+
+
+def printable_text(payload):
+    """Decodes a device string for display: printable ASCII, bounded length.
+
+    The bytes come from the device, and doctor prints them, so a control byte
+    must not reach the terminal. Every other byte becomes "?".
+    """
+    text = payload[:MAX_TEXT_LENGTH].decode("ascii", "replace")
+    return "".join(ch if " " <= ch <= "~" else "?" for ch in text)
 
 
 def decode_status(data):
@@ -188,9 +201,9 @@ class Session:
         return self.wait_for(cmd, timeout)
 
     def text(self, cmd):
-        """Reads an ASCII field, or None on timeout."""
+        """Reads an ASCII field made safe to print, or None on timeout."""
         payload = self.ask(cmd)
-        return None if payload is None else payload.decode("ascii", "replace")
+        return None if payload is None else printable_text(payload)
 
     def status(self):
         """Reads and decodes the full status."""
@@ -257,7 +270,19 @@ def close_enough(actual, wanted):
 
 
 def check_limits(status, volts, amps):
-    """Refuses requests above what the present input can deliver."""
+    """Refuses requests above what the present input can deliver.
+
+    Fails closed. NaN compares False with everything, so a value that is not
+    a finite number is refused here rather than passing the comparisons below.
+    """
+    for name in ("upper_limit_v", "upper_limit_a"):
+        if not math.isfinite(status[name]) or status[name] < 0:
+            raise ToolError(
+                3, f"cannot check the request: device reports {name} {status[name]}"
+            )
+    for value, unit in ((volts, "V"), (amps, "A")):
+        if value is not None and not math.isfinite(value):
+            raise ToolError(3, f"cannot check the request: setpoint is {value} {unit}")
     if volts is not None and volts > status["upper_limit_v"]:
         raise ToolError(
             3,

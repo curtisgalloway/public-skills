@@ -24,9 +24,18 @@ def rx(cmd, payload, start=0xA1):
 class FakeSupply:
     """Answers the protocol the way the real unit did on the wire."""
 
-    def __init__(self, model=b"DPS-150", upper_limit=4.93, ignore_writes=False):
+    def __init__(
+        self,
+        model=b"DPS-150",
+        upper_limit=4.93,
+        upper_limit_a=5.1,
+        firmware=b"V1.0",
+        ignore_writes=False,
+    ):
         self.model = model
         self.upper_limit = upper_limit
+        self.upper_limit_a = upper_limit_a
+        self.firmware = firmware
         self.ignore_writes = ignore_writes
         self.volts = 3.0
         self.amps = 0.5
@@ -56,7 +65,7 @@ class FakeSupply:
         struct.pack_into("<5f", data, 76, 30.0, 5.1, 150.0, 80.0, 5.0)
         data[107] = 1 if self.output else 0
         data[109] = 1
-        struct.pack_into("<2f", data, 111, self.upper_limit, 5.1)
+        struct.pack_into("<2f", data, 111, self.upper_limit, self.upper_limit_a)
         return bytes(data)
 
     def write(self, raw):
@@ -68,6 +77,8 @@ class FakeSupply:
             self.pending += push + rx(0xE1, b"\x01")
         elif start == 0xA1 and cmd == dps150.CMD_MODEL:
             self.pending += push + rx(0xDE, self.model)
+        elif start == 0xA1 and cmd in (dps150.CMD_VERSION_DF, dps150.CMD_VERSION_E0):
+            self.pending += push + rx(cmd, self.firmware)
         elif start == 0xA1 and cmd == dps150.CMD_STATUS:
             self.pending += push + rx(0xFF, self.status_payload())
         elif start == 0xB1 and not self.ignore_writes:
@@ -128,6 +139,47 @@ class DecodeTest(unittest.TestCase):
         with self.assertRaises(dps150.ToolError) as caught:
             dps150.decode_status(bytes(10))
         self.assertEqual(caught.exception.code, 22)
+
+
+class CheckLimitsTest(unittest.TestCase):
+
+    def status(self, **changes):
+        return {"input_v": 5.13, "upper_limit_v": 4.93, "upper_limit_a": 5.1, **changes}
+
+    def test_unusable_limits_are_refused(self):
+        for name in ("upper_limit_v", "upper_limit_a"):
+            for bad in (float("nan"), float("inf"), float("-inf"), -1.0):
+                with self.subTest(name=name, bad=bad):
+                    with self.assertRaises(dps150.ToolError) as caught:
+                        dps150.check_limits(self.status(**{name: bad}), 1.0, 0.5)
+                    self.assertEqual(caught.exception.code, 3)
+
+    def test_non_finite_setpoints_are_refused(self):
+        for bad in (float("nan"), float("inf")):
+            for volts, amps in ((bad, 0.5), (1.0, bad)):
+                with self.subTest(volts=volts, amps=amps):
+                    with self.assertRaises(dps150.ToolError) as caught:
+                        dps150.check_limits(self.status(), volts, amps)
+                    self.assertEqual(caught.exception.code, 3)
+
+    def test_requests_within_the_limits_pass(self):
+        dps150.check_limits(self.status(), 4.93, 5.1)
+        dps150.check_limits(self.status(), None, None)
+
+
+class PrintableTextTest(unittest.TestCase):
+
+    def test_model_string_is_unchanged(self):
+        self.assertEqual(dps150.printable_text(b"DPS-150"), "DPS-150")
+
+    def test_control_and_high_bytes_are_replaced(self):
+        self.assertEqual(
+            dps150.printable_text(b"V1\x1b[2J\x07\r\n\x7f\xff"), "V1?[2J?????"
+        )
+
+    def test_length_is_bounded(self):
+        text = dps150.printable_text(b"A" * 255)
+        self.assertEqual(text, "A" * dps150.MAX_TEXT_LENGTH)
 
 
 class CommandTest(unittest.TestCase):
@@ -224,6 +276,65 @@ class CommandTest(unittest.TestCase):
         code, _, _ = self.run_tool(supply, "output", "off")
         self.assertEqual(code, 0)
         self.assertFalse(supply.output)
+
+    def test_live_set_with_nan_limit_writes_nothing(self):
+        for limits in ({"upper_limit": float("nan")}, {"upper_limit_a": float("nan")}):
+            with self.subTest(limits=limits):
+                supply = FakeSupply(**limits)
+                supply.output = True
+                code, _, err = self.run_tool(
+                    supply, "set", "--volts", "1.5", "--amps", "0.2"
+                )
+                self.assertEqual(code, 3)
+                self.assertIn("nan", err)
+                self.assertEqual(supply.set_writes(), [])
+
+    def test_output_on_with_nan_limit_is_refused(self):
+        supply = FakeSupply(upper_limit=float("nan"))
+        code, _, _ = self.run_tool(supply, "output", "on", "--yes")
+        self.assertEqual(code, 3)
+        self.assertFalse(supply.output)
+        self.assertEqual(supply.set_writes(), [])
+
+    def test_output_on_with_nan_setpoint_is_refused(self):
+        supply = FakeSupply()
+        supply.volts = float("nan")
+        code, _, _ = self.run_tool(supply, "output", "on", "--yes")
+        self.assertEqual(code, 3)
+        self.assertFalse(supply.output)
+
+    def test_output_off_is_allowed_with_nan_limit(self):
+        supply = FakeSupply(upper_limit=float("nan"))
+        supply.output = True
+        code, _, _ = self.run_tool(supply, "output", "off")
+        self.assertEqual(code, 0)
+        self.assertFalse(supply.output)
+
+    def test_nan_on_the_command_line_is_usage(self):
+        supply = FakeSupply()
+        code, _, _ = self.run_tool(supply, "set", "--volts", "nan")
+        self.assertEqual(code, 2)
+        self.assertEqual(supply.writes, [])
+
+    def test_doctor_prints_no_control_bytes(self):
+        supply = FakeSupply(
+            model=b"DPS-150\x1b[2J", firmware=b"V1\x1b]0;title\x07\r\n" + b"A" * 200
+        )
+        with mock.patch.object(dps150, "load_serial"):
+            code, out, _ = self.run_tool(supply, "doctor")
+        self.assertEqual(code, 0)
+        self.assertIn("model: DPS-150?[2J\n", out)
+        self.assertIn("version 0xDF: V1?]0;title???AAA", out)
+        self.assertNotIn("\x1b", out)
+        self.assertNotIn("\x07", out)
+        self.assertNotIn("\r", out)
+        self.assertLess(max(len(line) for line in out.splitlines()), 100)
+
+    def test_exact_model_still_passes_doctor(self):
+        with mock.patch.object(dps150, "load_serial"):
+            code, out, _ = self.run_tool(FakeSupply(), "doctor")
+        self.assertEqual(code, 0)
+        self.assertIn("model: DPS-150\n", out)
 
     def test_wrong_model_is_refused_before_any_write(self):
         supply = FakeSupply(model=b"OTHER")
