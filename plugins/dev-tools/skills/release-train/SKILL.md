@@ -170,7 +170,8 @@ names a reachable host.
 python3 <skill dir>/scripts/profile_check.py RELEASE-TRAIN.md [--cli <path>] [--json]
 ```
 
-It reports, per check: `sources` (a listed file's git blob id changed or the file is gone),
+It reports, per check: `sources` (a listed file's git blob id changed or the file is gone,
+or a row is `MALFORMED`: its blob cell is not a hex id, `unknown` or `-`),
 `paths` (a backtick-quoted repo path in the profile no longer exists), `headings` (a required
 section is missing), `channels` (an arm lacks a required bullet, or names a workflow job that
 is not in the release workflow), and `smoke` (with `--cli`, a smoke row's subcommand is not in
