@@ -15,13 +15,25 @@ SPDX-License-Identifier: Apache-2.0
 - **Not covered:** Sonnet 5.5, Haiku 5.5 (not yet analyzed). Codex and Gemini models belong in
   their own skills.
 
-Each number below is tagged:
-- **[published]** means Anthropic states it.
-- **[estimate]** means it is derived or comes from third-party testing.
+Each number below is tagged per the shared
+[recommendation contract](../quota-strategy/references/model-recommendation.md):
+**[published]** Anthropic states it, **[derived]** arithmetic on tagged inputs,
+**[estimate]** third-party testing. Untagged rules are this skill's **[policy]**.
+
+- **Output:** exact model ID, effort, billing mode, rationale, verification, and the
+  escalate/stop condition, as the contract lists them. State unknown access or billing.
+- A recommendation does not launch work, switch the session, change defaults, or approve
+  extra spending.
 
 This skill decides *which model suits the task*. Reading usage pools and deciding whether
 there is room to spend is the job of the `quota-strategy` skill in this plugin; this skill calls
 its script rather than keeping its own thresholds.
+
+*Provenance:* a `model-selection` skill may also appear under the `anthropic-skills`
+namespace. That namespace holds skills synced from the user's claude.ai account; it does
+not mark Anthropic authorship. The copy reviewed on 2026-11-06 was an earlier,
+single-plan draft of this skill (same steps and tags, one hardcoded plan), not an
+upstream counterpart. Keep one of the two installed, not both.
 
 ## Step 0: Staleness check (run every time)
 
@@ -63,12 +75,13 @@ Facts:
   of the same pool as every other model; it is not a bonus on top.
 - **[published]** Fable **uses the pool faster** than other Claude models. Anthropic does not
   publish the ratio.
-- **[estimate]** The burn ratio is about 2.5× Opus per token, assuming it tracks API list prices.
-- **[estimate]** Combined with the cap, the most Fable work in a week is about **1/5 of an
+- **[derived]** The burn ratio is about 2.5× Opus per token, assuming it tracks API list prices
+  (Step 2c).
+- **[derived]** Combined with the cap (50% ÷ 2.5), the most Fable work in a week is about **1/5 of an
   all-Opus week**.
 - **[published]** A rolling 5-hour window applies on top of the weekly limit.
 - **[published]** The effort picker labels max effort as **4× or more usage**.
-- **[estimate]** So Opus at max effort can burn about as fast as Fable at high effort. Escalating
+- **[derived]** So Opus at max effort (4×) can burn about as fast as Fable at high effort. Escalating
   from Opus-max to Fable-high costs less extra than the per-token ratio suggests.
 - **[published]** Fable's default effort is high in Claude Code but medium on claude.ai and in the
   desktop app.
@@ -80,7 +93,7 @@ Rules:
 2. **Unattended or overnight runs: Opus only.** If Fable hits its cap mid-run, the run either
    stalls or starts billing usage credits.
 3. **Known-hard one-shot problems: going straight to Fable is fine.** Two failed Opus attempts at
-   max effort can cost about as much pool as one Fable-high attempt [estimate].
+   max effort can cost about as much pool as one Fable-high attempt [derived].
 4. **Escalation threshold:** escalate after **one** failed Opus attempt at max effort, as long as
    Fable is eligible under rule 1.
 
@@ -102,7 +115,8 @@ The constraint is **dollars**. There is no 50% cap.
 
 Facts:
 - **[published]** List prices are Opus $4/$20 and Fable $10/$50 per million tokens
-  (input/output), so Fable is **2.5× per token**.
+  (input/output).
+- **[derived]** So Fable is **2.5× per token**.
 - **[estimate]** On real tasks the gap is smaller, because Opus tends to use more tokens (it
   overthinks). In one third-party coding test, Opus came out only **22% cheaper** overall.
 - **[estimate]** The effective cost ratio is about **1.3×–2.5×**, depending on how verbose Opus
@@ -186,7 +200,7 @@ Budget 30–45 minutes. Wait at least one week after launch, so independent revi
    - each model's failure signatures
    - real-task total cost, not just per-token price
 3. **Rewrite (10 min).** Update Steps 1–2c, Default, both Route sections, and Failure
-   signatures. Re-derive both [estimate] ratios.
+   signatures. Re-derive every [derived] value from its inputs, and re-check each [estimate].
 4. **Bookkeeping (5 min).** Update **Last reviewed**, **Covers**, and **Sources**.
 
 ## Sources (as of 2026-10-09)

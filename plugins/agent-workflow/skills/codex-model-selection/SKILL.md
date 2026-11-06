@@ -34,6 +34,9 @@ See the repository [glossary](../../../../GLOSSARY.md) for shared terms.
 starting rules, which the user's constraints can override. These rules are not benchmark
 results. Usage readings and reserve thresholds belong to
 [quota-strategy](../quota-strategy/SKILL.md); do not maintain another copy here.
+Tags and output fields follow the shared
+[recommendation contract](../quota-strategy/references/model-recommendation.md), which
+`claude-model-selection` uses too; vendor rules stay here.
 
 ## Step 0: Check freshness and availability
 
