@@ -3,7 +3,7 @@
 Bench and USB-analysis skills: capture USB traffic with a Cynthion, decode and diff the
 captures, reverse-engineer a proprietary device's protocol, profile a device from its driver
 source, drive an MCCI 3411 USB 3.2 test device, poke buses with a Bus Pirate, and control a
-Siglent oscilloscope from a script.
+Siglent oscilloscope or a FNIRSI DPS-150 bench supply from a script.
 
 ## Installing
 
@@ -41,7 +41,8 @@ skills. Installing both loads every skill twice.
 
 A Unix-like shell. The Cynthion skills need the Cynthion hardware and the tools
 `cynthion-setup` installs; `mcci-3411` needs the MCCI device and `usbiotest`; `bus-pirate`
-and `siglent-scope` need only the instrument, on a serial port or the network.
+and `siglent-scope` need only the instrument, on a serial port or the network;
+`fnirsi-dps-150` also needs `uv` or `pyserial`.
 
 ## The Cynthion pipeline
 
@@ -103,3 +104,6 @@ Installing the whole theme keeps the skills siblings, which works with no config
 - **`siglent-scope`** — remote-control a Siglent SDS1000X-E series oscilloscope over the
   network: SCPI essentials, screenshots, deep-memory waveform transfer, and the firmware
   quirks that hang naive clients.
+- **`fnirsi-dps-150`** — read and control a FNIRSI DPS-150 USB-C bench supply over USB serial
+  (`scripts/dps150.py`): status, setpoints and output on/off with every write read back, plus
+  the binary protocol and the handshake that makes its silent port answer.
