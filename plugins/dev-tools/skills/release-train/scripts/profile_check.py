@@ -13,7 +13,8 @@ Checks, in order:
   sources   every row of the `## Sources` table (path | blob | feeds) still
             hashes to the recorded git blob id. A changed source means the
             section it feeds needs re-reading; a missing one means the fact
-            is gone.
+            is gone. A row whose blob cell is not a 7-40 character hex id,
+            `unknown` or `-` is MALFORMED, never skipped.
   paths     every backtick-quoted repo path in the profile exists. Only
             tokens whose first segment is a directory at the repo root (or a
             file at the root) are treated as repo paths, so `bin/panio`
@@ -58,7 +59,8 @@ REQUIRED_HEADINGS = [
     "## Sources",
 ]
 REQUIRED_ARM_BULLETS = ["kind", "artifact", "build", "install like a user", "smoke", "cleanup"]
-SOURCE_ROW = re.compile(r"^\|\s*`?([^`|]+?)`?\s*\|\s*([0-9a-f]{7,40}|unknown|-)\s*\|\s*(.*?)\s*\|\s*$")
+BLOB = re.compile(r"^(?:[0-9a-f]{7,40}|unknown|-)$")
+SEPARATOR_CELL = re.compile(r"^:?-+:?$")
 BACKTICK = re.compile(r"`([^`\n]+)`")
 ARM_HEADING = re.compile(r"^### (.+?)\s*$")
 BULLET = re.compile(r"^\s*-\s+([a-z][a-z ]+?):\s*(.*)$")
@@ -97,15 +99,41 @@ def sections(lines: list[str]) -> dict[str, tuple[int, int]]:
     return found
 
 
+def source_cells(line: str) -> list[str] | None:
+    """The stripped cells of a markdown table row, or None if not a row."""
+    s = line.strip()
+    if not s.startswith("|"):
+        return None
+    return [c.strip() for c in s.strip("|").split("|")]
+
+
 def check_sources(lines, secs, repo, findings, update):
     rng = secs.get("## Sources")
     if rng is None:
         return
     for i in range(rng[0], rng[1]):
-        m = SOURCE_ROW.match(lines[i])
-        if not m or m.group(1).lower() in ("path", "---", ":--"):
+        cells = source_cells(lines[i])
+        if cells is None:
             continue
-        rel, recorded, feeds = m.group(1).strip(), m.group(2), m.group(3)
+        if cells and cells[0].lower() == "path":
+            continue  # header
+        if all(SEPARATOR_CELL.match(c) for c in cells if c):
+            continue  # |---|---|---|
+        # Parsing a row and validating its blob are separate steps: a typo
+        # in the hash must surface, not drop the row out of drift checking.
+        rel = cells[0].strip("`").strip() if cells else ""
+        if len(cells) != 3 or not rel:
+            findings.append({"check": "sources", "status": "MALFORMED", "line": i + 1,
+                             "path": rel, "reason": "expected | path | blob | feeds |"})
+            continue
+        recorded, feeds = cells[1], cells[2]
+        if not BLOB.match(recorded):
+            findings.append({"check": "sources", "status": "MALFORMED", "line": i + 1,
+                             "path": rel, "reason": f"blob {recorded!r} is not a 7-40 char "
+                             "hex id, unknown or -"})
+            if update and (repo / rel).is_file():
+                lines[i] = f"| `{rel}` | {blob_id(repo / rel)[:12]} | {feeds} |\n"
+            continue
         path = repo / rel
         if not path.is_file():
             findings.append({"check": "sources", "status": "MISSING", "path": rel, "feeds": feeds})

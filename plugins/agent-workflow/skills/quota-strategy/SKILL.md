@@ -14,6 +14,11 @@ Long agent runs can burn through a weekly limit while no one is watching it. Thi
 usage figures at each work boundary, such as between milestones, and decides who implements the
 next unit.
 
+Which model suits a task is decided by `claude-model-selection` and `codex-model-selection`. Their
+shared evidence tags and recommendation fields live in
+[references/model-recommendation.md](references/model-recommendation.md), kept here because both
+already load this skill.
+
 **Terms.**
 - *Orchestrator*: the session that plans, verifies and lands work.
 - *Implementer*: the subagent or other agent CLI that does one unit of work.

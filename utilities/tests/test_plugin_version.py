@@ -129,6 +129,30 @@ class RepoTest(unittest.TestCase):
         self.assertEqual(rc, 1)
         self.assertIn("is not YYYY.MDD.N", out)
 
+    def test_bundle_manifest_change_needs_a_bump(self) -> None:
+        # A bundle that lists explicit skills still owns its own manifest:
+        # hooks and agents live there.
+        self.write(".claude-plugin/plugin.json",
+                   '{\n  "name": "all",\n  "version": "3.0.0",\n'
+                   '  "hooks": {"timeout": 11}\n}\n')
+        rc, out = self.run_tool("check", "--base", "main")
+        self.assertEqual(rc, 1)
+        self.assertIn("all: files changed", out)
+        self.assertNotIn("tools:", out)
+
+        rc, out = self.run_tool("bump", "--base", "main", "--date", "2026-09-27")
+        self.assertEqual(rc, 0)
+        self.assertIn("all: 3.0.0 -> 2026.927.0", out)
+        self.assertEqual(self.version("plugins/tools/.claude-plugin/plugin.json"), "1.0.0")
+        self.assertEqual(self.run_tool("check", "--base", "main")[0], 0)
+
+    def test_bundle_root_docs_still_need_no_bump(self) -> None:
+        self.write("README.md", "changed\n")
+        self.write("docs/notes.md", "new\n")
+        self.assertEqual(self.run_tool("check", "--base", "main")[0], 0)
+        self.assertIn("nothing to bump",
+                      self.run_tool("bump", "--base", "main", "--date", "2026-09-27")[1])
+
     def test_a_version_in_the_marketplace_entry_fails(self) -> None:
         mkt = json.loads((self.root / ".claude-plugin/marketplace.json").read_text())
         mkt["plugins"][0]["version"] = "1.0.0"

@@ -33,7 +33,10 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 ROOT_README = REPO / "README.md"
 MARKETPLACE = REPO / ".claude-plugin" / "marketplace.json"
-BUNDLE = "public-skills"
+# The marketplace entry that bundles every themed plugin. Renamed from
+# "public-skills" to "everything"; a stale name here silently disabled the
+# bundle-coverage check, so a missing bundle is now a failure, not a skip.
+BUNDLE = "everything"
 
 
 def discover_skills() -> dict[str, list[str]]:
@@ -88,7 +91,7 @@ def skill_is_registered(name: str, text: str) -> bool:
     return f"`{name}`" in text
 
 
-def check_marketplace(plugins: list[str]) -> list[str]:
+def check_marketplace(plugins: list[str], data: dict | None = None) -> list[str]:
     """Structural marketplace checks.
 
     Deliberately NOT a name check. The `description` fields are curated prose
@@ -96,11 +99,27 @@ def check_marketplace(plugins: list[str]) -> list[str]:
     there flagged most skills on a clean tree, which is noise that buries
     anything real. What IS mechanical: every plugin directory needs an entry,
     and the bundle must cover its skills dir.
+
+    A missing bundle entry, or one with an empty skills[] list, is reported
+    rather than treated as "nothing to check": that is how a rename once
+    turned the coverage check off without anyone noticing.
+
+    `data` is the parsed marketplace.json; it defaults to the repo's own and
+    exists so tests can pass a fixture.
     """
     failures: list[str] = []
-    data = json.loads(MARKETPLACE.read_text())
+    if data is None:
+        data = json.loads(MARKETPLACE.read_text())
     entries = {p["name"]: p for p in data.get("plugins", [])}
-    bundle_dirs = set(entries.get(BUNDLE, {}).get("skills", []))
+
+    bundle = entries.get(BUNDLE)
+    bundle_dirs: set[str] = set()
+    if bundle is None:
+        failures.append(f"{BUNDLE}: bundle entry missing from {MARKETPLACE.name}")
+    else:
+        bundle_dirs = set(bundle.get("skills") or [])
+        if not bundle_dirs:
+            failures.append(f"{BUNDLE}: bundle entry has no skills[] in {MARKETPLACE.name}")
 
     for plugin in plugins:
         if plugin not in entries:

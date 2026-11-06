@@ -169,6 +169,9 @@ A session boundary does not make a milestone complete.
 On resumption, read the design, plan, latest checkpoint, the notebook index, the current
 milestone's chapter, and relevant working-tree state. Read other chapters only when the
 index points to one that matters; do not read the whole notebook.
+Take open work from the plan's current obligations list (see "Historical limitations and
+current obligations" below), not from limitations recorded in completed milestones:
+those are snapshots of what was true when each milestone closed.
 Check that prerequisites still hold and that the design has not drifted. Implement the
 milestone identified by the handoff within the user's authorized scope: resume an
 unfinished milestone before advancing; after a completed one, start the next eligible
@@ -206,15 +209,45 @@ Before declaring **any milestone complete**:
    incomplete handoff; a limit on review rounds never waives a blocker.
 4. Write full evidence (commands/checks, outcomes, output excerpts, review findings and
    resolutions) to a linked evidence file, `docs/evidence/<milestone-id>.md` unless the
-   project has a convention. Keep only status, the evidence link, and open limitations
-   in the plan's evidence block. Link the milestone's notebook chapter from the evidence
+   project has a convention. Keep only status, the evidence link, and the limitations
+   snapshot in the plan's evidence block. Link the milestone's notebook chapter from the evidence
    file rather than copying from it. Mark complete only when acceptance criteria and
    required verification pass, blocking review findings are resolved, the chapter has a
    closing entry, and its index row is current. At completion, move the
    detailed milestone entry into the evidence file, preserving design coverage and
    acceptance criteria there; retain its ID, outcome, dependencies, status, evidence link,
-   and open limitations in the plan. Finished milestones should cost each new session a
-   few lines, not a page.
+   and limitations snapshot in the plan. Finished milestones should cost each new session
+   a few lines, not a page.
+5. Reconcile obligations, as described next. Every limitation this milestone leaves open
+   gets an entry in the current obligations list, and every earlier open obligation this
+   milestone touched is marked still open, resolved, or deferred.
+
+### Historical limitations and current obligations
+
+A completed milestone's limitations are a **snapshot**: what was true when it closed. A
+later milestone may resolve them, and the snapshot stays as it was, because it is evidence.
+A session resuming from the plan must not mistake a snapshot for work still to do, and must
+not lose work that is still open. Keep the two apart:
+
+- **Label snapshots.** Head a completed milestone's limitations "Limitations at completion
+  (snapshot, <milestone ID>, <revision>)". Each item that remains open after completion
+  ends with the stable reference of its current obligation (`→ B3`, `→ #42`).
+- **One current list.** Every continuing obligation lives in exactly one authoritative
+  place with a stable reference: the plan's backlog with IDs (`B1`, `B2`, ...), a
+  structured tracker, or issues, following the project's convention. Record which in
+  the conventions block. Do not keep a second, independently maintained list in the
+  handoff, the notebook, or milestone entries.
+- **Reconcile at close-out.** For each open obligation the milestone touched, set one
+  status: still open; resolved, with the milestone and an evidence link; or deferred,
+  with the rationale and what would bring it back. Never drop an unresolved item silently.
+- **Annotate, do not rewrite.** Leave the original limitation and evidence as written. The
+  resolution goes on the current obligation; the snapshot keeps its arrow to it, so a
+  reader following `→ B3` finds "resolved in M3".
+- **Handoffs point, they do not copy.** The `Next session` section links to the current
+  list and names the items that bear on the next action.
+
+Optional backlog items are obligations only when the plan says so; an idea is not an
+acceptance blocker. Worked examples are in [templates.md](templates.md#obligations-examples).
 
 ### Choose the review method while planning
 
@@ -283,7 +316,8 @@ At completion or an early stop, update the plan and write a handoff using the pr
 existing handoff convention, or the plan's `Next session` section when none exists.
 Record the current milestone and status, work done, relevant files and working-tree state,
 test/review evidence, outstanding failures or decisions, and the exact next action.
-Distinguish required work from optional backlog items. Append the checkpoint entry to the
+Distinguish required work from optional backlog items, and point to the current
+obligations list rather than restating it. Append the checkpoint entry to the
 notebook chapter and refresh its index row and `Updated:` timestamp. Do not require a
 separate handoff skill or create competing records.
 

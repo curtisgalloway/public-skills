@@ -14,8 +14,9 @@ on the same day. 2026.927.0, then 2026.927.1. That is valid semver and sorts
 correctly in every tool that orders versions numerically.
 
 A plugin's files are what its marketplace entry points at: the `skills`
-paths it lists, or its whole `source` directory. A plugin that bundles other
-plugins' skills is bumped whenever any of them change.
+paths it lists, or its whole `source` directory. Its own plugin.json always
+counts too, because it carries hooks and agents, not just metadata. A plugin
+that bundles other plugins' skills is bumped whenever any of them change.
 
   plugin-version.py bump [--base REF] [--date YYYY-MM-DD] [PLUGIN ...]
       Bump the named plugins, or every plugin whose files changed since REF
@@ -86,9 +87,14 @@ def plugins(root: Path) -> dict[str, dict]:
             continue  # hosted in another repository
         base = (root / src).resolve()
         listed = entry.get("skills") or []
-        paths = [(base / s).resolve() for s in listed] or [base]
+        manifest = base / ".claude-plugin" / "plugin.json"
+        # Listed skills narrow coverage to those directories, but the plugin's
+        # own manifest (hooks, agents) is still its content. Just that one
+        # file, not the source root, so unrelated repo files stay unwatched.
+        paths = [(base / s).resolve() for s in listed] + [manifest.resolve()] \
+            if listed else [base]
         out[entry["name"]] = {
-            "manifest": base / ".claude-plugin" / "plugin.json",
+            "manifest": manifest,
             "paths": [p.relative_to(root.resolve()).as_posix() for p in paths],
             "entry_version": entry.get("version"),
         }

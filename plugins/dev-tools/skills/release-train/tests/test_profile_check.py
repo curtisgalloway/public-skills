@@ -190,6 +190,51 @@ class ProfileCheckTests(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertTrue(any(f["status"] == "UNKNOWN SUBCOMMAND" and f["subcommand"] == "skills" for f in found), found)
 
+    def set_pkg_blob(self, cell):
+        lines = self.profile.read_text().splitlines(keepends=True)
+        for i, line in enumerate(lines):
+            if line.startswith("| `packaging/build.sh` |"):
+                cells = line.split("|")
+                cells[2] = f" {cell} "
+                lines[i] = "|".join(cells)
+        self.profile.write_text("".join(lines))
+
+    def test_malformed_blob_is_reported_not_skipped(self):
+        # The source changed too: a malformed pin must not hide that.
+        (self.repo / "packaging" / "build.sh").write_text("#!/bin/sh\necho changed\n")
+        for cell in ("NOT_A_HASH", "", "abc12", "`abc1234`"):
+            with self.subTest(cell=cell):
+                self.set_pkg_blob(cell)
+                code, found = self.findings()
+                self.assertEqual(code, 1, found)
+                bad = [f for f in found if f["status"] == "MALFORMED"]
+                self.assertEqual(len(bad), 1, found)
+                self.assertEqual(bad[0]["path"], "packaging/build.sh")
+                self.assertIn("line", bad[0])
+
+    def test_unknown_and_dash_are_still_unrecorded(self):
+        for cell in ("unknown", "-"):
+            with self.subTest(cell=cell):
+                self.set_pkg_blob(cell)
+                code, found = self.findings()
+                self.assertEqual(code, 1)
+                self.assertIn({"check": "sources", "status": "UNRECORDED",
+                               "path": "packaging/build.sh", "feeds": "Channels: deb"}, found)
+
+    def test_row_with_wrong_cell_count_is_malformed(self):
+        text = self.profile.read_text().replace("| Channels: deb |", "|")
+        self.profile.write_text(text)
+        code, found = self.findings()
+        self.assertEqual(code, 1)
+        self.assertTrue(any(f["status"] == "MALFORMED" for f in found), found)
+
+    def test_update_repins_a_malformed_blob(self):
+        self.set_pkg_blob("NOT_A_HASH")
+        r = run(["RELEASE-TRAIN.md", "--update"], self.repo)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        code, found = self.findings()
+        self.assertEqual(code, 0, found)
+
     def test_missing_profile_is_a_precondition_failure(self):
         r = run(["nope.md"], self.repo)
         self.assertEqual(r.returncode, 3)
