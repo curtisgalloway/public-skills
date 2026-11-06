@@ -11,7 +11,7 @@
     {
       "name": "hardware-lab",
       "source": "./plugins/hardware-lab",
-      "description": "Bench and USB-analysis skills: Cynthion setup, capture, pcap decode and protocol reverse-engineering, USB device profiles, the MCCI 3411 test device, Bus Pirate, and Siglent oscilloscope control."
+      "description": "Bench and USB-analysis skills: Cynthion setup, capture, pcap decode and protocol reverse-engineering, USB device profiles, the MCCI 3411 test device, Bus Pirate, Siglent oscilloscope control, and OWON electronic load queries."
     },
     {
       "name": "driver-porting",

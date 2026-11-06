@@ -2,8 +2,8 @@
 
 Bench and USB-analysis skills: capture USB traffic with a Cynthion, decode and diff the
 captures, reverse-engineer a proprietary device's protocol, profile a device from its driver
-source, drive an MCCI 3411 USB 3.2 test device, poke buses with a Bus Pirate, and control a
-Siglent oscilloscope from a script.
+source, drive an MCCI 3411 USB 3.2 test device, poke buses with a Bus Pirate, control a
+Siglent oscilloscope from a script, and query an OWON electronic DC load.
 
 ## Installing
 
@@ -41,7 +41,8 @@ skills. Installing both loads every skill twice.
 
 A Unix-like shell. The Cynthion skills need the Cynthion hardware and the tools
 `cynthion-setup` installs; `mcci-3411` needs the MCCI device and `usbiotest`; `bus-pirate`
-and `siglent-scope` need only the instrument, on a serial port or the network.
+`siglent-scope` and `owon-dc-load` need only the instrument, on a serial port or the
+network.
 
 ## The Cynthion pipeline
 
@@ -103,3 +104,7 @@ Installing the whole theme keeps the skills siblings, which works with no config
 - **`siglent-scope`** — remote-control a Siglent SDS1000X-E series oscilloscope over the
   network: SCPI essentials, screenshots, deep-memory waveform transfer, and the firmware
   quirks that hang naive clients.
+- **`owon-dc-load`** — query an OWON OEL-series electronic DC load over its USB-serial port
+  (tested on an OEL1520): connection settings, the queries seen to work, and the
+  non-standard replies (`*OPC?` returns a build string, `SYST:ERR?` returns hex,
+  unrecognized queries reply `ERR`) that trip up generic SCPI clients. Writes are untested.
