@@ -60,3 +60,6 @@ jobs:
 
       - name: bus-pirate tests
         run: python3 -m unittest discover -s plugins/hardware-lab/skills/bus-pirate/tests -v
+
+      - name: fnirsi-dps-150 tests
+        run: python3 -m unittest discover -s plugins/hardware-lab/skills/fnirsi-dps-150/tests -v
