@@ -59,7 +59,7 @@ as 0.661 V on the way to 1.000 V. Trust `output_on` there, and run
 | --- | --- | --- |
 | 0 | success | |
 | 2 | usage error, several ports, or `output on` without `--yes` | fix the command |
-| 3 | `pyserial` missing, wrong model, or request above the upper limit | fix the cause; for the limit, see below |
+| 3 | `pyserial` missing, wrong model, request above the upper limit, or a limit or setpoint that is not a finite number | fix the cause; for the limit, see below |
 | 4 | no port, port busy, or no handshake | check the cable, power, and other users of the port |
 | 21 | a write read back differently | run `status` before retrying |
 | 22 | no reply after a write | run `status` before retrying; the write may have landed |
