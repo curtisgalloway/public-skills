@@ -62,6 +62,8 @@ differs. Naming it here authorizes it; executing sessions do not re-decide. It r
 per milestone, at the close (review-swarm: `--close`, tier chosen by its planner), and
 fixes are confirmed by its recheck, not a second review.>
 Review order: review and fixes precede the checkpoint commit, which is the last step.
+Current obligations: <"Discovered work / backlog" below, or the tracker/issue label used
+instead>. Milestone limitations are snapshots; this is the list to work from.
 
 ## Status
 | ID | Outcome | Dependencies | Status |
@@ -102,15 +104,21 @@ Notebook: [M1 chapter](notebook/M1.md)
 Limitations and blockers: <record any unmet requirements>
 
 When complete, move this milestone's detailed entry into its evidence file and retain
-only ID, outcome, dependencies, status, evidence link, and open limitations here.
+only ID, outcome, dependencies, status, evidence link, and the limitations snapshot:
+Limitations at completion (snapshot, M1, <revision>): <item> → <B# or issue>
 
 ## Final system verification
 Cross-milestone scenarios, full-design acceptance checks, and required regressions.
 Assign these to a milestone or explicit final gate with recorded evidence.
 
 ## Discovered work / backlog
-Out-of-scope finding, impact, and proposed follow-up. Completion blockers stay with
-their milestone; this section cannot be used to waive acceptance criteria.
+The current obligations list, unless the conventions block names a tracker instead.
+Completion blockers stay with their milestone; this section cannot be used to waive
+acceptance criteria.
+
+| ID | Obligation | Source | Status |
+|----|------------|--------|--------|
+| B1 | <finding or limitation, impact, follow-up> | <M#, review, discovery> | open / resolved in M# ([evidence](evidence/M#.md)) / deferred: <why> / optional |
 
 ## Next session
 - Current milestone and status: <complete / in_progress / blocked>
@@ -118,6 +126,7 @@ their milestone; this section cannot be used to waive acceptance criteria.
 - Commits for this milestone and any uncommitted state: <expected: none for milestone
   work; identify unrelated pre-existing changes separately>
 - Remaining work, blockers, and decisions: <specifics>
+- Current obligations: <link to the list; name the IDs that bear on the resume action>
 - Context boundary: <normal completion / early stop / unexpected compaction>
 - Resume action: <resume unfinished milestone OR begin next eligible milestone>
 - Read first: <design, milestone, notebook index and current chapter, evidence, and a
@@ -150,6 +159,47 @@ findings with severity, fixes, and subsequent verification/review. A section ass
 a review without an artifact or a named reviewer means the review did not happen.
 Record when the review ran relative to the checkpoint commit; it should precede it.
 
-## Limitations and blockers
-Unmet requirements, pre-existing failures, and explicit nonblocking follow-ups.
+## Limitations at completion
+A snapshot as of this milestone's checkpoint: unmet requirements, pre-existing failures,
+and explicit nonblocking follow-ups, each open item with its current obligation reference
+(`→ B3`). Do not edit it later to show resolution; the obligation records that.
 ```
+
+## Obligations examples
+
+**A limitation resolved later.** M2 rebuilds an index from imports, but M3 owns the
+importer, so rebuilding is a no-op until then.
+
+```markdown
+## M2 — Index storage            (plan, after M2 completes)
+Status: complete · Evidence: [M2](evidence/M2.md)
+Limitations at completion (snapshot, M2, a1b2c3d): rebuild-from-imports is a no-op
+until the importer exists → B4
+
+| B4 | Rebuild-from-imports is a no-op | M2 limitation | open |
+```
+
+M3 closes, reconciles B4, and leaves M2's snapshot untouched:
+
+```markdown
+| B4 | Rebuild-from-imports is a no-op | M2 limitation | resolved in M3 ([evidence](evidence/M3.md#verification)) |
+```
+
+A later session reads the backlog, finds no open item, and does not redo the rebuild,
+while M2's entry still records what was true when it shipped.
+
+**A limitation deferred across completion.** M7 ships a catch-up job that could not be run
+against production data.
+
+```markdown
+Limitations at completion (snapshot, M7, d4e5f6a): catch-up job not run on real data → B9
+
+| B9 | Run catch-up against real data | M7 limitation | deferred: needs prod access; revisit before release |
+
+## Next session
+- Current obligations: [backlog](#discovered-work--backlog); B9 is deferred and does not
+  block M8.
+```
+
+With an issue tracker instead, the arrow is `→ #42` and the conventions block names the
+tracker; the backlog table is then omitted rather than kept in parallel.
