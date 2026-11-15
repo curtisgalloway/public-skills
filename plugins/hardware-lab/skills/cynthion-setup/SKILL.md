@@ -45,10 +45,19 @@ Tailor the steps below to the result.
 uv --version
 ```
 
-If not found, direct the user to install it first:
+If not found, direct the user to install it with a package manager first.
+Do not pipe a remote install script into a shell.
 
-- macOS/Linux: `curl -LsSf https://astral.sh/uv/install.sh | sh`
-- Windows: `winget install --id=astral-sh.uv` or the installer at https://docs.astral.sh/uv/getting-started/installation/
+| Platform | Command |
+|---|---|
+| macOS (Homebrew) | `brew install uv` |
+| Windows (WinGet) | `winget install --id=astral-sh.uv -e` |
+| Linux, or any platform with pipx | `pipx install uv` |
+
+On Linux, prefer the distro's own `uv` package if it has one; otherwise use
+pipx. The selected package manager must already be installed; if it is missing,
+set it up using its official instructions first. Other methods:
+https://docs.astral.sh/uv/getting-started/installation/
 
 Do not proceed until `uv --version` succeeds.
 
