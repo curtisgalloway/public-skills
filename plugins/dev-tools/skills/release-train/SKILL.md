@@ -3,16 +3,15 @@ name: release-train
 description: >-
   Cut a release only after every distribution channel has been built, installed the way a user
   would in a throwaway prefix, and smoke-tested end to end by a parallel subagent per channel,
-  with a regression archaeologist pinning every previously fixed bug that has no executing test.
-  Runs that full train for a project's first release, a new channel, or another compelling
-  reason; a routine later release leans on the project's own CI release workflow and gets a
-  light pass (profile check, CI status, gate, published re-verify) instead. Blocks on any failure and files one issue per failure with a minimal reproduction; on all-green,
-  and only behind an explicit gate, tags, pushes, publishes, then re-verifies the published
-  artifacts from the URLs a user would use. Driven by a per-repo RELEASE-TRAIN.md profile the
-  skill can construct (init), check for drift against the repo (check), and execute (run).
-  Use for "cut a release", "release train", "is this ready to ship", "dry-run the release", or
-  when a project has a .deb/Homebrew/zip/registry channel that unit tests never exercise.
-  Ships scripts/profile_check.py (stdlib-only drift checker) and a profile template.
+  with a regression archaeologist pinning every previously fixed bug with no executing test. A
+  first release, a new channel, or another compelling reason gets that full train; a routine later
+  release leans on the project's CI release and gets a light pass (profile check, CI status, gate,
+  published re-verify). Blocks on any failure and files one issue per failure with a minimal
+  reproduction; on all-green, and only behind an explicit gate, tags, pushes, publishes, then
+  re-verifies the published artifacts. Driven by a per-repo RELEASE-TRAIN.md profile the skill can
+  construct (init), check for drift (check), and execute (run). Use for "cut a release", "release
+  train", "is this ready to ship", "dry-run the release", or when a .deb/Homebrew/zip/registry
+  channel is one unit tests never exercise. Ships scripts/profile_check.py.
 ---
 
 <!--

@@ -1,6 +1,11 @@
 ---
 name: fnirsi-dps-150
-description: Read and control a FNIRSI DPS-150 USB-C bench power supply over its USB serial port with the bundled dps150.py: status, voltage and current setpoints, output on/off, plus the binary protocol, the handshake that makes a silent port answer, and which fields were verified on the wire. Use when the user wants to connect to, automate, or script a DPS-150, or has a silent "AT32 Virtual Com Port" (USB ID 2e3c:5740) that may be a bench supply.
+description: >-
+  Read and control a FNIRSI DPS-150 USB-C bench power supply over its USB serial port with the
+  bundled dps150.py: status, voltage and current setpoints, output on/off, plus the binary
+  protocol, the handshake that makes a silent port answer, and which fields were verified on the
+  wire. Use when the user wants to connect to, automate, or script a DPS-150, or has a silent
+  "AT32 Virtual Com Port" (USB ID 2e3c:5740) that may be a bench supply.
 ---
 
 <!--
@@ -101,6 +106,10 @@ Session, as literal bytes:
 3. Send `f1 b0 00 01 01 01`.
 4. To end, send `f1 c1 00 01 00 01` and close the port.
 
+The magic frame's last byte, `01`, does not follow the checksum rule,
+which gives `02`. Send it as written: these are the bytes the tool sends
+and the handshake was verified with them.
+
 After the handshake the supply pushes telemetry about every 600 ms, so
 skip unrelated frames while waiting for a reply.
 
@@ -131,7 +140,7 @@ Full status offsets (note the tail is unaligned):
 | 96, 97, 98 | u8 | brightness, volume, metering |
 | 99, 103 | f32 | capacity Ah, energy Wh |
 | 107 | u8 | output state, 1 on |
-| 108 | u8 | protection: 1 OVP, 2 OCP, 3 OPP, 4 OTP, 5 LVP |
+| 108 | u8 | protection: 1 OVP, 2 OCP, 3 OPP, 4 OTP, 5 LVP, 6 REP |
 | 109 | u8 | 0 CC, 1 CV |
 | 111, 115 | f32 | upper limit V, A |
 
