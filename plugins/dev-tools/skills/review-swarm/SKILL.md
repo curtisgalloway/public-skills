@@ -42,6 +42,21 @@ So the skill keeps its three walls and spends the reviewers where they pay:
 3. **Liveness.** A reviewer that hangs, runs out of budget, or returns prose instead of JSON is
    reported as `ARM FAILED`, in capitals, at the top of the table, never silently omitted.
 
+## When to use this instead of the official review plugins
+
+Claude Code has its own reviewers: the built-in `code-review` skill, and Anthropic's
+`code-review` and `pr-review-toolkit` plugins. In a Claude Code session, when an ordinary review
+is all that's needed, use those. Use this skill when any of these holds:
+
+- The session runs in another harness (Codex, agy), or an arm should run on another
+  vendor's model (an external arm).
+- Findings must be machine-checked: every quote verified against the code, and a failed
+  reviewer reported rather than dropped.
+- The cost of the review should follow the risk of the diff (the tier planner), not a fixed
+  set of reviewers.
+- The review closes a milestone or a release and its JSON findings feed a later step, such as
+  the cheap recheck after fixes.
+
 ## Terms
 
 - **Arm** — one reviewer subagent with one mandate. The full tier's seven are `security`,
