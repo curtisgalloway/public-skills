@@ -37,6 +37,9 @@ jobs:
       - name: No private paths
         run: python3 utilities/check-no-private-paths.py
 
+      - name: Skill frontmatter
+        run: python3 utilities/check-skill-frontmatter.py
+
       - name: agent-agnostic-skills tests
         run: python3 -m unittest discover -s plugins/agent-workflow/skills/agent-agnostic-skills/tests -v
 

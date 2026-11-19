@@ -66,6 +66,9 @@ skills. Installing both loads every skill twice.
   fails.
 - **`review-swarm`** — adversarial review of a diff or pull request, sized to the change for
   the most verified findings per token.
+  For an ordinary review inside Claude Code, Anthropic's own `code-review` and
+  `pr-review-toolkit` plugins are enough. This skill is for other harnesses, reviews whose
+  findings must be machine-checked, and reviews whose cost should follow the diff's risk.
   - `scripts/swarm.py plan` reads the diff and picks the tier: one generalist reviewer for
     prose-only diffs and small code changes; four or five for ordinary code; all seven
     narrow-mandate reviewers (security, correctness, compatibility, docs versus reality,
