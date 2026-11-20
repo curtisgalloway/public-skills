@@ -46,6 +46,9 @@ jobs:
       - name: consult tests
         run: python3 -m unittest discover -s plugins/agent-workflow/skills/consult/tests -v
 
+      - name: handoff tests
+        run: python3 -m unittest discover -s plugins/agent-workflow/skills/handoff/tests -v
+
       - name: orchestrate-milestones tests
         run: python3 -m unittest discover -s plugins/agent-workflow/skills/orchestrate-milestones/tests -v
 

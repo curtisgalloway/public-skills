@@ -64,7 +64,7 @@ file under about a hundred lines — a handoff is a briefing, not a transcript.
 ```markdown
 # Session handoff — <absolute date, e.g. 2026-08-27>
 
-> Written by /handoff for the next agent session. Disposable; excluded from git.
+> Written by /handoff for the next agent session. Disposable session notes.
 
 ## Task
 <What the user is trying to accomplish and why, one or two sentences. Quote the
@@ -102,16 +102,48 @@ the next session can dig past the summary when it needs to.
 
 ### 3. Exclude it from git
 
-If a `.git` directory exists at the project root and `git check-ignore -q HANDOFF.md` does not
-succeed, append `HANDOFF.md*` to `.git/info/exclude`. "Does not succeed" includes git itself
-failing to run: the exclude file is plain text and needs no git binary to write, so do not skip
-this step because `git` is broken or missing from the sandbox. That keeps both the handoff and
-its consumed form out of `git status` without touching the repo's tracked `.gitignore`.
+Run this from the project root in either a primary checkout or a linked worktree.
+Git resolves `info/exclude` to the local file shared by all worktrees for this repository.
+The rule covers both the active and consumed handoff and leaves the tracked `.gitignore`
+unchanged. Skip this step outside a Git checkout.
+
+```sh
+(
+  both_ignored() {
+    git check-ignore -q -- HANDOFF.md && git check-ignore -q -- HANDOFF.md.read
+  }
+  both_ignored 2>/dev/null && exit 0
+
+  if ! exclude=$(git rev-parse --path-format=absolute --git-path info/exclude); then
+    if [ -d .git ] && [ ! -e .git/commondir ]; then
+      exclude=.git/info/exclude
+    else
+      echo "Could not locate the shared Git exclude file." >&2
+      exit 1
+    fi
+  fi
+
+  if ! grep -Fqx 'HANDOFF.md*' "$exclude" 2>/dev/null; then
+    mkdir -p "${exclude%/*}" || exit 1
+    printf '\nHANDOFF.md*\n' >> "$exclude" || exit 1
+  fi
+  if ! both_ignored; then
+    echo "Could not verify that Git ignores both handoff names." >&2
+    exit 1
+  fi
+)
+```
+
+If Git cannot run in an ordinary checkout, use the local `.git/info/exclude` fallback
+above. An agent with only file-edit tools can append the rule there once.
+In a linked worktree, `.git` is a file; let Git resolve the path. If resolution or writing
+fails, report that exclusion was incomplete. If the rule was written but the final check
+could not run, report it as written and unverified.
 
 ### 4. Close out
 
-Tell the user: where the file was written, that it's safe to clear or exit now, and that
-`/handoff` (or just "read the handoff") in the next session resumes.
+Tell the user where the file was written, the result of the exclusion step, and how to
+resume with `/handoff` (or "read the handoff") after clearing context or exiting.
 
 ## Resume mode
 
