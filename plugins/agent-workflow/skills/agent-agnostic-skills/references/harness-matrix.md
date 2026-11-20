@@ -166,9 +166,7 @@ Code sends `tool_name` and `tool_input` flat at the top level.
 | allow | `{"decision":"allow"}` — **an empty object or empty stdout is not accepted** | exit 0; silence is fine |
 | other | `"ask"` requests confirmation | `"ask"` via `permissionDecision` |
 
-The fields are additive across harnesses, so one response can satisfy all of them. See
-[`cleanroom-implementer/scripts/cleanroom_hook.py`](https://github.com/curtisgalloway/cleanroom-skills/blob/main/skills/cleanroom-implementer/scripts/cleanroom_hook.py)
-in the cleanroom-skills repository for the combined emitter.
+The fields are additive across harnesses, so one response can satisfy all of them.
 
 ### Caveats
 

@@ -5,21 +5,13 @@
     "url": "https://github.com/curtisgalloway"
   },
   "metadata": {
-    "description": "General-purpose agent skills, packaged by theme: hardware-lab (USB analysis and bench instruments), driver-porting (source-anchored peripheral specs, reference reviews, a hardware investigator and board specs; from the driver-lab repository; the clean-room skills are in the separate cleanroom-skills repository), agent-workflow (session learning, handoffs, loop safety, design partnership), dev-tools (Jujutsu, dependency scoring, CLI conventions). The everything plugin bundles the three themes kept in this repository."
+    "description": "General-purpose agent skills, packaged by theme: hardware-lab (USB analysis and bench instruments), agent-workflow (session learning, handoffs, loop safety, design partnership), dev-tools (Jujutsu, dependency scoring, CLI conventions). The everything plugin bundles all three."
   },
   "plugins": [
     {
       "name": "hardware-lab",
       "source": "./plugins/hardware-lab",
       "description": "Bench and USB-analysis skills: Cynthion setup, capture, pcap decode and protocol reverse-engineering, USB device profiles, the MCCI 3411 test device, Bus Pirate, Siglent oscilloscope control, OWON electronic load queries, and FNIRSI DPS-150 supply control."
-    },
-    {
-      "name": "driver-porting",
-      "source": {
-        "source": "url",
-        "url": "https://github.com/curtisgalloway/driver-lab.git"
-      },
-      "description": "Driver porting and review: peripheral specs whose every fact cites the line it came from, reference reviews of a driver against another implementation, a hardware investigator that answers a question as anchored facts from sources a spec repository's license accepts, board specs with the board-expert reader and a scaffold for new ones, a spec verifier, and campaign review. The clean-room skills are a separate plugin in curtisgalloway/cleanroom-skills. Lives in curtisgalloway/driver-lab; this entry points there."
     },
     {
       "name": "agent-workflow",
@@ -34,7 +26,7 @@
     {
       "name": "everything",
       "source": "./",
-      "description": "Every skill in this repository in one plugin: hardware-lab, agent-workflow and dev-tools combined. driver-porting lives in the driver-lab repository and is installed on its own. Install either this or the themed plugins, not both.",
+      "description": "Every skill in this repository in one plugin: hardware-lab, agent-workflow and dev-tools combined. Install either this or the themed plugins, not both.",
       "skills": [
         "./plugins/hardware-lab/skills",
         "./plugins/agent-workflow/skills",
