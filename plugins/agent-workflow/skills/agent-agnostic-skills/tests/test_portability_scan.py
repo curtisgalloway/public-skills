@@ -100,6 +100,26 @@ class TestHeuristics(unittest.TestCase):
         self.assertEqual(rc, 1, out)
         self.assertIn("single-harness-path", out)
 
+    def test_codex_only_config_with_shared_conventions(self):
+        rc, out = self.scan_text("config.md", (
+            "Read AGENTS.md, ~/.agents/skills/ and ~/.codex/config.toml via CODEX_HOME."))
+        self.assertEqual(rc, 1, out)
+        self.assertIn("single-harness-path", out)
+        self.assertIn("single-harness-env", out)
+
+    def test_shared_skills_directory(self):
+        rc, out = self.scan_text("shared.md", "Discover skills under ~/.agents/skills/")
+        self.assertEqual(rc, 0, out)
+
+    def test_codex_and_claude_ladder(self):
+        rc, out = self.scan_text("paths.md", "Try ~/.codex/agents/ or ~/.claude/agents/.")
+        self.assertEqual(rc, 0, out)
+
+    def test_codex_only_tools(self):
+        rc, out = self.scan_text("tools.py", 'tools = ("exec_command", "apply_patch", "write_stdin")')
+        self.assertEqual(rc, 1, out)
+        self.assertIn("tool-name-table", out)
+
     def test_shared_tool_names_are_not_a_table(self):
         """read_file and grep_search belong to more than one harness.
 

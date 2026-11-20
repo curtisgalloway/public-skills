@@ -1,6 +1,6 @@
 ---
 name: quota-strategy
-description: Stretch Claude or Codex subscription allowances across long unattended runs by reading available usage pools, reserving capacity for the orchestrator, and routing implementation to a cheaper model or the other provider. Works with either orchestrator and with one or both providers configured. Also sums per-model token usage from Codex, agy and Muse session logs, and a Google Cloud project's Vertex AI token count. Use when the user mentions quota, usage limits, "stretch my quota", token usage or spend, running overnight, or choosing which model or agent should implement a unit of work.
+description: Stretch Claude or Codex subscription allowances across long unattended runs by reading available usage pools, reserving capacity for the orchestrator, and routing implementation to a cheaper model or the other provider. Works with either orchestrator and with one or both providers configured. Also reports observed per-model token usage from Codex, agy and Muse session logs and a Google Cloud project's Vertex AI token count. Use when the user mentions quota, usage limits, "stretch my quota", token usage or spend, running overnight, or choosing which model or agent should implement a unit of work.
 ---
 
 <!--
@@ -36,9 +36,9 @@ already load this skill.
 See the repository [glossary](../../../../GLOSSARY.md) for shared terms.
 
 **Needs:** Python 3.9+ and usage access for each provider the run will use. Claude readings
-need a logged-in Claude Code; Codex readings need local Codex session logs. Either provider
-can be used alone. A missing provider is unavailable, not a pool with zero usage. This
-subscription policy does not measure API-key billing; use a separate spending budget for it.
+use a logged-in Claude Code. Codex readings use a logged-in Codex CLI or local Codex session
+logs. Either provider can be used alone. Treat a missing provider as unavailable. Use a separate
+spending budget for API-key billing.
 
 ## Reading the pools
 
@@ -47,7 +47,7 @@ subscription policy does not measure API-key billing; use a separate spending bu
 | 5-hour | every Claude model | `python3 <skill-dir>/scripts/claude_usage.py [--json]` |
 | General weekly | every Claude model, including those with a scoped limit | same command |
 | Scoped weekly (one per model, when the plan has them) | that model, in addition to the general weekly limit | same command; `--model <name>` exits 1 if that model has no scoped limit |
-| Codex weekly (and a 5-hour window, when the plan has one) | Codex local and cloud tasks, plus ChatGPT Work and other OpenAI agentic features on the same plan | `python3 <skill-dir>/scripts/codex_usage.py [--json]` |
+| Codex weekly (and a 5-hour window, when the plan has one) | Codex local and cloud tasks, plus ChatGPT Work and other OpenAI agentic features on the same plan | `python3 <skill-dir>/scripts/codex_usage.py [--offline] [--json]` |
 
 Some models are not covered by a plan's limits at all. On Pro and on Team standard seats, Fable
 bills usage credits from its first token, and no pool for it appears in the script's output.
@@ -83,15 +83,26 @@ The endpoint is undocumented, so a Claude Code update can break it. Report a cac
 failed reading plainly rather than guessing. The token never leaves the machine except in that
 one request to Anthropic.
 
-Prefer a current usage reading exposed by the client when available. The offline fallback,
-`codex_usage.py`, reads `rate_limits` events from
-`<CODEX_HOME>/sessions/YYYY/MM/DD/rollout-*.jsonl` (default home: `~/.codex`). It compares
-the events' timezone-aware timestamps across all logs and calculates age from the selected
-event. Later tool output, a resumed session, or copying a file cannot make old usage fresh.
-Malformed lines, empty readings, and records without a usable timestamp are skipped;
-exit 1 means no timestamped reading was found. It needs no token or network call.
+`codex_usage.py` first requests live limits through the signed-in Codex CLI over its app
+server's standard input and output. It uses the read-only `account/rateLimits/read` method
+with a five-second request deadline. If the CLI or the live reading is unavailable, it scans
+token-count events in `<CODEX_HOME>/sessions/YYYY/MM/DD/rollout-*.jsonl` (default
+`~/.codex`). Pass `--offline` to read logs only. [Codex app server documentation](https://learn.chatgpt.com/docs/app-server#6-rate-limits-chatgpt)
 
-### Token counts from the other CLIs
+Each pool has its own timestamp, age, and source. The fallback compares event times
+for each ID across logs. Later events from another pool, resumed sessions, and file
+modification times leave that pool's age unchanged. The main pool is `codex`.
+In JSON, `pools` maps IDs to readings and their `status` and `reason`. The legacy
+top-level fields still describe the main pool. Exit 0 means a main-pool observation
+exists. Exit 1 means it is missing, even if another pool has data.
+
+Use a pool for routing only if the applicable windows have valid percentages and
+future resets and the observation is fresh. The script marks missing, stale, and
+past-reset capacity as `unknown`. A user-approved freshness override can use the
+recorded observation timestamp. Treat a missing main pool or a missing window that
+applies to the account as unknown.
+
+### Token counts from session logs
 
 A percentage says how much of a pool is left; it does not say what a run consumed, and
 per-token providers have no pool at all. For that, sum the CLIs' own session logs:
@@ -101,11 +112,16 @@ python3 <skill-dir>/scripts/agent_usage.py [--days 7] [--source codex|agy|muse] 
   [--vertex <gcp-project>] [--json]
 ```
 
-It prints one row per CLI, day and model: calls, input, cached input, output and
-reasoning tokens. Codex's figures come from the running totals in its rollout logs, agy's
-from the per-call rows in `~/.gemini/antigravity-cli/conversations/*.db`, Muse's from the
+It prints one row per CLI, day and model with calls, input, cached input, output and
+reasoning tokens. Codex rows use the running totals in available local rollout logs.
+Newer paginated histories can omit token-count events from those logs. The report labels
+Codex coverage as `partial` when rows are present and `unknown` when none were found
+(`coverage.codex.status` in JSON). Supported Codex versions expose account-wide daily
+token counts via `account/usage/read` without a per-model breakdown. [Codex app server documentation](https://learn.chatgpt.com/docs/app-server#7-token-usage-chatgpt)
+
+agy reads per-call rows from `~/.gemini/antigravity-cli/conversations/*.db` and Muse reads
 per-call usage records in `~/.local/share/muse/sessions/` (subagent logs included, and
-attributed to the subagent's own model). Nothing is sent anywhere. The agy and Muse formats
+attributed to the subagent's own model). The log readers run locally. The agy and Muse formats
 are undocumented; the script reports a skipped file on stderr rather than a guessed number,
 and a CLI update can make a source go quiet, so a zero is "nothing found", not proof of
 none.
@@ -133,6 +149,10 @@ providers, and the selected model and effort for each implementer. At every work
 read the pools those agents actually consume and include percentages, freshness, and reset
 times in the progress line. Changing models within one provider does not escape its shared
 allowance. Do not assume orchestration and review are negligible costs.
+
+A content or safety refusal stops the affected unit. Checkpoint any completed work
+and report the refusal to the user. Apply the stop across all models, providers, and
+environments. Rerouting applies to eligible quota and availability failures.
 
 Apply these rules in order; a fallback never overrides an earlier exclusion:
 
@@ -243,11 +263,6 @@ codex exec -C <worktree> -s workspace-write --model <implementer-model> \
 - **Permission.** A harness's auto-approval mode may refuse the launch as creating an unsafe
   agent. The fix is an allow rule the **user** adds (in Claude Code, `Bash(codex exec:*)`). An
   agent editing its own permission settings is refused, and must not try.
-- **Content refusals.** Codex's provider may refuse a brief as a possible cybersecurity risk
-  (observed for a fuzzing milestone). The run then exits nonzero, having done nothing, and with no
-  last-message file. Check the log's last lines. Do not reword the brief to get past the filter;
-  route the unit to the next pool instead. Plan for this with security-adjacent units such as
-  fuzzing, exploit reproduction or protocol hardening.
 - **Stopping a run.** Stop it through the harness's background-task control, or by its PID. A
   `pkill -f '<pattern>'` whose pattern appears in the calling shell's own command line kills that
   shell too.

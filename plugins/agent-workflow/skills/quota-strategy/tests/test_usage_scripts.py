@@ -9,6 +9,8 @@ import json
 import os
 import sys
 import tempfile
+import textwrap
+import time
 import unittest
 from unittest import mock
 
@@ -68,15 +70,26 @@ class CodexRecordTest(unittest.TestCase):
         return path
 
     @staticmethod
-    def event(timestamp, percent):
-        return {
-            "timestamp": timestamp,
-            "payload": {
-                "rate_limits": {
-                    "primary": {"used_percent": percent, "window_minutes": 10080}
-                }
-            },
+    def event(timestamp, percent, identifier=None):
+        limits = {
+            "primary": {
+                "used_percent": percent, "window_minutes": 10080, "resets_at": 1791590400
+            }
         }
+        if identifier is not None:
+            limits["limit_id"] = identifier
+        return {"timestamp": timestamp, "type": "event_msg",
+                "payload": {"type": "token_count", "rate_limits": limits}}
+
+    def run_json(self, *args):
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            status = codex_usage.main(["--json", *args])
+        return status, json.loads(output.getvalue())
+
+    def fake_server(self, code):
+        return mock.patch.object(codex_usage, "APP_SERVER_COMMAND",
+                                 (sys.executable, "-u", "-c", textwrap.dedent(code)))
 
     def test_newest_record_wins_within_file(self):
         self.write_log(
@@ -87,7 +100,7 @@ class CodexRecordTest(unittest.TestCase):
                 self.event("2026-10-09T09:00:00Z", 1),
             ],
         )
-        _, _, limits = codex_usage.newest_record()
+        _, limits = codex_usage.newest_records()["codex"]
         self.assertEqual(limits["primary"]["used_percent"], 7)
 
     def test_newest_event_wins_despite_later_unrelated_writes(self):
@@ -106,8 +119,7 @@ class CodexRecordTest(unittest.TestCase):
         )
         os.utime(old, (2000, 2000))
         os.utime(new, (1000, 1000))
-        path, _, limits = codex_usage.newest_record()
-        self.assertEqual(path, new)
+        _, limits = codex_usage.newest_records()["codex"]
         self.assertEqual(limits["primary"]["used_percent"], 95)
 
     def test_json_age_uses_usage_event_time(self):
@@ -119,15 +131,12 @@ class CodexRecordTest(unittest.TestCase):
             ],
         )
         now = datetime.datetime(2026, 10, 9, 12, tzinfo=datetime.timezone.utc)
-        output = io.StringIO()
         with mock.patch.object(codex_usage.time, "time", return_value=now.timestamp()):
-            with mock.patch.object(sys, "argv", ["codex_usage.py", "--json"]):
-                with contextlib.redirect_stdout(output), self.assertRaises(
-                    SystemExit
-                ) as exit_:
-                    codex_usage.main()
-        self.assertEqual(exit_.exception.code, 0)
-        self.assertEqual(json.loads(output.getvalue())["age_minutes"], 120)
+            status, data = self.run_json("--offline")
+        self.assertEqual(status, 0)
+        self.assertEqual(data["age_minutes"], 120)
+        self.assertEqual(data["pools"]["codex"]["status"], "unknown")
+        self.assertEqual(data["pools"]["codex"]["reason"], "stale")
 
     def test_unknown_timestamps_do_not_become_fresh_readings(self):
         self.write_log(
@@ -138,26 +147,33 @@ class CodexRecordTest(unittest.TestCase):
                 self.event("2026-10-09T12:00:00", 7),
             ],
         )
-        self.assertIsNone(codex_usage.newest_record())
-        with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(
-            SystemExit
-        ) as exit_:
-            codex_usage.main()
-        self.assertEqual(exit_.exception.code, 1)
+        self.assertEqual(codex_usage.newest_records(), {})
+        status, data = self.run_json("--offline")
+        self.assertEqual(status, 1)
+        self.assertEqual(data["pools"]["codex"]["status"], "unknown")
+        self.assertIsNone(data["age_minutes"])
 
-    def test_nested_record_survives_partial_line_and_empty_limits(self):
-        nested = {
-            "timestamp": "2026-10-09T10:00:00+00:00",
-            "payload": {"info": {"rate_limits": {"primary": {"used_percent": 12}}}},
-        }
-        path = self.write_log(
-            "rollout-x.jsonl",
-            [nested, {"timestamp": "2026-10-09T11:00:00Z", "rate_limits": {}}],
-        )
+    def test_telemetry_survives_partial_line_and_empty_limits(self):
+        event = self.event("2026-10-09T10:00:00+00:00", 12)
+        empty = self.event("2026-10-09T11:00:00Z", 0)
+        empty["payload"]["rate_limits"] = {}
+        path = self.write_log("rollout-x.jsonl", [event, empty])
         with open(path, "a", encoding="utf-8") as stream:
             stream.write('\n{"rate_limits":')
-        _, _, limits = codex_usage.newest_record()
+        _, limits = codex_usage.newest_records()["codex"]
         self.assertEqual(limits["primary"]["used_percent"], 12)
+
+    def test_ignores_non_telemetry_with_rate_limits(self):
+        bogus = self.event("2026-10-09T11:00:00Z", 5, "codex")
+        tool_record = {**bogus, "type": "response_item"}
+        message_record = {**bogus, "payload": {**bogus["payload"], "type": "user_message"}}
+        self.write_log("rollout-x.jsonl", [
+            self.event("2026-10-09T10:00:00Z", 86, "codex"),
+            tool_record,
+            message_record,
+        ])
+        _, limits = codex_usage.newest_records()["codex"]
+        self.assertEqual(limits["primary"]["used_percent"], 86)
 
     def test_timestamp_offsets_compare_as_instants(self):
         self.write_log(
@@ -167,7 +183,7 @@ class CodexRecordTest(unittest.TestCase):
                 self.event("2026-10-09T14:00:00Z", 10),
             ],
         )
-        _, _, limits = codex_usage.newest_record()
+        _, limits = codex_usage.newest_records()["codex"]
         self.assertEqual(limits["primary"]["used_percent"], 20)
 
     def test_codex_home_controls_log_discovery(self):
@@ -175,11 +191,11 @@ class CodexRecordTest(unittest.TestCase):
         self.assertEqual(
             codex_usage.sessions_dir(), os.path.join(self.home.name, "sessions")
         )
-        self.assertEqual(codex_usage.newest_record()[2]["primary"]["used_percent"], 17)
+        self.assertEqual(codex_usage.newest_records()["codex"][1]["primary"]["used_percent"], 17)
         with mock.patch.dict(
             os.environ, {"CODEX_HOME": os.path.join(self.home.name, "other")}
         ):
-            self.assertIsNone(codex_usage.newest_record())
+            self.assertEqual(codex_usage.newest_records(), {})
 
     def test_default_home_when_codex_home_is_unset_or_empty(self):
         for env in (
@@ -191,6 +207,143 @@ class CodexRecordTest(unittest.TestCase):
                     codex_usage.sessions_dir(),
                     os.path.join(self.home.name, ".codex", "sessions"),
                 )
+
+
+    def test_newer_other_pool_does_not_replace_main(self):
+        self.write_log("rollout-main.jsonl", [
+            self.event("2026-10-09T10:00:00Z", 86, "codex"),
+        ])
+        self.write_log("rollout-other.jsonl", [
+            self.event("2026-10-09T10:05:00Z", 5, "codex_other"),
+        ])
+        now = datetime.datetime(2026, 10, 9, 10, 6, tzinfo=datetime.timezone.utc)
+        with mock.patch.object(codex_usage.time, "time", return_value=now.timestamp()):
+            with mock.patch.object(codex_usage, "app_server_rate_limits") as live:
+                status, data = self.run_json("--offline")
+                live.assert_not_called()
+        self.assertEqual(status, 0)
+        self.assertEqual(data["windows"][0]["used_percent"], 86)
+        self.assertEqual(data["age_minutes"], 6)
+        other = data["pools"]["codex_other"]
+        self.assertEqual(other["windows"][0]["used_percent"], 5)
+        self.assertEqual((other["source"], other["status"], other["age_minutes"]),
+                         ("log", "known", 1))
+
+    def test_other_only_leaves_main_unknown(self):
+        self.write_log("rollout-other.jsonl", [
+            self.event("2026-10-09T10:05:00Z", 5, "codex_other"),
+        ])
+        status, data = self.run_json("--offline")
+        self.assertEqual(status, 1)
+        self.assertEqual(data["windows"], [])
+        self.assertEqual(data["pools"]["codex"]["reason"], "pool_missing")
+        self.assertIn("codex_other", data["pools"])
+
+    def test_reset_passed_is_unknown_even_when_fresh(self):
+        event = self.event("2026-10-09T10:05:00Z", 86, "codex")
+        now = datetime.datetime(2026, 10, 9, 10, 6, tzinfo=datetime.timezone.utc)
+        event["payload"]["rate_limits"]["primary"]["resets_at"] = int(now.timestamp())
+        self.write_log("rollout-reset.jsonl", [event])
+        with mock.patch.object(codex_usage.time, "time", return_value=now.timestamp()):
+            status, data = self.run_json("--offline")
+        self.assertEqual(status, 0)
+        self.assertEqual(data["pools"]["codex"]["reason"], "reset_passed")
+
+    def test_live_handshake_and_multiple_pools(self):
+        self.write_log("rollout-main.jsonl", [
+            self.event("2026-10-09T10:00:00Z", 42, "codex"),
+        ])
+        with self.fake_server("""
+            import json
+            import os
+            import sys
+            import time
+
+            init = json.loads(sys.stdin.readline())
+            assert init["method"] == "initialize"
+            assert init["params"]["clientInfo"]["name"]
+            print(json.dumps({"id": init["id"], "result": {"userAgent": "fixture"}}))
+            assert json.loads(sys.stdin.readline()) == {"method": "initialized", "params": {}}
+            request = json.loads(sys.stdin.readline())
+            assert request["method"] == "account/rateLimits/read"
+            print(json.dumps({"method": "account/rateLimits/updated", "params": {}}))
+            reset = int(time.time()) + 3600
+            def bucket(percent, identifier):
+                return {"primary": {"usedPercent": percent, "windowDurationMins": 10080,
+                                    "resetsAt": reset}, "limitId": identifier}
+            print(json.dumps({"id": request["id"], "result": {
+                "rateLimits": bucket(5, "codex_other"),
+                "rateLimitsByLimitId": {
+                    "codex": bucket(86, "codex"), "codex_other": bucket(5, "codex_other"),
+                },
+            }}))
+            assert sys.stdin.readline() == ""
+            with open(os.path.join(os.environ["CODEX_HOME"], "closed"), "w"):
+                pass
+        """):
+            status, data = self.run_json()
+        self.assertTrue(os.path.exists(os.path.join(self.home.name, "closed")))
+        self.assertEqual(status, 0)
+        self.assertEqual(data["windows"][0]["used_percent"], 86)
+        for pool in data["pools"].values():
+            self.assertEqual((pool["source"], pool["status"], pool["age_minutes"]),
+                             ("live", "known", 0))
+
+    def test_live_multi_pool_response_does_not_infer_main(self):
+        other = {"primary": {"usedPercent": 5, "windowDurationMins": 10080,
+                             "resetsAt": int(time.time()) + 3600}}
+        with mock.patch.object(codex_usage, "app_server_rate_limits", return_value={
+            "rateLimits": other, "rateLimitsByLimitId": {"codex_other": other},
+        }):
+            status, data = self.run_json()
+        self.assertEqual(status, 1)
+        self.assertEqual(data["windows"], [])
+        self.assertEqual(data["pools"]["codex"]["reason"], "pool_missing")
+        self.assertEqual(data["pools"]["codex_other"]["source"], "live")
+
+    def test_live_single_pool_compatibility_response(self):
+        with mock.patch.object(codex_usage, "app_server_rate_limits", return_value={
+            "rateLimits": {"primary": {"usedPercent": 20, "windowDurationMins": 300,
+                                       "resetsAt": int(time.time()) + 3600}},
+        }):
+            status, data = self.run_json()
+        self.assertEqual(status, 0)
+        self.assertEqual(data["windows"][0]["used_percent"], 20)
+
+    def test_live_error_falls_back_to_log(self):
+        self.write_log("rollout-main.jsonl", [self.event("2026-10-09T10:00:00Z", 86)])
+        with self.fake_server("""
+            import json
+            import sys
+
+            init = json.loads(sys.stdin.readline())
+            print(json.dumps({"id": init["id"], "result": {}}))
+            sys.stdin.readline()
+            request = json.loads(sys.stdin.readline())
+            print(json.dumps({"id": request["id"], "error": {"code": -32601}}))
+        """):
+            status, data = self.run_json()
+        self.assertEqual(status, 0)
+        self.assertEqual(data["pools"]["codex"]["source"], "log")
+        self.assertEqual(data["windows"][0]["used_percent"], 86)
+
+    def test_live_timeout_falls_back_to_log(self):
+        self.write_log("rollout-main.jsonl", [self.event("2026-10-09T10:00:00Z", 86)])
+        with self.fake_server("""
+            import sys
+            import time
+
+            sys.stdin.readline()
+            sys.stdout.write("{")
+            sys.stdout.flush()
+            time.sleep(10)
+        """):
+            with mock.patch.object(codex_usage, "LIVE_TIMEOUT_SECONDS", 0.2):
+                started = time.monotonic()
+                status, data = self.run_json()
+        self.assertLess(time.monotonic() - started, 5)
+        self.assertEqual(status, 0)
+        self.assertEqual(data["pools"]["codex"]["source"], "log")
 
     def test_window_names(self):
         self.assertEqual(codex_usage.window_name(10080), "weekly")

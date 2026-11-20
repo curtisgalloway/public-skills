@@ -172,11 +172,17 @@ def adapter(state, scratch=None, prompt=None):
             # transcript (Claude Code 2.1.42, 2026-09-26).
             command += ["--session-id", state["new_session_id"]]
     else:
+        # App and plugin feature switches are separate from the config maps.
+        # agents.enabled covers model-selected delegation as well as V1 fallback
+        # on current Codex, and multi_agent_v2 can override that setting.
         command = [executable, "-a", "never", "-s", "read-only",
-                   "-c", "mcp_servers={}", "-c", "plugins={}",
+                   "-c", "mcp_servers={}", "-c", "plugins={}", "-c", "agents.enabled=false",
                    "-c", "model_reasoning_effort=" + effort,
-                   "--disable", "hooks", "--disable", "multi_agent",
-                   "--disable", "enable_mcp_apps", "exec"]
+                   "--disable", "hooks",
+                   "--disable", "multi_agent", "--disable", "multi_agent_v2",
+                   "--disable", "enable_mcp_apps", "--disable", "apps",
+                   "--disable", "plugins", "--disable", "remote_plugin",
+                   "--disable", "plugin_sharing", "exec"]
         if session:
             command += ["resume"]
         command += ["--ignore-user-config", "--ignore-rules", "--json",

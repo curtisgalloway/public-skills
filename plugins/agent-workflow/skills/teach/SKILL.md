@@ -1,6 +1,6 @@
 ---
 name: teach
-description: Summarize past coding-agent sessions into teaching-oriented markdown files. Reads session transcripts from the agent's project-specific transcript directory, finds sessions that haven't been summarized yet (keyed on session_id in existing summary frontmatter), and writes one summary per unsummarized session. Use when the user invokes /teach or asks to "summarize previous sessions" / "catch up on session summaries".
+description: Summarize past coding-agent sessions into teaching-oriented markdown files. Reads project-scoped Claude Code or Codex session history, finds sessions that haven't been summarized yet (keyed on session_id in existing summary frontmatter), and writes one summary per unsummarized session. Use when the user invokes /teach or asks to "summarize previous sessions" / "catch up on session summaries".
 ---
 
 <!--
@@ -14,23 +14,28 @@ The user produces teaching material that shows students how they used agentic co
 
 ## Where things live
 
-- **Session transcripts (input):** see the companion `claude-session-transcript` skill for the JSONL location, how to find the live session, and how to list all sessions for the current project. Its SKILL.md lives in a sibling directory of this skill's base directory (the harness reports the base directory when a skill is invoked) — read `<base-dir>/../claude-session-transcript/SKILL.md` before doing transcript work.
-- **Summaries (output):** `sessions/YYYY-MM-DD-<slug>.md` relative to the repo root (the current working directory). Create the `sessions/` dir if it does not exist.
+- **Session history (input):** use the shared [session history reference](../learn/references/session-history.md)
+  for Codex thread selection and pagination or Claude Code transcript selection and filtering.
+- **Summaries (output):** `sessions/YYYY-MM-DD-<slug>.md` relative to the selected repository root. Create the `sessions/` dir if it does not exist.
 
 ## Procedure
 
-1. **List candidate sessions** for the current project using the snippet in the `claude-session-transcript` skill. `-t` sorts newest first.
+1. **List candidate sessions** for the current project and harness using the shared reference.
+   Keep the stable session ID, project, and timestamp with each candidate.
 
-2. **Include the live session.** The most-recently-modified `.jsonl` is the session you are currently running in. Summarize it too — `/teach` is intended to be run right before the user quits, so the live session is in scope. Two caveats to mention briefly in your final report to the user:
-   - The `/teach` turn itself (the prompts that triggered this run) will not appear in its own summary, because those events haven't been written to the JSONL yet when you read it.
-   - If the user keeps working after `/teach` and runs it again later in the same session, the existing summary will be kept (see step 3) — they would need to delete the file and rerun to refresh.
+2. **Include the live session** when its identity and project are confirmed. Summarize through
+   the last available user turn and identify that cutoff for a live chat. Later runs keep
+   existing summaries unless the user asks to refresh one.
 
-3. **Find what's already summarized.** Grep `sessions/*.md` for `session_id:` frontmatter values. Build the set of already-covered UUIDs. If `sessions/` is empty or missing, the set is empty. Sessions whose UUID is already in this set are skipped, including the live one.
+3. **Find what's already summarized.** Grep `sessions/*.md` for `session_id:` frontmatter values. Build the set of already-covered session IDs. If `sessions/` is empty or missing, the set is empty. Sessions whose ID is already in this set are skipped, including the live one.
 
 4. **For each unsummarized session,** in chronological order (oldest first, so the teaching narrative reads forward):
-   - Read the JSONL. It can be large — use `Read` with `offset`/`limit`, or `jq` via Bash to extract just what you need.
-   - **Extract real user prompts** using the rules in the `claude-session-transcript` skill (real-prompt filter, slash-command pair collapsing, noise-wrapper stripping).
-   - Pick a date from the first event's `timestamp` (use the YYYY-MM-DD in the user's local time; if unsure, use the UTC date — consistency matters more than perfection).
+   - Read the selected session's messages in order. Follow the reference for its harness to
+     extract real user prompts and distinguish them from tool output or injected instructions.
+   - If only summaries or truncated messages are available, report the missing evidence
+     and skip that session so a later run can finish it.
+   - Take the date from the first event or thread creation timestamp, in the user's local
+     time when known.
    - Pick a short slug (3-6 words, kebab-case) describing the session's topic.
 
 5. **Write the summary** at `sessions/YYYY-MM-DD-<slug>.md` using the template below. Do not overwrite an existing file with the same path — if a collision occurs, append `-2`, `-3`, etc.
@@ -41,7 +46,7 @@ The user produces teaching material that shows students how they used agentic co
 
 ```markdown
 ---
-session_id: <full-uuid-from-filename>
+session_id: <stable-session-or-thread-id>
 date: <YYYY-MM-DD>
 title: <human-readable title>
 ---

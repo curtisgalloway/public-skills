@@ -20,7 +20,7 @@ Each session is logged as a JSONL file under:
 $HOME/.claude/projects/<project-key>/<session-uuid>.jsonl
 ```
 
-- `<project-key>` is derived from the cwd at session start: slashes replaced with hyphens, prefixed with a leading hyphen. Example: `/home/alice/projects/my-project` → `-home-alice-projects-my-project`.
+- `<project-key>` is derived from the cwd at session start: slashes replaced with hyphens, including the leading slash. Example: `/home/alice/projects/my-project` → `-home-alice-projects-my-project`.
 - `<session-uuid>` is the harness's session UUID.
 
 Each line of the file is one JSON event — user message, assistant message, tool call, tool result, etc.
@@ -29,22 +29,18 @@ Each line of the file is one JSON event — user message, assistant message, too
 
 **In a hook context**, the hook's JSON stdin carries `transcript_path` (and `session_id`) — use those. This is the authoritative mechanism: the path travels with the event, so it cannot be out of sync with the session that fired the hook.
 
-**Otherwise**, fall back to the most-recently-modified `.jsonl` anywhere under `$HOME/.claude/projects/`:
-
-```bash
-ls -t "$HOME"/.claude/projects/*/*.jsonl | head -1
-```
-
-The `*.jsonl` glob (not bare `*`) matters — it excludes the `memory/` subdir and any per-session subdirs.
-
-If the running harness does provide a session-id substitution or environment variable, globbing on it across all project-key dirs beats the mtime heuristic (the project key is derived from cwd at session start, but cwd may have changed mid-session).
+**Otherwise**, match a session ID provided by the running harness against transcript
+filenames. Confirm the recorded project and working directory. When no ID is available,
+use the visible session or ask the user to choose among the project's candidates.
+Modification time is useful for ordering a list, but another session may be writing
+concurrently.
 
 ## Listing sessions for the current project
 
 For skills that need to walk the project's full session history (e.g. `/teach`):
 
 ```bash
-PROJECT_KEY="-$(pwd | tr '/' '-')"
+PROJECT_KEY="$(pwd | tr '/' '-')"
 ls -t "$HOME/.claude/projects/$PROJECT_KEY"/*.jsonl
 ```
 

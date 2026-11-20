@@ -6,8 +6,8 @@ description: >-
   it, the reviewer's direct edits and margin comments are read back and applied to the file, and
   the reply to their comments opens the next round. Use when the user says "review this in a
   Google Doc", "send it to <name> for review", "process my comments in the doc", "read the doc
-  back", "next round", "publish round 2", or "close out the review". Needs a Google Drive MCP
-  server that can create, read, retitle/move and search files. Ships scripts/round_text.py
+  back", "next round", "publish round 2", or "close out the review". Needs a Drive connection
+  that can create Docs, read their text and comments, find rounds, retitle files and move them. Ships scripts/round_text.py
   (builds the round text) and scripts/doc_diff.py (finds direct edits under the conversion noise).
 ---
 
@@ -24,10 +24,27 @@ runs that review as a loop of numbered rounds without ever letting the Doc becom
 the repo file is the source of truth, each round is a fresh Doc generated from it, and everything
 the reviewer does in the Doc is read back and applied to the file.
 
-Two limits of the Drive tooling shape the whole design, and neither is a preference. **Doc content
-cannot be updated in place**, so every round is a new Doc and its status lives in its title. And
-**comments can be read but not written**, so the reply to the reviewer is a section at the top of
-the next round, never a margin reply. Details under *Limits of the Drive tooling*.
+A fresh Doc preserves each round's edits and comment threads. The next round opens with
+answers in one place, and the title shows whose turn it is. Use this convention with both
+editable and metadata-only Drive connections.
+
+## Check the connection
+
+Inspect the connected tools and their arguments. Check these operations separately:
+
+- Create a Google Doc from the generated round text in the intended folder. Some clients
+  import Markdown directly. Others can create a blank Doc and populate its body.
+- Read the body with formatting and checklist state, and list the **complete** comment
+  threads, replies and anchors. Body access alone cannot establish that a round has no
+  comments. Fetch every page when comments are returned separately.
+- Search the folder, retitle the Doc, and move a superseded round into the archive.
+  A connection may expose these as separate operations.
+- In-place edits and margin replies are optional. Keep numbered Docs and the What-changed
+  section even when those actions are available. Report a missing required operation before
+  starting the step that needs it. Preserve the current round if its review is incomplete.
+
+ChatGPT can update the source Doc through supported, authorized connections.
+[ChatGPT Drive support](https://help.openai.com/en/articles/20001052-using-library-to-manage-files-in-chatgpt)
 
 ## When to use
 
@@ -131,12 +148,11 @@ Round N, starting from a repo file that is ready for eyes.
    else. The uploaded text must be byte-identical to the file; if it drifts, every later diff will
    attribute your drift to the reviewer.
 
-3. **Create the Doc** with the Drive create-file capability: `contentMimeType: text/markdown`,
-   `textContent` the round text, `parentId: <folder-id>`, title
-   `<Title> — <date> r<N> [DRAFT — your turn]`. Drive converts headings, bold, lists, links and
-   tables. Known limits of that conversion: code-span backticks land as plain text; links *inside
-   table cells* land as literal `[text](url)`; and `fileSize` in the create response reads `1`
-   until conversion finishes, so verify by reading the Doc back, not by trusting the size.
+3. **Create the Doc** in the destination folder with the title
+   `<Title> — <date> r<N> [DRAFT — your turn]`. Use the connection's Markdown import or
+   document-writing action. Read it back and check the heading, checkboxes, and body against
+   the generated round before handing it to the reviewer. On the reference Drive server the
+   create call uses `contentMimeType: text/markdown`, `textContent`, and `parentId`.
 
 4. Tell the user it is the reviewer's turn, and stop. The reviewer edits the Doc directly and
    leaves margin comments.
@@ -145,11 +161,11 @@ Round N, starting from a repo file that is ready for eyes.
    section). Apply direct edits verbatim and comment instructions as instructed to the repo
    file, drafting the What-changed bullets as you go.
 
-6. **Publish round N+1 as a new Doc** (steps 1–3). Content cannot be updated in place.
+6. **Publish round N+1 as a new Doc** (steps 1–3). Keep round N available with its review history.
 
 7. **Archive the round just processed**: retitle it
-   `<Title> — <date> r<N> [processed <MM-DD> → r<N+1>]` and move it into `Archive/` in one
-   update-file call (it takes `fileId`, `title`, `parentId`). `<MM-DD>` is the processing date.
+   `<Title> — <date> r<N> [processed <MM-DD> → r<N+1>]` and move it into `Archive/` using the connection’s metadata actions.
+   If the move and rename are separate calls, verify both by file ID before marking it archived. `<MM-DD>` is the processing date.
 
 8. **Let the ticked box decide.** *Reviewed with comments* means process the round and publish
    r<N+1>. *Approved as-is* closes the document out: commit the Markdown and retitle the last
@@ -160,7 +176,7 @@ Round N, starting from a repo file that is ready for eyes.
    convenience for them, not a gate on you. An unanswered decision is its own reason to wait:
    ask for it rather than publishing r<N+1> with the choice made for them.
 
-**Finding the current round:** search the folder with `parentId = '<folder-id>'`; the one Doc
+**Finding the current round:** scope the search to the destination folder; the one Doc
 per document in the root is the current state, and its bracket says whose turn it is.
 
 **A round that was never processed** (the draft was withdrawn, or the document was re-dated) is
@@ -169,7 +185,10 @@ it as `<Title> — <date> r<N> [processed <MM-DD> → <new-date> r1]`.
 
 ## Reading a round back
 
-Use the read-file-content capability with `includeComments: true`. The result carries:
+Read the body and all comment threads. With separate comment tools, match threads to
+quoted passages or anchors by ID, and track replies alongside the body diff. If an anchor
+is unavailable, keep the comment and identify the missing location. The reference
+server's `read_file_content` with `includeComments: true` returns:
 
 - a `commentThreads` list, **newest first**, each thread with an id; and
 - inline `<comment_start id=…>` / `<comment_end id=…>` anchors in **document order**, marking the
@@ -235,27 +254,12 @@ say so in your bullet.
 the day the round was processed. Use the em dash and the arrow as shown so the folder sorts and
 scans uniformly.
 
-## Limits of the Drive tooling
+## Reference Drive connector
 
-Verified 2026-09-01 against the Google Drive MCP server; check the server's tool list before
-assuming these have moved.
-
-- **Doc content cannot be updated in place.** The update-file capability changes metadata only —
-  title and parent folder. Hence a new Doc per round, status carried in the title, and archiving
-  by retitle-and-move.
-- **Comments can be read but not written.** Hence the What-changed section, which is the reply,
-  and a chat summary alongside it. Do not tell the user you "replied in the Doc"; you cannot.
-- **Markdown conversion is lossy in known ways** (table above): code spans, links in table cells,
-  and the header row of every table. Say so once to the reviewer so they do not "fix" them.
-- **`fileSize` lies briefly.** The create response reports `1` until conversion completes. Read
-  the Doc back to confirm it exists and is whole.
-
-## Agent-neutral notes
-
-The steps above name capabilities, not tools. The Google Drive MCP server exposes four that this
-loop needs — create a file from Markdown text, read a Doc back as text with its comments, retitle
-or move a file, and search a folder — and each harness prefixes their names its own way. Look them
-up in your harness's tool list rather than hardcoding a prefix into project instructions.
+The tools below were verified on one Drive MCP server on 2026-09-01. Its update action
+could retitle and move files, its comment action was read-only, and its create response
+briefly reported `fileSize: 1` during conversion. Use read-back to verify a new round.
+Review the conversion table above for differences when using another client.
 
 | Capability | Server tool | Claude Code name (verified 2026-09-01) |
 |---|---|---|
@@ -264,8 +268,6 @@ up in your harness's tool list rather than hardcoding a prefix into project inst
 | retitle and/or move a file | `update_file` | `mcp__claude_ai_Google_Drive__update_file` |
 | list a folder, find the current round | `search_files` | `mcp__claude_ai_Google_Drive__search_files` |
 
-Under Antigravity or any other MCP-capable harness the same server presents the same four tools
-under a different prefix; the arguments (`contentMimeType`, `textContent`, `parentId`, `fileId`,
-`title`, `includeComments`) are the server's and do not change. The two scripts are stdlib-only
-Python 3.9+ and know nothing about any harness; run them from wherever the skill is installed
-(`<skill-dir>/scripts/…`).
+Use the names and arguments in the installed connection's schema. Different connections
+can expose the same operation through different APIs. The two scripts require Python 3.9+
+and use only its standard library.

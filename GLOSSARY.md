@@ -15,6 +15,7 @@ evaluation; add other terms as the documents that use them are updated.
 | Plugin | A package of related skills and optional tools. |
 | Harness | The application that runs an agent and supplies its tools, permissions, and session state, such as Claude Code or Codex. |
 | Subagent / runner | A separate agent session assigned a bounded task; a runner executes specified commands and returns a short report. It does not automatically have different permissions. |
+| Codex thread / app server | A thread is one saved Codex chat, identified by an ID. The app server is the Codex interface that clients use to read chat history, account limits, and other session data. |
 | Orchestrator / implementer | The agent that plans, verifies, and lands work / the agent that performs one assigned unit. Either role can run in Claude Code or Codex. |
 | Reasoning effort | A model setting controlling how much reasoning it spends on a task; supported levels depend on the model. |
 | Usage pool / scoped limit | An allowance that resets on its own schedule / an additional cap for a particular model. Multiple pools can apply to the same work. |

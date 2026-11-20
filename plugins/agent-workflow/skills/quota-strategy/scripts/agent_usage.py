@@ -3,9 +3,9 @@
 # SPDX-License-Identifier: Apache-2.0
 """Sum token usage per day and model from Codex, agy and Muse session logs.
 
-Each CLI keeps its own record of what every model call consumed; nothing here calls a
-model or a provider. Optionally (--vertex) it also asks Google Cloud Monitoring for a
-project's Vertex AI token counts, the provider-side view of metered Gemini traffic.
+The default reads local records. Codex per-model rows cover available JSONL events,
+which can omit paginated histories. The optional --vertex flag reads metered Gemini
+token counts for a Google Cloud project from Cloud Monitoring.
 
   codex  $CODEX_HOME/sessions/YYYY/MM/DD/rollout-*.jsonl (default ~/.codex): the
          running total in each token_count event; a day gets the increase in that total
@@ -298,9 +298,17 @@ def main(argv=None):
              - datetime.timedelta(days=args.days)).timestamp()
     totals = Totals()
     readers = {"codex": codex, "agy": agy, "muse": muse}
-    for source in dict.fromkeys(args.source or SOURCES):  # a repeated --source counts once
+    sources = dict.fromkeys(args.source or SOURCES)  # a repeated --source counts once
+    for source in sources:
         readers[source](totals, since)
     rows = [dict(source=s, day=d, model=m, **v) for (s, d, m), v in sorted(totals.rows.items())]
+    coverage = {}
+    if "codex" in sources:
+        coverage["codex"] = {
+            "status": "partial" if any(row["source"] == "codex" for row in rows) else "unknown",
+            "source": "local_rollout_jsonl",
+            "reason": "Paginated or missing histories can omit token counts from local JSONL.",
+        }
     cloud, status = None, 0 if rows else 1
     if args.vertex:
         try:
@@ -310,7 +318,8 @@ def main(argv=None):
             warn("--vertex failed: %s" % exc)
             status = 3
     if args.json:
-        print(json.dumps({"days": args.days, "rows": rows, "vertex": cloud}, indent=2))
+        print(json.dumps({"days": args.days, "rows": rows, "coverage": coverage,
+                          "vertex": cloud}, indent=2))
         return status
     header = ("source", "day", "model", "calls") + FIELDS
     table = [header] + [tuple(str(r[k]) for k in header) for r in rows]
@@ -320,6 +329,9 @@ def main(argv=None):
                         for i, (cell, w) in enumerate(zip(row, widths))))
     if not rows:
         print("(no session-log usage in the last %d days)" % args.days)
+    if "codex" in coverage:
+        detail = coverage["codex"]
+        print("Codex coverage is %s. %s" % (detail["status"], detail["reason"]))
     if cloud is not None:
         print("\nVertex AI, project %s, last %d days:" % (args.vertex, args.days))
         for model, kinds in sorted(cloud.items()) or [("(none)", {})]:

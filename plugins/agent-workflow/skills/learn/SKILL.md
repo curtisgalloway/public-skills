@@ -50,13 +50,12 @@ which lessons have been handled.
 
 ## Where things live
 
-- **Current-session transcript:** see the companion `claude-session-transcript` skill — its
-  SKILL.md is in a sibling directory of this skill's base directory (the harness reports the
-  base directory on invocation). Read it before doing transcript work.
+- **Session history:** select the intended project and chat using the
+  [session history reference](references/session-history.md). It covers Codex desktop,
+  Codex app-server clients, and Claude Code.
 - **Session facets (full mode, Claude Code):** `$HOME/.claude/usage-data/facets/<session-uuid>.json`
   — per-session summaries the harness writes, with `brief_summary`, `goal_categories`,
-  `friction_detail`, `outcome`, `session_type`. Far cheaper than raw transcripts; other harnesses
-  have no equivalent yet, so there fall back to transcripts.
+  `friction_detail`, `outcome`, `session_type`. Use these summaries to select evidence for the full review.
 - **Global instruction file:** the user-level file the harness actually loads — for Claude Code
   `$HOME/.claude/CLAUDE.md` (check what exists; some setups symlink it into a dotfiles repo, and
   other harnesses load their own user-level files, so confirm what yours actually reads). Use for
@@ -116,12 +115,13 @@ Delegate the transcript analysis to a sub-agent — raw JSONL and intermediate r
 chew up the main session's context. The main session only locates inputs, presents proposals,
 and applies what the user approves.
 
-1. **Main session:** locate the live transcript (per `claude-session-transcript`), resolve the
+1. **Main session:** identify the live session and its history source, resolve the
    instruction-file paths above, and note the memory index and process log paths if they
    exist.
-2. **Spawn a sub-agent** with those absolute paths plus this skill's own SKILL.md path. It scans
-   the transcript for the signals above and reads every open process-log entry, not only this
-   session's, and merges an entry and a transcript moment describing the same event into one
+2. **Spawn a sub-agent** with the selected host and thread ID or transcript path, the
+   file paths above, and this skill's SKILL.md. If only the parent has the history tool,
+   pass the relevant turns with their IDs. The subagent scans the evidence for the signals above,
+   reads every open process-log entry, and merges an entry and a transcript moment describing the same event into one
    candidate; reads the existing instruction files, skips anything covered, and
    proposes an edit to a near-miss section rather than a new one;
    classifies each candidate global vs workspace (verify platform with `uname`, don't assume)
@@ -155,8 +155,8 @@ find "$HOME/.claude/usage-data/facets" -name "*.json" -type f -mtime -30
 
 Read each facet's `brief_summary`, `goal_categories`, `friction_detail`, `outcome`, and
 `session_type`. Where a session has no facet (or the harness writes none), read its transcript
-using the `claude-session-transcript` conventions — but only for those sessions; transcripts
-are large.
+using the session history reference. On Codex, page through chats in the requested
+30-day window and verify proposals against their turns.
 
 Also read the process log of every project the window's sessions worked in (the working
 directory in each facet or transcript), when one exists: its entries dated within the window,
