@@ -31,9 +31,10 @@ scripts, references, or templates.
 ## Installing
 
 Most skills need a Unix-like shell (macOS or Linux), common tools such as `git` and `curl`,
-and any dependencies their own docs list. The skills that read agent transcripts (`learn`,
-`teach`, `claude-session-transcript`) still assume Claude Code's session layout and have not
-been ported to other agents.
+and any dependencies their own docs list. For session reviews, `learn` and `teach` read Codex chat history
+or Claude Code transcripts. Standalone installs should include the
+[shared history reference](plugins/agent-workflow/skills/learn/references/session-history.md)
+and the Claude transcript skill when using Claude Code.
 
 ### Claude Code
 

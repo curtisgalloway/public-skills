@@ -2,7 +2,7 @@
 name: agent-agnostic-skills
 description: >-
   How to write skills, hooks, subagent definitions, and agent-facing scripts that survive a change
-  of harness (Claude Code, Antigravity, whatever ships next), and how to port one that didn't. Use
+  of harness (Claude Code, Codex, Antigravity, whatever ships next), and how to port one that didn't. Use
   when authoring or reviewing any of those, before hardcoding a path, variable, or tool name
   another harness wouldn't have, or when a skill "does nothing" under a different agent. Ships
   scripts/portability_scan.py, a mechanical check for these assumptions.
@@ -100,6 +100,12 @@ The same operation is called something different everywhere, and the names churn
 | fetch a URL | `read_url_content` | `WebFetch` | `web_fetch` |
 | search the web | `search_web` | `WebSearch` | `google_web_search` |
 | delegate | `invoke_subagent` | `Task` | (subagent invocation) |
+
+Codex desktop exposes `exec_command` for shell commands, `apply_patch` for edits and
+`spawn_agent` for delegation where enabled. Discover the tools on the active surface.
+The [harness matrix](references/harness-matrix.md) covers Codex skill roots, hooks,
+custom roles and history. A shared path such as `.agents/skills/` or a shared
+instruction file such as `AGENTS.md` does not establish which harness is active.
 
 A dictionary keyed on one column is a lock-in you cannot see failing. Key on argument names instead
 and classify them by *kind*:

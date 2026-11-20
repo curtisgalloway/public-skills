@@ -96,6 +96,26 @@ class AgentUsageTest(unittest.TestCase):
         self.assertEqual((row["input"], row["cached"], row["output"], row["reasoning"]),
                          (250, 200, 30, 9))
 
+    def test_codex_rows_are_marked_partial_in_json_and_text(self):
+        self.write_codex()
+        status, data = self.run_json("--source", "codex")
+        self.assertEqual(status, 0)
+        self.assertEqual(data["coverage"]["codex"]["status"], "partial")
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            status = agent_usage.main(["--source", "codex"])
+        self.assertEqual(status, 0)
+        self.assertIn("Codex coverage is partial", output.getvalue())
+
+    def test_codex_history_without_rollout_token_events_is_unknown(self):
+        # A persisted thread can have metadata without locally recorded token-count events.
+        with open(self.path(".codex", "sessions", "2026", "10", "16", "rollout-x.jsonl"),
+                  "w") as stream:
+            stream.write(json.dumps({"type": "session_meta", "timestamp": iso(NOW)}) + "\n")
+        status, data = self.run_json("--source", "codex")
+        self.assertEqual((status, data["rows"]), (1, []))
+        self.assertEqual(data["coverage"]["codex"]["status"], "unknown")
+
     def test_agy_reads_generation_counts_and_step_time(self):
         path = self.path(".gemini", "antigravity-cli", "conversations", "c.db")
         db = sqlite3.connect(path)

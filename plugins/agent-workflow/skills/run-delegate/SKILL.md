@@ -40,7 +40,8 @@ See the repository [glossary](../../../../GLOSSARY.md) for shared terms.
 | Inner loop: the same command, output you know the shape of | Run it yourself with quiet flags and a capped tail ([below](#quiet-flags)). |
 | One command, a few lines of output | Run it yourself. |
 | Clean build, full suite, a project you haven't run before, CI logs, server logs | Delegate to a runner. |
-| Deciding how to fix a failure | Main agent. The runner finds the failure; you read the code. |
+| Interpreting screenshots or app state in Codex | Consider GPT-6.1 Terra with the required app or image access. |
+| Diagnosing a failure or changing code | Main agent. For an authorized separate Codex task, start with GPT-6.2 Sol. |
 
 Launching a runner adds its own prompt, tool definitions, commands, output, and report.
 Compare that total cost (including caching and reasoning) with running quietly yourself;
@@ -70,14 +71,15 @@ set -o pipefail; cargo test -q 2>&1 | tail -n 60
 ## Launching a runner
 
 Inspect the current delegation tool's schema and available models first. Honor the user's
-model choice; otherwise choose an available, cheaper model capable of the brief. Name the
-model in the progress update. These examples were checked on 2026-10-09:
+model choice. When the choice is open, pick an available, cheaper model capable of the
+brief. Name the model in the progress update.
 
 - **Claude Code:** call `Agent` with `model: "haiku"`, the brief as `prompt`, and an
   available shell-capable `subagent_type`. Do not use a file-reading-only agent for a
   command runner. Check the actual model in task metadata (`/tasks` in the CLI): account
   policy or model overrides can substitute a different model.
-- **Codex:** select the model and reasoning effort explicitly. In a client exposing
+- **Codex:** default to `gpt-6-luna` at `low` reasoning effort for exact commands and a
+  report with objective checks. In a client exposing
   `spawn_agent` with `fork_turns`, use the shape below. `fork_turns: "all"` inherits the
   parent's model and effort and does not accept overrides; a new thread alone does not
   mean a fresh context. With `"none"`, the brief must carry all required context.
@@ -92,12 +94,11 @@ model in the progress update. These examples were checked on 2026-10-09:
   )
   ```
 
-  `gpt-6-luna` with `low` effort is an example for narrow command execution, not a model
-  requirement for implementation or review. Other Codex clients may expose different
-  argument names or configured agent roles. Use their actual schema and a role with an
-  explicit model and supported effort; do not paste unsupported parameters or silently
-  accept inherited settings. Check effective settings in client-provided task metadata
-  when available. A runner's own claim about its model is not verification.
+  Other Codex clients may expose different arguments or configured agent roles. Use the
+  current schema and a role with an explicit model and supported effort. Check effective
+  settings in client-provided task metadata when available. Use
+  [Codex model selection](../codex-model-selection/SKILL.md) for work outside the runner
+  brief and for billing or speed choices.
 - **No model selection or no capable cheaper model:** use quiet flags locally. If the
   effective model cannot be verified, report it as unverified rather than claiming savings.
 
@@ -107,6 +108,11 @@ references: [Claude subagents](https://code.claude.com/docs/en/sub-agents) and
 
 Do not describe the result until the report is in hand. If the runner fails or returns
 nothing, say so and either re-brief it or run the command yourself.
+
+In a small Codex trial, GPT-6 Luna, GPT-6.1 Terra, and GPT-6.2 Sol each ran the same brief
+once at `low` effort. All three correctly reported the result of 18 tests and identified
+both failures in a synthetic CI log. This supports using Luna for that command-and-report
+brief. The trial did not establish a speed or usage ranking or test diagnosis or code changes.
 
 ### Fresh runner or reused runner
 

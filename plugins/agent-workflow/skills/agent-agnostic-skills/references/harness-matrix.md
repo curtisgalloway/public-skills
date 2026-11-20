@@ -33,6 +33,7 @@ with the slash commands in the last section, which report what your build actual
 | Google Antigravity | `agy` CLI + IDE | Current. Go, closed source. Shares the agent engine with the IDE. |
 | Gemini CLI | `gemini` | **Retired 2026-06-18** for free/Pro/Ultra and individual Code Assist. Enterprise Code Assist Standard/Enterprise retain access. Succeeded by Antigravity CLI. |
 | Claude Code | `claude` | Current. |
+| OpenAI Codex | `codex` CLI and desktop app | Codex entries checked 2026-11-19. |
 
 Announced 2026-05-19, roughly a 30-day migration window. Keep Gemini CLI paths as labeled legacy
 rungs in search ladders; drop them from install instructions.
@@ -45,6 +46,10 @@ rungs in search ladders; drop them from install instructions.
 | project settings | project-scoped settings dir your build reads (`~/.gemini/config/projects/`) | `<project>/.claude/settings.json` |
 | workspace config dir | `<workspace>/.agents/` | `<project>/.claude/` |
 | project-dir variable | **none** — read `workspacePaths[0]` from the event | `$CLAUDE_PROJECT_DIR` |
+
+Codex uses `$CODEX_HOME/config.toml` (default `~/.codex/config.toml`) for user settings.
+`CODEX_HOME` identifies the configuration directory. Use the working directory from the
+session or tool call to identify the project.
 
 Gemini CLI, for reference: `~/.gemini/settings.json`, `<project>/.gemini/settings.json`,
 `$GEMINI_PROJECT_DIR`.
@@ -86,9 +91,9 @@ filesystems). Discovered at:
 - Antigravity, user: `~/.gemini/antigravity/skills/`
 - Antigravity, plugins: `~/.gemini/antigravity-cli/plugins/<plugin>/skills/`
 - Antigravity, workspace: `<workspace>/.agents/skills/`
-- `~/.agents/skills/` — reads as the tool-agnostic location and is worth keeping as a search rung,
-  but **Antigravity does not read it** (Gemini CLI did). Do not install here and expect `agy` to
-  find it.
+- Codex: `~/.agents/skills/` for the user, and `.agents/skills/` from the working directory up
+  to the repository root. Antigravity also reads the workspace location but needs its own
+  user directory above. [Codex skill discovery](https://learn.chatgpt.com/docs/build-skills)
 - Claude Code: `~/.claude/skills/`, `<project>/.claude/skills/`
 - Legacy Gemini CLI: `~/.gemini/skills/`, `<project>/.gemini/skills/`
 
@@ -104,6 +109,11 @@ filesystems). Discovered at:
 | tool restriction | `tools:` list (allowlist) | `tools:` list (allowlist) |
 | invocation | `invoke_subagent` | `Task` |
 | notable fields | `subagent`, `mainAgent`, `hidden`, `inheritMcp`, `commandExecutionPolicy`, `model` | `tools`, `model` |
+
+Codex custom roles use TOML files in `~/.codex/agents/` or `.codex/agents/`.
+Check the current delegation tool schema before passing model or effort overrides.
+The desktop `spawn_agent` surface requires a fresh context for an override.
+[Codex subagents](https://learn.chatgpt.com/docs/agent-configuration/subagents)
 
 Antigravity's `commandExecutionPolicy: sandbox` and `inheritMcp: false` are the two fields that
 actually remove capability rather than merely narrowing a list.
@@ -124,6 +134,11 @@ thought you had.
 
 Gemini CLI, for reference, used `BeforeTool`/`AfterTool` and exported `$GEMINI_PROJECT_DIR` to hook
 commands.
+
+Codex `PreToolUse` provides `tool_name`, `tool_input`, and `cwd`. Inspect the hook input
+contract separately from the agent-facing tool schema. A desktop shell call can take
+`cmd`, while the hook reports the command under `tool_input.command`.
+[Codex hook events](https://learn.chatgpt.com/docs/hooks)
 
 ### Antigravity `PreToolUse` payload (stdin)
 
@@ -227,6 +242,10 @@ settings — not by a variable the permission layer never reads.
 | conversation store | SQLite `.db` | — |
 | artifact types | task, implementation plan, walkthrough, other | — |
 
+In Codex, identify the chat by its thread ID and working directory, then page through its
+turns. Desktop exposes thread tools and the app server exposes read-only history methods.
+See [session history by harness](../../learn/references/session-history.md).
+
 Record shapes to recognize in one pass: nested `toolCall` objects with the result *beside* the call,
 `toolCalls[]` arrays with the result *inside*, `functionCall`/`functionResponse` parts,
 `tool_use`/`tool_result` blocks. Sniff the container format (SQLite magic bytes, JSONL, JSON, text)
@@ -242,6 +261,7 @@ When a path here is wrong, these report what the build actually reads:
 
 - Antigravity: `/hooks`, `/permissions`, `/permissions list`, `/agents`, `/skills`, `/config`
 - Claude Code: `/hooks`, `/permissions`, `/agents`, `/config`
+- Codex CLI: `codex features list`, `codex debug models`, and `codex debug prompt-input`
 
 And the check no command replaces: deliberately trigger the behavior your tool exists to catch, and
 confirm it appears in your log.

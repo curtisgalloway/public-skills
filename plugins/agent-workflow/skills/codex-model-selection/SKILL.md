@@ -1,6 +1,6 @@
 ---
 name: codex-model-selection
-description: Choose GPT-6.1 Sol, GPT-6 Astra, or GPT-6 Luna for a Codex session, subagent, or scheduled run, accounting for subscription allowances, paid credits, API billing, reasoning effort, and escalation. Use when the user asks "which Codex model", "Sol or Astra", "can Luna handle this", or wants a Codex model recommendation for delegated or unattended work.
+description: Choose GPT-6.2 Sol, GPT-6.2 Astra, GPT-6.1 Terra, or GPT-6 Luna for a Codex session, subagent, or scheduled run, accounting for subscription allowances, paid credits, API billing, reasoning effort, and escalation. Use when the user asks "which Codex model", "Sol or Astra", "can Luna handle this", or wants a Codex model recommendation for delegated or unattended work.
 ---
 
 <!--
@@ -19,8 +19,9 @@ SPDX-License-Identifier: Apache-2.0
 
 See the repository [glossary](../../../../GLOSSARY.md) for shared terms.
 
-- **Last reviewed:** 2026-10-09
-- **Covers:** `gpt-6.1-sol`, `gpt-6-astra`, `gpt-6-luna` in Codex; API prices for comparison.
+- **Last reviewed:** 2026-11-19
+- **Covers:** `gpt-6.2-sol`, `gpt-6.2-astra`, `gpt-6.1-terra`, and `gpt-6-luna` in Codex,
+  with API prices for comparison.
 - **Not covered:** specialized models, custom providers, or migration of existing model pins.
 - **Needs:** the current client's model picker or catalog and official documentation access.
   Quota checks additionally need the sibling `quota-strategy` skill and its Python 3.9+ helper
@@ -49,10 +50,11 @@ Tags and output fields follow the shared
    the recommendation provisional. If sources cannot be checked, report freshness unknown.
 3. Use verified current facts for the recommendation, but do not silently rewrite this skill
    or replace a model the user explicitly requested. Never invent a replacement model ID.
-4. Confirm access in the actual client and workspace. **[published]** GPT-6.1 Sol's launch
-   includes Plus, Pro, Business, Enterprise, and Edu; Enterprise/Edu administrators must
-   enable it, and Free/Go are excluded at launch.
-   [Source](https://learn.chatgpt.com/docs/models#gpt-61-sol).
+4. Confirm access in the actual client and workspace. **[published]** Codex CLI requires
+   version 0.166.0 or later for GPT-6.2 Sol and Astra. Available models depend on the plan,
+   seat, and workspace settings. If a pinned model is unavailable, report that and offer
+   a verified alternative for the user's approval.
+   [ChatGPT Work and Codex availability](https://help.openai.com/en/articles/20001275-chatgpt-work-and-codex).
 
 ## Step 1: Establish what pays for the run
 
@@ -66,7 +68,8 @@ key before authorizing a paid route; a conditional recommendation can proceed.
 |---|---|---|
 | ChatGPT sign-in, included allowance | Remaining usage until reset | Apply Step 2a |
 | Purchased credits or a workspace credit agreement | Approved credit budget | Apply Step 2b |
-| API key or explicitly configured paid provider | Approved money budget | Apply Step 2c; provider-specific rates override OpenAI's table |
+| Enterprise USD usage-based agreement | Approved money budget | Use the workspace agreement and Enterprise USD rate card |
+| API key or explicitly configured paid provider | Approved money budget | Apply Step 2c. Use provider-specific rates when applicable |
 
 ### Step 2a: Included subscription usage
 
@@ -76,21 +79,20 @@ task counts. A turn crossing a limit may finish, so the limit is not a precise s
 [Source](https://learn.chatgpt.com/docs/pricing).
 
 **[policy]** Before a long run or escalation, use a current client usage reading and apply
-`quota-strategy`. Its offline fallback is:
+`quota-strategy`. If the client reading is unavailable, use its helper to try a live read:
 
 ```bash
 python3 <skill-dir>/../quota-strategy/scripts/codex_usage.py --json
 ```
 
-Read that skill for freshness, reserve, and stop rules. A missing/stale reading means unknown
-capacity; it does not establish a full pool. If the sibling skill is unavailable, obtain a
-fresh dashboard reading and an explicit reserve before starting unattended work. Changing
-models does not create a new allowance. Do not infer an Astra cap from Claude's Fable rules.
+Use `--offline` for a log-only reading. Read that skill for freshness, reserve, and stop
+rules. A missing or stale reading leaves capacity unknown. If the sibling skill is
+unavailable, obtain a fresh dashboard reading and an explicit reserve before starting
+unattended work. Changing models does not create a new allowance. Check any model-specific
+limits against the current plan.
 
-Use Sol for general work, Luna for bounded units, and Astra when the task warrants it and
-capacity permits. For overnight work, prefer Standard speed and an explicit checkpoint at
-each unit boundary. Establish whether paid continuation is enabled and already authorized;
-do not switch to credits or an API key merely because the included pool is exhausted.
+For overnight work, prefer Standard speed and an explicit checkpoint at each unit boundary.
+Establish whether paid continuation is enabled and already authorized before launching.
 
 ### Step 2b: Paid credits
 
@@ -98,13 +100,13 @@ do not switch to credits or an API key merely because the included pool is exhau
 
 | Model | Input | Cached input | Output |
 |---|---:|---:|---:|
-| GPT-6.1 Sol | 50 credits | 2.5 credits | 250 credits |
-| GPT-6 Astra | 250 credits | 25 credits | 1,250 credits |
+| GPT-6.2 Astra | 200 credits | 10 credits | 1,000 credits |
+| GPT-6.2 Sol | 50 credits | 2.5 credits | 250 credits |
+| GPT-6.1 Terra | 25 credits | 1.25 credits | 125 credits |
 | GPT-6 Luna | 2.5 credits | 0.25 credits | 12.5 credits |
 
 Credit billing has no separate cache-write charge. Credit purchase prices depend on the plan
-or agreement; do not assume a universal dollar conversion.
-[Source](https://learn.chatgpt.com/docs/pricing#token-rates).
+or agreement. [ChatGPT credit rates](https://learn.chatgpt.com/docs/pricing#token-rates).
 
 **[policy]** Apply the task routes below within the authorized budget. Budget the complete
 run, including retries and review. A subscription usage log cannot establish credit balance
@@ -117,16 +119,21 @@ tokens; these are separate from Codex credits:
 
 | Model | Input | Cached input | Cache writes | Output | Source |
 |---|---:|---:|---:|---:|---|
-| `gpt-6.1-sol` | $2 | $0.10 | $2.50 | $10 | [Sol](https://developers.openai.com/api/docs/models/gpt-6.1-sol) |
-| `gpt-6-astra` | $10 | $1 | $12.50 | $50 | [Astra](https://developers.openai.com/api/docs/models/gpt-6-astra) |
+| `gpt-6.2-astra` | $8 | $0.40 | $10 | $40 | [Astra](https://developers.openai.com/api/docs/models/gpt-6.2-astra) |
+| `gpt-6.2-sol` | $2 | $0.10 | $2.50 | $10 | [Sol](https://developers.openai.com/api/docs/models/gpt-6.2-sol) |
+| `gpt-6.1-terra` | $1 | $0.05 | $1.25 | $5 | [Terra](https://developers.openai.com/api/docs/models/gpt-6.1-terra) |
 | `gpt-6-luna` | $0.10 | $0.01 | $0.125 | $0.50 | [Luna](https://developers.openai.com/api/docs/models/gpt-6-luna) |
 
-All three pages specify higher rates above 272K input tokens: 2x input/cache and 1.5x output
-for the whole request. Tool charges and applicable processing premiums are additional.
+The listed cache-write rates use 30-minute retention. Above 272K input tokens, all four
+models charge 2× input and cache rates and 1.5× output for the full request. Tool charges
+and applicable processing premiums are additional. Fast costs 2× the applicable Standard
+API rate for all four. API Ultrafast for the two GPT-6.2 models costs 3× Standard through
+February 28, 2027, and 6× starting March 1, 2027 (Pacific time).
+[API pricing](https://developers.openai.com/api/docs/pricing).
 
-**[derived]** With equal uncached input and output counts, Astra costs 5x Sol, and Sol costs
-20x Luna. Cached-input ratios differ. These ratios predict neither subscription consumption
-nor total task cost: a stronger model may finish with fewer attempts.
+**[derived]** With equal uncached input and output counts at Standard API rates, Astra costs
+4× Sol, Sol costs 2× Terra, and Terra costs 10× Luna. Cached-input ratios differ. To compare
+total task cost, count retries, review, and usage from tools in addition to model tokens.
 
 **[policy]** Prefer Luna for verified repetitive units and Sol for general implementation.
 Use Astra directly when a failed attempt would cost more than its premium. Bound retries
@@ -135,33 +142,53 @@ not a dollar cap. Compare cost per accepted result, including review and failed 
 
 ## Choose the model and effort
 
-**[published]** OpenAI recommends Sol for complex coding and long-running work, Luna for
-focused repeatable tasks, and Astra for the most demanding work. Max spends more reasoning
-on one task; Ultra uses subagents. Luna has no Ultra mode.
-[Source](https://learn.chatgpt.com/docs/models).
+**[published]** OpenAI recommends GPT-6.2 Sol for everyday coding, GPT-6.2 Astra for demanding
+work, GPT-6.1 Terra for visual understanding and computer use, and GPT-6 Luna for focused,
+repeatable work. The Work and Codex model guide suggests starting Luna at High for general
+use. Max increases reasoning on a single task. Ultra uses subagents. Luna supports up to Max.
+[Work and Codex model guide](https://learn.chatgpt.com/docs/models).
 
-The following are **[policy]** starting points, not mandatory changes to an existing session:
+Use these **[policy]** starting points when the user has left the choice open.
 
 | Task | Starting choice | Verification or escalation trigger |
 |---|---|---|
-| A specified command, extraction, or mechanical edit with a clear check | Luna, `low` for commands; `medium` or `high` for implementation | Escalate if the check fails because reasoning or scope exceeded the brief |
-| General coding, debugging, multi-file implementation, repeated scheduled work | Sol, `medium` | Use `high` when the task requires deeper planning or diagnosis |
-| Ambiguous architecture, subtle concurrency, difficult cross-system diagnosis | Astra, `high` | Define what evidence would resolve the question before starting |
-| Long unattended run | Sol for coordination; Luna for independently checkable units, if delegation is authorized | Apply quota/budget gates at every boundary, including review |
+| Exact commands and a report with objective checks | `gpt-6-luna`, `low` | Escalate when the task needs diagnosis or code changes |
+| Bounded extraction or mechanical implementation with a clear check | `gpt-6-luna`, `medium` or `high` | Escalate if the check fails because reasoning or scope exceeded the brief |
+| Interpret screenshots, charts, or app state, or operate a supported app | `gpt-6.1-terra`, `low` for straightforward work, `medium` for multistep work | Verify readings against the source. Use Sol when code or diagnosis becomes the main task |
+| General coding, failure diagnosis, or multi-file implementation | `gpt-6.2-sol`, `medium` | Use `high` when the task requires deeper planning or diagnosis |
+| Ambiguous architecture, subtle concurrency, difficult cross-system diagnosis | `gpt-6.2-astra`, `high` | Define what evidence would resolve the question before starting |
+| Long unattended run | `gpt-6.2-sol` for coordination, with `gpt-6-luna` for independently checkable units if delegation is authorized | Apply quota and budget gates at every boundary, including review |
 | Tight latency target | Narrow the task and try lower effort first | Pay for a faster speed only when latency justifies it |
 
-Check supported efforts in the current client. The codex-cli 0.162.1 bundled catalog inspected
-on the review date offered `low`, `medium`, `high`, `xhigh`, and `max` for all three; Sol and
-Astra also offered `ultra`. Its defaults were Sol/Astra `low` and Luna `medium`. Defaults and
-available controls can differ by client; the table deliberately selects effort explicitly.
-Do not pass Codex's `ultra` to an API request: the API model pages list different supported
-controls. Ultra involves delegation and requires the same authorization as other subagents.
+**Local catalog check.** The bundled catalog in Codex CLI 0.171.0-alpha.13 lists `low`,
+`medium`, `high`, `xhigh`, and `max` for all four models, plus `ultra` for Sol, Astra,
+and Terra. It defaults to `low` for those three and `medium` for Luna. Check current
+client controls and get authorization for delegation before selecting Ultra.
 
-**[published]** Relative to Standard, Fast consumes 2.5x included usage or 2x paid credits;
-Sol/Astra Ultrafast consumes 8x included usage or 6x paid credits, where available.
-[Source](https://learn.chatgpt.com/docs/pricing).
-**[policy]** Start at Standard unless the user has chosen another speed. Fast processing and
-high reasoning effort solve different problems; neither guarantees a better answer.
+**[published]** API reasoning controls differ. The API rejects `none` for GPT-6.2 Sol and
+Astra. The Terra and Luna API pages list `none`, `low`, `medium` (default), `high`,
+`xhigh`, and `max`. For API delegation on GPT-6.2, use the Responses API's Multi-agent
+beta. [Using GPT-6.2 in the API](https://developers.openai.com/api/docs/guides/latest-model),
+[Terra API model](https://developers.openai.com/api/docs/models/gpt-6.1-terra),
+[Luna API model](https://developers.openai.com/api/docs/models/gpt-6-luna).
+
+**[published]** Work and Codex speed multipliers apply relative to Standard on the same
+model. [Work and Codex pricing](https://learn.chatgpt.com/docs/pricing).
+
+| Speed and model | Included allowance | Eligible purchased credits or Enterprise pay-as-you-go |
+|---|---:|---:|
+| Fast on GPT-6.2 Sol and Astra | 2× | 2× |
+| Fast on GPT-6.1 Terra and GPT-6 Luna | 2.5× | 2× |
+| Ultrafast on GPT-6.2 Sol and Astra | 6× | 3× through February 28, 2027, then 6× starting March 1 (Pacific time) |
+
+Ultrafast for both GPT-6.2 models is available to Pro $500 and eligible Enterprise and
+Edu workspaces. Pro $200 offers GPT-6.2 Sol Ultrafast in Codex. Confirm eligibility and
+administrator controls in the actual client.
+[Work and Codex speed settings](https://learn.chatgpt.com/docs/agent-configuration/speed),
+[Plan availability](https://help.openai.com/en/articles/20001275-chatgpt-work-and-codex).
+
+**[policy]** Start at Standard unless the user has chosen another speed. Treat reasoning
+effort and processing speed as independent settings.
 
 ## Escalate on evidence
 
@@ -188,11 +215,11 @@ Do not attribute fixed failure personalities to these models without measured ev
 ## Apply a choice
 
 Use `/model` in an interactive Codex CLI session. For an already authorized new run, set the
-exact model and effort explicitly; these flags were checked with codex-cli 0.162.1:
+exact model and effort explicitly. Codex CLI 0.171.0-alpha.13 exposes these flags.
 
 ```bash
-codex --model gpt-6.1-sol -c model_reasoning_effort=medium
-codex exec --model gpt-6-luna -c model_reasoning_effort=high - < <brief-file>
+codex --model gpt-6.2-sol -c model_reasoning_effort=medium
+codex exec --model gpt-6-luna -c model_reasoning_effort=low - < runner-brief.txt
 ```
 
 These examples inherit the caller's speed, provider, and permission configuration. Confirm

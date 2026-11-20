@@ -48,7 +48,16 @@ import sys
 # A harness "family" is a set of surface names that all belong to one agent.
 # Naming two or more families in a file is the signal that the author is
 # translating rather than assuming.
+# AGENTS.md and .agents/skills are shared conventions. Neither identifies
+# a particular harness or supplies an alternative to a vendor-specific path.
+ANTIGRAVITY_DIR = r"\.agent(?:[/\\]|s[/\\](?!skills\b))"
+
 FAMILY_MARKERS = {
+    "codex": [
+        re.compile(r"\.codex\b"),
+        re.compile(r"\bCODEX_HOME\b"),
+        re.compile(r"\bCodex\b", re.I),
+    ],
     "claude-code": [
         re.compile(r"\.claude\b"),
         re.compile(r"CLAUDE_PROJECT_DIR"),
@@ -63,9 +72,8 @@ FAMILY_MARKERS = {
         re.compile(r"\bGEMINI\.md\b"),
     ],
     "antigravity": [
-        re.compile(r"\.agents?[/\\]"),
+        re.compile(ANTIGRAVITY_DIR),
         re.compile(r"antigravity", re.I),
-        re.compile(r"\bAGENTS\.md\b"),
         re.compile(r"workspacePaths"),
         re.compile(r"\bagy\b"),
     ],
@@ -78,12 +86,14 @@ FAMILY_MARKERS["claude-code"].append(re.compile(r"\bClaude Code\b"))
 FAMILY_MARKERS["gemini-cli"].append(re.compile(r"\bGemini CLI\b"))
 
 PATH_MARKERS = {
+    "codex": re.compile(r"[~$\w/\\.]*\.codex[/\\][\w*/\\.-]*"),
     "claude-code": re.compile(r"[~$\w/\\.]*\.claude[/\\][\w*/\\.-]*"),
     "gemini-cli": re.compile(r"[~$\w/\\.]*\.gemini[/\\](?!antigravity)[\w*/\\.-]*"),
-    "antigravity": re.compile(r"[~$\w/\\.]*\.agents?[/\\][\w*/\\.-]*"),
+    "antigravity": re.compile(ANTIGRAVITY_DIR + r"[\w*/\\.-]*"),
 }
 
 ENV_MARKERS = {
+    "CODEX_HOME": ("codex", re.compile(r"\bCODEX_HOME\b")),
     "CLAUDE_PROJECT_DIR": ("claude-code",
                            re.compile(r"\bCLAUDE_PROJECT_DIR\b")),
     "GEMINI_PROJECT_DIR": ("gemini-cli",
@@ -97,6 +107,8 @@ AGENTS_FILE = re.compile(r"\bAGENTS\.md\b")
 # than one harness are listed under each, so a shared vocabulary counts as
 # portable rather than as lock-in.
 BRAND_TOOLS = {
+    "codex": {"exec_command", "write_stdin", "apply_patch", "spawn_agent",
+              "followup_task", "wait_agent"},
     "claude-code": {"Read", "Write", "Edit", "MultiEdit", "Bash", "Grep",
                     "Glob", "WebFetch", "WebSearch", "NotebookEdit", "Task"},
     "gemini-cli": {"read_file", "write_file", "replace", "run_shell_command",

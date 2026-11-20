@@ -79,9 +79,10 @@ skills. Installing both loads every skill twice.
   implementation to a cheaper model or the other provider. Supports either provider alone;
   stale or missing usage is unknown capacity. Ships `scripts/claude_usage.py` (reads the
   endpoint behind Claude Code's `/usage`, falling back to its cache) and
-  `scripts/codex_usage.py` (compares usage-event timestamps in the active Codex home's logs),
+  `scripts/codex_usage.py` (reads live Codex limits by pool ID, with a timestamped offline fallback),
   both stdlib-only, plus explicit model selection for implementers. `scripts/agent_usage.py`
-  sums per-day, per-model token usage from Codex, `agy` and Muse session logs, and
+  reports per-day, per-model totals from available Codex rollout logs with coverage limits,
+  sums `agy` and Muse session logs, and
   optionally a Google Cloud project's Vertex AI token count. Triggers on "stretch my quota",
   "how many tokens did that use", or "run this overnight".
 - **`claude-model-selection`** — pick Opus 5.5 or Fable 5.1 for a session, subagent, or
@@ -90,8 +91,8 @@ skills. Installing both loads every skill twice.
   attempts. Pool checks go through `quota-strategy`'s `claude_usage.py`. Carries a
   last-reviewed date and flags itself as stale when newer models ship. Triggers on "Opus or
   Fable?" or "which Claude model should I use".
-- **`codex-model-selection`** — pick GPT-6.1 Sol, GPT-6 Astra, or GPT-6 Luna for a
-  session, subagent, or scheduled run. Separates included allowances, paid credits, and API
+- **`codex-model-selection`** — pick GPT-6.2 Sol for general coding, GPT-6.2 Astra
+  for demanding work, GPT-6.1 Terra for visual tasks, or GPT-6 Luna for a cheap command runner. Separates included allowances, paid credits, and API
   billing; selects reasoning effort and speed; and escalates on failed verification. Reuses
   `quota-strategy` for pool checks and flags stale guidance. Triggers on "which Codex model",
   "Sol or Astra", or "can Luna handle this".
@@ -132,8 +133,9 @@ transcript-reading skills load before parsing: where the live Claude Code transc
 disk, and how to extract real user prompts from it (filter rules, slash-command pair
 collapsing, noise stripping).
 
-> `learn`, `teach`, and `claude-session-transcript` are written against Claude Code's
-> session layout and have not been ported to other harnesses yet.
+`learn` and `teach` share the [session history reference](skills/learn/references/session-history.md).
+On Codex they select a project and thread and read its turns. On Claude Code they use the
+Claude transcript reference above.
 
 ## Reviewing a document with someone
 
@@ -142,10 +144,10 @@ collapsing, noise stripping).
   - The file in git stays the source of truth; each round is a new Doc built from it.
   - The reviewer's direct edits (decisions) and margin comments (instructions) are read back
     and applied, and the reply to their comments opens the next round.
-  - Round state lives in Doc titles, because the Drive tooling can neither update a Doc's
-    content in place nor write comments.
+  - The title identifies the round and its status. Each superseded Doc keeps its review history.
 
-  Needs a Google Drive MCP server. Ships two stdlib-only scripts: `scripts/round_text.py`
+  Needs a Drive connection with document creation, body and comment reading, folder search,
+  rename, and move capabilities. Ships two stdlib-only scripts: `scripts/round_text.py`
   builds the round text, and `scripts/doc_diff.py` finds direct edits under the
   Markdown-to-Doc-to-text conversion noise.
 

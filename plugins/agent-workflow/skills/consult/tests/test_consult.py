@@ -209,7 +209,7 @@ class ConsultationTests(unittest.TestCase):
                                       text="The exact proposal")
                 self.assertEqual(closed["status"], "closed")
                 history = json.loads((self.fake_state / first["session_id"]).read_text())
-                for turn in history:
+                for index, turn in enumerate(history):
                     self.assertEqual(turn["peer_guard"], "1")
                     self.assertEqual(turn["cwd"], str(self.project.resolve()))
                     args = turn["args"]
@@ -218,10 +218,24 @@ class ConsultationTests(unittest.TestCase):
                         self.assertIn("--strict-mcp-config", args)
                         self.assertEqual(args[args.index("--effort") + 1], "high")
                     else:
-                        self.assertEqual(args[args.index("-s") + 1], "read-only")
-                        self.assertEqual(args[args.index("-a") + 1], "never")
-                        self.assertIn("--ignore-user-config", args)
-                        self.assertIn("model_reasoning_effort=high", args)
+                        exec_index = args.index("exec")
+                        global_args = args[:exec_index]
+                        self.assertEqual(global_args[global_args.index("-s") + 1], "read-only")
+                        self.assertEqual(global_args[global_args.index("-a") + 1], "never")
+                        self.assertCountEqual(
+                            [global_args[i + 1] for i, arg in enumerate(global_args) if arg == "-c"],
+                            ["mcp_servers={}", "plugins={}", "agents.enabled=false",
+                             "model_reasoning_effort=high"],
+                        )
+                        self.assertCountEqual(
+                            [global_args[i + 1] for i, arg in enumerate(global_args) if arg == "--disable"],
+                            ["hooks", "multi_agent", "multi_agent_v2", "enable_mcp_apps",
+                             "apps", "plugins", "remote_plugin", "plugin_sharing"],
+                        )
+                        subcommand = ["resume"] if index else []
+                        flags = ["--ignore-user-config", "--ignore-rules", "--json", "--skip-git-repo-check"]
+                        session = [first["session_id"]] if index else []
+                        self.assertEqual(args[exec_index + 1:], subcommand + flags + session + ["-"])
 
     def test_coding_task_uses_medium_effort_on_every_turn(self):
         for origin, peer in (("claude", "codex"), ("codex", "claude")):

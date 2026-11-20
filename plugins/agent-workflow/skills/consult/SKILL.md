@@ -42,12 +42,12 @@ an existing interactive counterpart session.
   or secrets, changing either agent's configuration, or implementing the result.
 
 The counterpart advises and inspects; the original agent owns implementation.
-Both adapters enforce restrictions on every invocation, including resume:
+The adapters enforce restrictions on every invocation, including resume:
 
 | Counterpart | Inspection controls |
 | --- | --- |
 | Claude Code | Only `Read`, `Glob`, `Grep`; permission mode `dontAsk`; no MCP servers, hooks, Chrome, or skills; user/project settings excluded |
-| Codex | Read-only sandbox, approvals `never`; user config and exec rules excluded; MCP/plugin maps cleared; hooks, multi-agent delegation, and app integrations disabled |
+| Codex | Read-only sandbox, approvals `never`; user config and exec rules excluded; empty MCP and plugin config overrides; hooks, plugins (including remote plugins and sharing), app integrations, and both generations of multi-agent delegation disabled |
 | agy | Runs inside an OS sandbox whose filesystem is read-only except agy's own state directory (`~/.gemini/antigravity-cli`) and a private temp directory; never `--dangerously-skip-permissions`; `--sandbox` (terminal restrictions); slash commands and skills disabled; refused if any MCP server or plugin is configured |
 | Muse | The same OS sandbox, writable only for Muse's state and sign-in (`~/.local/share/muse`, `~/.config/muse`) and a private temp directory; `--disable-write`, `--disable-shell`, web tools off, hooks and plugins off; the workspace is left untrusted and other agents' personal rules and skills are excluded; refused if any plugin or MCP server is configured |
 
@@ -105,6 +105,14 @@ restrictions to make a command work. Ground truth: `claude --help`, `codex exec
 [Claude programmatic guide](https://code.claude.com/docs/en/headless) and
 [Codex noninteractive guide](https://developers.openai.com/codex/noninteractive).
 
+Codex CLI 0.171.0-alpha.13 reported all the adapter's feature switches off in
+`codex features list` with the same `--disable` arguments. The adapter also
+sets `agents.enabled=false` to stop model-selected delegation. An older build that
+fails with `Unknown feature flag` needs an upgrade. The helper keeps all
+restrictions in place and records the failure in `stderr.log`. Codex still
+applies system and managed configuration. Its config merge can retain MCP
+entries from those layers or a project they mark trusted.
+
 ## Choose the counterpart from the user's words
 
 Users name the counterpart the way they think of it: "consult with Codex",
@@ -136,10 +144,10 @@ refused, use the `-high` entry for `--task thinking`. A Muse plan name is not a 
 `--model` off for Muse unless the user names an ID that `muse model-profile
 show` resolves.
 
-Users say the short name, not the ID, so match it case-insensitively as a whole
-word inside the ID or name, not as the entire string. "Astra" matches Codex's
-`gpt-6-astra` (display name "GPT-6-Astra"); an exact-string search misses it.
-Pass the matched ID, never the user's word, to `--model`.
+Match a short name case-insensitively as a whole word in the ID or display
+name. The bundled Codex catalog in 0.171.0-alpha.13 lists both `gpt-6-astra` and
+`gpt-6.2-astra` as visible matches for "Astra". Pass the selected ID to
+`--model`.
 
 If exactly one model in one CLI matches, use it. If none match, or several do
 (for example two model generations sharing a name), ask the user in one line,
