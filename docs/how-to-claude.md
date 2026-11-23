@@ -16,7 +16,7 @@ guidance is probably not Claude-specific.
 A "session" is one conversation, either in Chat, Cowork or Code. A "turn" is one round of you
 typing, Claude answering.
 
-When you start a new session, Claude reads its default prompt ("You are a helpful agent…") and,
+When you start a new session, Claude reads its default prompt ("You are a helpful agent…") and
 (mostly) any memory it knows about you, as well as any per-project context (like the `AGENTS.md`
 file in a code project), before you type your first message.
 

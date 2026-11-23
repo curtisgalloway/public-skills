@@ -20,7 +20,7 @@ Each session is logged as a JSONL file under:
 $HOME/.claude/projects/<project-key>/<session-uuid>.jsonl
 ```
 
-- `<project-key>` is derived from the cwd at session start: slashes replaced with hyphens, including the leading slash. Example: `/home/alice/projects/my-project` → `-home-alice-projects-my-project`.
+- `<project-key>` is derived from the cwd at session start: every character that is not a letter or digit (slashes, dots, underscores) replaced with a hyphen, including the leading slash. Example: `/home/alice/projects/my-project` → `-home-alice-projects-my-project`.
 - `<session-uuid>` is the harness's session UUID.
 
 Each line of the file is one JSON event — user message, assistant message, tool call, tool result, etc.
@@ -40,11 +40,11 @@ concurrently.
 For skills that need to walk the project's full session history (e.g. `/teach`):
 
 ```bash
-PROJECT_KEY="$(pwd | tr '/' '-')"
+PROJECT_KEY="$(pwd | sed 's/[^A-Za-z0-9]/-/g')"
 ls -t "$HOME/.claude/projects/$PROJECT_KEY"/*.jsonl
 ```
 
-`-t` sorts newest first; reverse for chronological order. Same cwd-may-have-changed caveat applies — if the project was created mid-session, the live session's transcript may not be under the cwd-derived project key.
+`-t` sorts newest first; reverse for chronological order. If the working directory changed mid-session, the live session's transcript may not be under the cwd-derived project key.
 
 ## Extracting real user prompts
 

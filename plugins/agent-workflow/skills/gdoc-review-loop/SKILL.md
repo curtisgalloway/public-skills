@@ -164,7 +164,7 @@ Round N, starting from a repo file that is ready for eyes.
 6. **Publish round N+1 as a new Doc** (steps 1–3). Keep round N available with its review history.
 
 7. **Archive the round just processed**: retitle it
-   `<Title> — <date> r<N> [processed <MM-DD> → r<N+1>]` and move it into `Archive/` using the connection’s metadata actions.
+   `<Title> — <date> r<N> [processed <MM-DD> → r<N+1>]` and move it into `Archive/` using the connection's metadata actions.
    If the move and rename are separate calls, verify both by file ID before marking it archived. `<MM-DD>` is the processing date.
 
 8. **Let the ticked box decide.** *Reviewed with comments* means process the round and publish

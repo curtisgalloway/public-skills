@@ -9,7 +9,7 @@ update it as decisions change, noting what changed and why.
 
 ## Scope
 
-The pipeline consists of three layers of sibling skills in `public-skills`:
+The pipeline consists of five sibling skills in `public-skills`:
 
 - **`cynthion-capture`** — USB capture, rotation, indexing, clock sync
 - **`cynthion-pcap-decode`** — shared USB decoder (one decoder, multiple consumers)
@@ -117,7 +117,7 @@ artifacts is the anomaly skill's responsibility, not the decoder's.
 
 ---
 
-## Device profile (`cynthion-device-profile`)
+## Device profile (`usb-device-profile`)
 
 ### Purpose
 

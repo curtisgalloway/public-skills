@@ -107,7 +107,7 @@ filesystems). Discovered at:
 | location | `<workspace>/.agents/agents/<name>.md` or `.agents/agents/<name>/agent.md` | `<project>/.claude/agents/<name>.md` |
 | format | Markdown, YAML frontmatter | Markdown, YAML frontmatter |
 | tool restriction | `tools:` list (allowlist) | `tools:` list (allowlist) |
-| invocation | `invoke_subagent` | `Task` |
+| invocation | `invoke_subagent` | `Agent` (formerly `Task`) |
 | notable fields | `subagent`, `mainAgent`, `hidden`, `inheritMcp`, `commandExecutionPolicy`, `model` | `tools`, `model` |
 
 Codex custom roles use TOML files in `~/.codex/agents/` or `.codex/agents/`.
@@ -189,7 +189,7 @@ The fields are additive across harnesses, so one response can satisfy all of the
 | shell | `run_command` | `Bash` | `run_shell_command` |
 | fetch URL | `read_url_content` | `WebFetch` | `web_fetch` (URL inside `prompt`) |
 | web search | `search_web` | `WebSearch` | `google_web_search` |
-| delegate | `invoke_subagent` | `Task` | (subagent invocation) |
+| delegate | `invoke_subagent` | `Agent` (formerly `Task`) | (subagent invocation) |
 | MCP tools | vendor-prefixed | `mcp__<server>__<tool>` | `mcp_<server>_<tool>` |
 
 ## Argument names
