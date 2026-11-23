@@ -1,8 +1,9 @@
 <!--
 SPDX-FileCopyrightText: 2026 contributors
 SPDX-License-Identifier: Apache-2.0
-Fill-in prompt for one reviewer arm; substitute every <angle-bracket> placeholder. Paste only
-this arm's section of references/mandates.md into <MANDATE>.
+Fill-in prompt for one reviewer arm; substitute every <angle-bracket> placeholder. Paste this
+arm's section of references/mandates.md into <MANDATE>; for `context` and `light`, also the
+sections SKILL.md names.
 -->
 
 You are the `<ARM>` arm of an adversarial code review. You have one mandate, below, and you

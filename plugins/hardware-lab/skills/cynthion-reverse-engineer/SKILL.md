@@ -60,7 +60,7 @@ wherever your agent installed it.
 - Python 3.8+ (stdlib only for analysis scripts)
 - `tshark` recommended for pcap decoding (see `cynthion-pcap-decode`)
 - `libusb1` Python package for running the generated replay script:
-  `uv tool install libusb1` or `pip install libusb1`
+  `uv pip install libusb1` or `pip install libusb1`
 - `facedancer` Python package for the clone script (Linux only):
   `pip install facedancer`
 
@@ -229,8 +229,9 @@ to the command table and resolves open questions.
 
 ## Script reference
 
-All scripts are in `scripts/` relative to this skill directory. They accept
-`.pcap` or `.json` (from `decode.py --format json`) as inputs.
+All scripts are in `scripts/` relative to this skill directory. `diff_transactions.py` and
+`infer_commands.py` accept `.pcap` or `.json` (from `decode.py --format json`); the `gen_*`
+scripts need the `.json`.
 
 | Script | Input | Output |
 |--------|-------|--------|

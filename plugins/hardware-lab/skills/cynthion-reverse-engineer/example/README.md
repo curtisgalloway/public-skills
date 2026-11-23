@@ -102,7 +102,8 @@ byte-role breakdown, and open questions.
 ## With real hardware
 
 The workflow is the same. Replace the `.json` inputs with `.pcap` files from Packetry; the
-scripts decode them automatically:
+diff and inference scripts decode them automatically, and the `gen_*` scripts need the decoded
+`.json`:
 
 ```bash
 python3 ../scripts/diff_transactions.py idle.pcap button.pcap \
@@ -111,5 +112,6 @@ python3 ../scripts/diff_transactions.py idle.pcap button.pcap \
 python3 ../scripts/infer_commands.py idle.pcap button.pcap \
     --label idle button > hypothesis.json
 
-python3 ../scripts/gen_replay.py hypothesis.json idle.pcap -o replay.py
+python3 ../../cynthion-pcap-decode/scripts/decode.py idle.pcap --format json > idle.json
+python3 ../scripts/gen_replay.py hypothesis.json idle.json -o replay.py
 ```
