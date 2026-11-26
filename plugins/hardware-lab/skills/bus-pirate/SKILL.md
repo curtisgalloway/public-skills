@@ -24,7 +24,7 @@ per-pin voltage measurement, and a logic analyzer built in. It is the fastest
 way to answer "is this chip alive and what does it say" without writing firmware.
 
 This skill covers **Bus Pirate 5, 5XL, and 6** (the RP2040/RP2350 generation).
-Detail lives in two companion files, read them when the task needs them:
+Detail lives in three companion files; read them when the task needs them:
 
 - `references/modes.md` — every bus mode: pins, config prompts, what `[` `{` `]`
   `}` `r` mean *in that mode*, and the mode-specific commands (`scan`, `sniff`,

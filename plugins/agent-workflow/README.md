@@ -42,7 +42,7 @@ skills. Installing both loads every skill twice.
 - **`design-partner`** — before anything is built: a thinking partner for design,
   architecture, and brainstorming. It explores the problem, lays out options and trade-offs,
   and pushes back, without touching code. Triggers on "let's brainstorm", "should I", "talk
-  me through the trade-offs"; drops when the user says to build.
+  me through the tradeoffs"; drops when the user says to build.
 - **`consult`** — ask another coding agent to assess a question independently, then trade
   follow-ups until both confirm a recommendation. Any of Claude Code, Codex, Antigravity
   (`agy`) and Muse can consult another, or a different model in its own CLI (Opus consulting Fable);
@@ -165,5 +165,7 @@ Claude transcript reference above.
 ```bash
 python3 -m unittest discover -s plugins/agent-workflow/skills/agent-agnostic-skills/tests -v
 python3 -m unittest discover -s plugins/agent-workflow/skills/consult/tests -v
+python3 -m unittest discover -s plugins/agent-workflow/skills/handoff/tests -v
+python3 -m unittest discover -s plugins/agent-workflow/skills/orchestrate-milestones/tests -v
 python3 -m unittest discover -s plugins/agent-workflow/skills/quota-strategy/tests -v
 ```

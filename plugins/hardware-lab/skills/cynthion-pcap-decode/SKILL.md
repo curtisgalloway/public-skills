@@ -46,7 +46,7 @@ anything beyond a smoke test, install tshark.
 ## Quick start
 
 ```bash
-cd skills/cynthion-pcap-decode/scripts
+cd <this skill's directory>/scripts
 
 # Full decode — JSON output (default)
 python3 decode.py capture.pcap

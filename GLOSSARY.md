@@ -5,8 +5,8 @@ SPDX-License-Identifier: Apache-2.0
 
 # Glossary
 
-Shared terminology for this repository. This initial glossary covers driver-specification
-evaluation; add other terms as the documents that use them are updated.
+Shared terminology for this repository. Add terms as the
+documents that use them are updated.
 
 | Term | Meaning |
 | --- | --- |
@@ -92,6 +92,6 @@ evaluation; add other terms as the documents that use them are updated.
 | Attractant | Anything in a clean-room spec that would pull a reader back to the encumbered source, such as a source file path or "the driver does X in function Y" narration. |
 | SDM | The Intel 8254x Software Developer's Manual (document 317453-006, revision 4.0), the e1000 hardware reference. |
 | Operator | In the driver-porting runs, the coordinating agent session that prepares inputs and briefs, launches the other agents, and writes the evidence; it writes no driver code. |
-| Review swarm | The `review-swarm` skill: four reviewer agents with narrow mandates, a mechanical check that drops findings not quotable from the code, and a referee. |
+| Review swarm | The `review-swarm` skill: one to seven reviewer agents with narrow mandates, a mechanical check that drops findings not quotable from the code, and a referee. |
 | Lab notebook | Append-only, timestamped notes per unit of work (chapters) plus an index, kept as the work happens (`lab-notebook` skill). |
 | Process log | A per-project log of where the agent's process cost time, as input for improving instructions and skills. |

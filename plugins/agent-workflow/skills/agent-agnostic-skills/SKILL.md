@@ -86,7 +86,8 @@ filesystem root, and record the resolved root in your first log line, so "where 
 was?" is answerable after the fact instead of by re-deriving it.
 
 Same pattern for skills directories, config files, and policy files. See
-`skills/cynthion-capture/scripts/_sibling.py` in this repo for a worked example that prefers the
+`plugins/hardware-lab/skills/cynthion-capture/scripts/_sibling.py` in this repo for a worked
+example that prefers the
 zero-configuration sibling case and keeps dead harnesses only as labeled legacy rungs.
 
 ## Match on argument names, not tool names
@@ -99,7 +100,7 @@ The same operation is called something different everywhere, and the names churn
 | run a shell command | `run_command` | `Bash` | `run_shell_command` |
 | fetch a URL | `read_url_content` | `WebFetch` | `web_fetch` |
 | search the web | `search_web` | `WebSearch` | `google_web_search` |
-| delegate | `invoke_subagent` | `Task` | (subagent invocation) |
+| delegate | `invoke_subagent` | `Agent` (formerly `Task`) | (subagent invocation) |
 
 Codex desktop exposes `exec_command` for shell commands, `apply_patch` for edits and
 `spawn_agent` for delegation where enabled. Discover the tools on the active surface.

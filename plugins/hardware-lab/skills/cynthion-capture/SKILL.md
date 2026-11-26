@@ -118,7 +118,7 @@ packetry --test-cynthion
 File → Save As → choose a `.pcap` filename.
 
 Packetry saves captures in standard pcap format, which can be opened in
-Wireshark with the USB dissector (`usbmon` link type).
+Wireshark with its USB 2.0 dissector (LINKTYPE\_USB\_2\_0, link type 288).
 
 ## Procedure: Headless capture (no GUI)
 
@@ -144,7 +144,7 @@ cargo build --release
 # optionally: cargo install --path .
 ```
 
-Requires Rust stable (edition 2024). Dependencies: `nusb`, `futures-lite`, `ctrlc`.
+Requires Rust stable (edition 2024). Dependencies: `nusb`, `futures-lite`, `ctrlc`, `flate2`.
 
 ### Usage
 
@@ -246,7 +246,7 @@ python3 scripts/rolling_capture.py captures/ --target-host user@target-machine
 
 # Skip auto-indexing (faster; index the whole directory later)
 python3 scripts/rolling_capture.py captures/ --no-index
-python3 scripts/index_pcap.py captures/*.pcap --manifest captures/
+python3 scripts/index_pcap.py captures/*.pcap.gz --manifest captures/
 ```
 
 ### Output structure
@@ -278,7 +278,7 @@ tshark open `.pcap.gz` files natively without any extra flags.
   },
   "segments": [
     {
-      "file": "capture_20260520_143000.pcap",
+      "file": "capture_20260520_143000.pcap.gz",
       "index": "capture_20260520_143000.json",
       "start_time": 1748000000.0,
       "end_time": 1748000300.0,
@@ -311,7 +311,7 @@ transfer counts and first/last-seen timestamps:
 
 ```json
 {
-  "file": "capture_20260520_143000.pcap",
+  "file": "capture_20260520_143000.pcap.gz",
   "start_time": 1748000000.0,
   "end_time": 1748000300.0,
   "duration_s": 300.0,
@@ -335,14 +335,14 @@ transfer counts and first/last-seen timestamps:
 
 ```bash
 # Which segments have traffic for VID 04e8?
-grep -l '"vid": "0x04e8"' captures/*.json
+grep -l '"idVendor": *"0x04e8"' captures/*.json
 
 # Quick manifest scan (jq):
 jq '.segments[] | select(.devices[].vid == "0x04e8") | .file' captures/manifest.json
 
 # Decode a specific segment in detail
-python3 skills/cynthion-pcap-decode/scripts/decode.py \
-    captures/capture_20260520_143000.pcap \
+python3 ../cynthion-pcap-decode/scripts/decode.py \
+    captures/capture_20260520_143000.pcap.gz \
     --filter address=3 --format transcript
 ```
 
@@ -364,7 +364,7 @@ the pcap.
 python3 scripts/index_pcap.py capture.pcap
 
 # Index all segments in a directory and build a manifest
-python3 scripts/index_pcap.py captures/*.pcap --manifest captures/
+python3 scripts/index_pcap.py captures/*.pcap.gz --manifest captures/
 
 # Print the index to stdout without writing a file
 python3 scripts/index_pcap.py capture.pcap --stdout
